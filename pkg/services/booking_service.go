@@ -47,10 +47,26 @@ func (s *BookingService) CreateBooking(req BookingRequest) (*core.Record, error)
 	record.Set("issue_description", req.IssueDesc)
 
 	// Backward compatibility: support both SlotID and BookingTime
+	// Backward compatibility: support both SlotID and BookingTime
 	if req.SlotID != "" {
 		record.Set("time_slot_id", req.SlotID)
-		// TODO: Integrate TimeSlotService to actually reserve the slot
-		// This will be handled by the handler layer to avoid circular dependency
+
+		// [FIX] Fetch slot details to populate 'booking_time' for display
+		slot, err := s.App.FindRecordById("time_slots", req.SlotID)
+		if err == nil && slot != nil {
+			// Slot has 'date' (YYYY-MM-DD 00:00:00.000Z) and 'start_time' (HH:MM or HH:MM:SS)
+			dateOnly := slot.GetString("date")        // "2026-01-30 00:00:00.000Z"
+			startTime := slot.GetString("start_time") // "08:00"
+
+			// Extract YYYY-MM-DD from date column
+			if len(dateOnly) >= 10 {
+				dateOnly = dateOnly[:10]
+			}
+
+			// Combine to "YYYY-MM-DD HH:MM"
+			bookingTime := dateOnly + " " + startTime
+			record.Set("booking_time", bookingTime)
+		}
 	} else if req.BookingTime != "" {
 		record.Set("booking_time", req.BookingTime)
 	}

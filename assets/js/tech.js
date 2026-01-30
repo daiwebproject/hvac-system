@@ -64,9 +64,12 @@ window.offlineIndicator = function () {
     };
 };
 
-window.techDashboard = function () {
+window.techDashboard = function (initData) {
+    const initState = (initData && initData.userActive) || (window.TECH_INIT && window.TECH_INIT.userActive) || false;
+    console.log('🚀 techDashboard init. userActive:', initState, 'TECH_INIT:', window.TECH_INIT);
     return {
         isOnline: navigator.onLine,
+        userActive: (initData && initData.userActive) || (window.TECH_INIT && window.TECH_INIT.userActive) || false,
         pendingReports: 0,
         activeTab: 'all', // all | new | active | completed
         showRefreshTimer: false,

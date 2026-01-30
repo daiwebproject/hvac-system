@@ -185,10 +185,13 @@ func RegisterRoutes(app *pocketbase.PocketBase, t *template.Template, eventBroke
 		apiGroup := se.Router.Group("/api/tech")
 		apiGroup.BindFunc(middleware.RequireTech(app))
 
-		apiGroup.POST("/job/{id}/status", tech.UpdateJobStatusHTMX)
+		// Job Management & Status Updates
+		apiGroup.GET("/jobs/list", tech.GetJobsListHTMX)
+		apiGroup.POST("/bookings/{id}/status", tech.UpdateJobStatusHTMX) // Fixed route
+		apiGroup.POST("/bookings/{id}/cancel", tech.CancelBooking)       // New
 		apiGroup.GET("/job/{id}/invoice", tech.GetJobInvoice)
 		apiGroup.POST("/job/{id}/payment", tech.ProcessPayment)
-		apiGroup.GET("/jobs/list", tech.GetJobsListHTMX)
+		apiGroup.POST("/status/toggle", tech.ToggleOnlineStatus) // New
 		// Đường dẫn mới sẽ là: /api/tech/fcm/token
 		apiGroup.POST("/fcm/token", fcm.RegisterDeviceToken)
 

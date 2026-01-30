@@ -118,6 +118,12 @@ func (h *TechHandler) getTechCommonData(techID string) map[string]interface{} {
 	}
 }
 
+// Helper for display
+type JobViewModel struct {
+	*core.Record
+	DisplayTime string
+}
+
 func (h *TechHandler) JobsList(e *core.RequestEvent) error {
 	authRecord := e.Auth
 	if authRecord == nil {
@@ -126,11 +132,11 @@ func (h *TechHandler) JobsList(e *core.RequestEvent) error {
 
 	data := h.getTechCommonData(authRecord.Id)
 
-	// Fetch jobs for list display
+	// Fetch jobs sorted by time (Earliest first)
 	jobs, err := h.App.FindRecordsByFilter(
 		"bookings",
 		fmt.Sprintf("technician_id='%s' && (job_status='assigned' || job_status='moving' || job_status='working')", authRecord.Id),
-		"-booking_time",
+		"+booking_time",
 		50,
 		0,
 		nil,
@@ -139,8 +145,42 @@ func (h *TechHandler) JobsList(e *core.RequestEvent) error {
 		fmt.Printf("Error fetching jobs: %v\n", err)
 	}
 
-	data["Jobs"] = jobs
+	// Prepare View Models
+	var viewModels []JobViewModel
+	for _, job := range jobs {
+		vm := JobViewModel{Record: job}
+
+		// Format Time
+		rawTime := job.GetString("booking_time")
+		parsedTime, err := time.Parse("2006-01-02 15:04", rawTime)
+		if err != nil {
+			parsedTime, _ = time.Parse("2006-01-02 15:04:05.000Z", rawTime)
+		}
+
+		if !parsedTime.IsZero() {
+			// Duration: Ideally fetch from service. For now default 2h.
+			endTime := parsedTime.Add(2 * time.Hour)
+			vm.DisplayTime = fmt.Sprintf("%02d:%02d - %02d:%02d %02d/%02d",
+				parsedTime.Hour(), parsedTime.Minute(),
+				endTime.Hour(), endTime.Minute(),
+				parsedTime.Day(), parsedTime.Month(),
+			)
+		} else {
+			vm.DisplayTime = "Chưa hẹn giờ"
+		}
+
+		viewModels = append(viewModels, vm)
+	}
+
+	data["Jobs"] = viewModels
 	data["PageType"] = "tech_jobs"
+
+	// Check for HTMX request for list partial
+	if e.Request.Header.Get("HX-Target") == "job-list-container" {
+		e.Response.Header().Set("Content-Type", "text/html; charset=utf-8")
+		// Note: partials/tech/jobs_list.html defines "tech/partials/jobs_list"
+		return h.Templates.ExecuteTemplate(e.Response, "tech/partials/jobs_list", data)
+	}
 
 	// Use layout inheritance
 	return RenderPage(h.Templates, e, "layouts/tech.html", "tech/dashboard.html", data)
@@ -150,13 +190,25 @@ func (h *TechHandler) JobsList(e *core.RequestEvent) error {
 func (h *TechHandler) JobDetail(e *core.RequestEvent) error {
 	jobID := e.Request.PathValue("id")
 
-	// 1. Lấy thông tin Booking
+	// 1. Validate job exists
 	job, err := h.App.FindRecordById("bookings", jobID)
 	if err != nil {
-		return e.String(404, "Job không tồn tại")
+		// Job not found - render helpful 404 page
+		return RenderPage(h.Templates, e, "layouts/tech.html", "tech/job_not_found.html", map[string]interface{}{
+			"Message": "Công việc này không tồn tại hoặc đã bị xóa khỏi hệ thống.",
+			"JobId":   jobID,
+		})
 	}
 
-	// 2. Lấy Báo cáo công việc (Report) - Chứa ảnh nghiệm thu, ghi chú
+	// 2. Verify job belongs to this technician
+	if job.GetString("technician_id") != e.Auth.Id {
+		return RenderPage(h.Templates, e, "layouts/tech.html", "tech/job_not_found.html", map[string]interface{}{
+			"Message": "Bạn không có quyền truy cập công việc này.",
+			"JobId":   jobID,
+		})
+	}
+
+	// 3. Get related data - Reports
 	reports, _ := h.App.FindRecordsByFilter(
 		"job_reports",
 		fmt.Sprintf("booking_id='%s'", jobID),
@@ -167,7 +219,7 @@ func (h *TechHandler) JobDetail(e *core.RequestEvent) error {
 		report = reports[0]
 	}
 
-	// 3. Lấy Hóa đơn (Invoice) - Chứa tổng tiền
+	// 4. Get Invoice
 	invoices, _ := h.App.FindRecordsByFilter(
 		"invoices",
 		fmt.Sprintf("booking_id='%s'", jobID),
@@ -178,7 +230,7 @@ func (h *TechHandler) JobDetail(e *core.RequestEvent) error {
 		invoice = invoices[0]
 	}
 
-	// 4. Tính toán tiến độ
+	// 5. Calculate Progress
 	progress := 0
 	status := job.GetString("job_status")
 	switch status {
@@ -199,6 +251,10 @@ func (h *TechHandler) JobDetail(e *core.RequestEvent) error {
 		"ProgressPercent": progress,
 		"IsTech":          true,
 	}
+
+	// DEBUG
+	fmt.Printf("🔍 JobDetail render - Job ID: %s, Status: %s, Progress: %d%%\n",
+		job.Id, job.GetString("job_status"), progress)
 
 	return RenderPage(h.Templates, e, "layouts/tech.html", "tech/job_detail.html", data)
 }
@@ -304,7 +360,7 @@ func (h *TechHandler) SubmitCompleteJob(e *core.RequestEvent) error {
 		return e.String(500, "Lỗi cập nhật trạng thái job")
 	}
 
-	// 5. Publish Events to notify admin and customer
+	// 5. Publish Events
 	h.Broker.Publish(broker.ChannelAdmin, "", broker.Event{
 		Type:      "job.completed",
 		Timestamp: time.Now().Unix(),
@@ -316,16 +372,42 @@ func (h *TechHandler) SubmitCompleteJob(e *core.RequestEvent) error {
 		},
 	})
 
-	h.Broker.Publish(broker.ChannelCustomer, jobID, broker.Event{
-		Type:      "job.completed",
-		Timestamp: time.Now().Unix(),
-		Data: map[string]interface{}{
-			"status":  "completed",
-			"message": "Công việc đã hoàn thành. Vui lòng xem hóa đơn.",
-		},
-	})
+	// Redirect to Invoice & Payment page instead of jobs list
+	return e.Redirect(http.StatusSeeOther, fmt.Sprintf("/tech/job/%s/invoice-payment", jobID))
+}
 
-	return e.Redirect(http.StatusSeeOther, "/tech/jobs")
+// ShowInvoicePayment displays the invoice, signature canvas, and payment options
+// GET /tech/job/{id}/invoice-payment
+func (h *TechHandler) ShowInvoicePayment(e *core.RequestEvent) error {
+	jobID := e.Request.PathValue("id")
+
+	job, err := h.App.FindRecordById("bookings", jobID)
+	if err != nil {
+		return e.String(404, "Job not found")
+	}
+
+	// Get or Generate Invoice
+	invoices, _ := h.App.FindRecordsByFilter("invoices", fmt.Sprintf("booking_id='%s'", jobID), "", 1, 0, nil)
+	var invoice *core.Record
+	if len(invoices) > 0 {
+		invoice = invoices[0]
+	} else {
+		// Should have been generated in SubmitCompleteJob, but safe fallback
+		invoice, _ = h.InvoiceService.GenerateInvoice(jobID)
+	}
+
+	data := map[string]interface{}{
+		"Job":     job,
+		"Invoice": invoice,
+		"IsTech":  true,
+		// Hardcoded Company Bank Info for QR
+		"BankBin":     "970422", // MBBank (Example) - Use valid BIN
+		"BankAccount": "0333666999",
+		"BankName":    "MB BANK",
+		"AccountName": "CTY DIEN LANH",
+	}
+
+	return RenderPage(h.Templates, e, "layouts/tech.html", "tech/invoice_payment.html", data)
 }
 
 // --- Stub methods for existing routes ---
@@ -340,15 +422,39 @@ func (h *TechHandler) Dashboard(e *core.RequestEvent) error {
 	// Lấy dữ liệu tổng quan (Số lượng, Doanh thu...)
 	data := h.getTechCommonData(authRecord.Id)
 
+	// DEBUG: Log actual auth record state
+	fmt.Printf("🔍 Dashboard render - Tech ID: %s, active from e.Auth: %v\n", authRecord.Id, authRecord.GetBool("active"))
+
 	// Đảm bảo truyền Jobs rỗng hoặc list mặc định để tránh lỗi nil pointer trong view
 	// (Phần list job sẽ được HTMX load sau hoặc load ngay tùy ý)
 	// Ở đây ta để HTMX load list job sau (lazy load) hoặc load luôn 5 job đầu tiên:
+	// Load jobs (Earliest first)
 	jobs, _ := h.App.FindRecordsByFilter(
 		"bookings",
 		fmt.Sprintf("technician_id='%s' && (job_status='assigned' || job_status='moving' || job_status='working')", authRecord.Id),
-		"-booking_time", 5, 0, nil,
+		"+booking_time", 5, 0, nil,
 	)
-	data["Jobs"] = jobs
+
+	var viewModels []JobViewModel
+	for _, job := range jobs {
+		vm := JobViewModel{Record: job}
+		// Basic format for dashboard widget
+		rawTime := job.GetString("booking_time")
+		parsedTime, err := time.Parse("2006-01-02 15:04", rawTime)
+		if err != nil {
+			parsedTime, _ = time.Parse("2006-01-02 15:04:05.000Z", rawTime)
+		}
+		if !parsedTime.IsZero() {
+			endTime := parsedTime.Add(2 * time.Hour)
+			vm.DisplayTime = fmt.Sprintf("%02d:%02d - %02d:%02d",
+				parsedTime.Hour(), parsedTime.Minute(),
+				endTime.Hour(), endTime.Minute(),
+			)
+		}
+		viewModels = append(viewModels, vm)
+	}
+
+	data["Jobs"] = viewModels
 
 	return RenderPage(h.Templates, e, "layouts/tech.html", "tech/dashboard.html", data)
 }

@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"fmt"
+	"net/http"
 	"time"
 
 	"hvac-system/pkg/broker"
@@ -22,12 +23,13 @@ func (h *TechHandler) UpdateJobStatusHTMX(e *core.RequestEvent) error {
 		return e.String(404, "Job not found")
 	}
 
-	// Validate status transition
+	// Validate status transition (Updated to match UI flow)
 	currentStatus := job.GetString("job_status")
 	validTransition := map[string][]string{
-		"assigned": {"moving"},
-		"moving":   {"working"},
-		"working":  {"completed"},
+		"pending":  {"moving", "cancelled"},
+		"assigned": {"moving", "cancelled"},
+		"moving":   {"working", "cancelled"},
+		"working":  {"completed", "cancelled"},
 	}
 
 	allowed := false
@@ -114,7 +116,7 @@ func (h *TechHandler) GetJobInvoice(e *core.RequestEvent) error {
 	return h.renderPartial(e, "tech/partials/invoice", data)
 }
 
-// POST /api/tech/job/{id}/payment - Process payment
+// POST /api/tech/job/{id}/payment - Process payment and signature
 func (h *TechHandler) ProcessPayment(e *core.RequestEvent) error {
 	jobID := e.Request.PathValue("id")
 	paymentMethod := e.Request.FormValue("payment_method")
@@ -136,14 +138,31 @@ func (h *TechHandler) ProcessPayment(e *core.RequestEvent) error {
 	invoice.Set("payment_method", paymentMethod)
 	invoice.Set("status", "paid")
 
+	// Handle Signature Upload
+	// Expecting "signature_file" from FormData (converted from canvas blob)
+	file, _, err := e.Request.FormFile("signature_file")
+	if err == nil {
+		defer file.Close()
+		// Create a filesystem file from multipart/form-data
+		// PocketBase core.FileField expects *multipart.FileHeader or similar.
+		// Actually e.FindUploadedFiles is easier.
+	}
+
+	files, _ := e.FindUploadedFiles("signature_file")
+	if len(files) > 0 {
+		invoice.Set("customer_signature", files[0])
+	}
+
 	if err := h.App.Save(invoice); err != nil {
-		return e.String(500, "Failed to update payment")
+		fmt.Printf("Payment Save Error: %v\n", err)
+		return e.String(500, "Failed to update payment: "+err.Error())
 	}
 
 	// Update job status if needed
 	job, _ := h.App.FindRecordById("bookings", jobID)
 	if job != nil {
 		job.Set("payment_status", "paid")
+		// Maybe set job_status to completed if not already (it is)
 		h.App.Save(job)
 	}
 
@@ -158,11 +177,15 @@ func (h *TechHandler) ProcessPayment(e *core.RequestEvent) error {
 		},
 	})
 
-	e.Response.Header().Set("HX-Trigger", `{"paymentComplete": true}`)
-	return e.JSON(200, map[string]interface{}{
-		"status":  "success",
-		"message": "Payment processed successfully",
-	})
+	// HTMX redirect or Client redirect
+	// Since this is a full page form usually (or heavy partial), let's redirect to dashboard
+	// Or return success JSON
+	if e.Request.Header.Get("HX-Request") != "" {
+		e.Response.Header().Set("HX-Redirect", "/tech/jobs")
+		return e.NoContent(200)
+	}
+
+	return e.Redirect(http.StatusSeeOther, "/tech/jobs")
 }
 
 // GET /api/tech/jobs/list - Get refreshed job list (for HTMX pull)
@@ -210,8 +233,34 @@ func (h *TechHandler) GetJobsListHTMX(e *core.RequestEvent) error {
 		jobs = []*core.Record{}
 	}
 
+	// Prepare View Models using shared logic
+	var viewModels []JobViewModel
+	for _, job := range jobs {
+		vm := JobViewModel{Record: job}
+
+		// Format Time (Reusing logic from TechHandler.JobsList)
+		rawTime := job.GetString("booking_time")
+		parsedTime, err := time.Parse("2006-01-02 15:04", rawTime)
+		if err != nil {
+			parsedTime, _ = time.Parse("2006-01-02 15:04:05.000Z", rawTime)
+		}
+
+		if !parsedTime.IsZero() {
+			endTime := parsedTime.Add(2 * time.Hour)
+			vm.DisplayTime = fmt.Sprintf("%02d:%02d - %02d:%02d %02d/%02d",
+				parsedTime.Hour(), parsedTime.Minute(),
+				endTime.Hour(), endTime.Minute(),
+				parsedTime.Day(), parsedTime.Month(),
+			)
+		} else {
+			vm.DisplayTime = "Chưa hẹn giờ"
+		}
+
+		viewModels = append(viewModels, vm)
+	}
+
 	data := map[string]interface{}{
-		"Jobs": jobs,
+		"Jobs": viewModels,
 	}
 
 	e.Response.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -247,4 +296,37 @@ func (h *TechHandler) renderPartial(e *core.RequestEvent, templateName string, d
 		return e.String(500, "Template error: "+err.Error())
 	}
 	return nil
+}
+
+// POST /api/tech/status/toggle
+func (h *TechHandler) ToggleOnlineStatus(e *core.RequestEvent) error {
+	authRecord := e.Auth
+	if authRecord == nil {
+		return e.String(401, "Unauthorized")
+	}
+
+	isActive := authRecord.GetBool("active")
+	newStatus := !isActive
+	authRecord.Set("active", newStatus)
+
+	if err := h.App.Save(authRecord); err != nil {
+		return e.String(500, "Failed to update status")
+	}
+
+	// CRITICAL FIX: Refresh auth token to update cached "active" value
+	// Without this, e.Auth on next request will still have old value from JWT
+	newToken, err := authRecord.NewAuthToken()
+	if err != nil {
+		fmt.Printf("Warning: Failed to refresh auth token: %v\n", err)
+	} else {
+		http.SetCookie(e.Response, &http.Cookie{
+			Name:     "pb_auth",
+			Value:    newToken,
+			Path:     "/",
+			Secure:   false,
+			HttpOnly: true,
+		})
+	}
+
+	return e.JSON(200, map[string]bool{"active": newStatus})
 }

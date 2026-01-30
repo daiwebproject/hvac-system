@@ -1,36 +1,50 @@
 {{define "tech/partials/job_actions"}}
-    {{ $status := .Job.GetString "job_status" }}
-    
-    {{ if eq $status "assigned" }}
-        <button hx-post="/api/tech/job/{{.Job.Id}}/status" 
-                hx-vals='{"status":"moving"}' 
-                hx-target="#job-actions-container" 
-                hx-swap="innerHTML" 
-                class="btn btn-info btn-lg w-full h-20 text-xl shadow-lg border-none text-white">
-            <i class="fa-solid fa-person-walking-arrow-right text-2xl"></i> BẮT ĐẦU DI CHUYỂN
-        </button>
-        <p class="text-xs text-center mt-2 text-gray-500">Thông báo cho khách hàng bạn đang đến</p>
+{{ $status := .Job.GetString "job_status" }}
 
-    {{ else if eq $status "moving" }}
-        <button hx-post="/api/tech/job/{{.Job.Id}}/status" 
-                hx-vals='{"status":"working"}' 
-                hx-target="#job-actions-container" 
-                hx-swap="innerHTML" 
-                class="btn btn-warning btn-lg w-full h-20 text-xl shadow-lg border-none">
-            <i class="fa-solid fa-location-dot text-2xl"></i> CHECK-IN TẠI NHÀ
-        </button>
-        <p class="text-xs text-center mt-2 text-gray-500">Xác nhận đã có mặt đúng giờ</p>
+{{ if eq $status "assigned" }}
+<button hx-post="/api/tech/job/{{.Job.Id}}/status" hx-vals='{"status":"moving"}' hx-target="#job-actions-container"
+    hx-swap="innerHTML" class="btn btn-info btn-lg w-full h-20 text-xl shadow-lg border-none text-white">
+    <i class="fa-solid fa-person-walking-arrow-right text-2xl"></i> BẮT ĐẦU DI CHUYỂN
+</button>
+<p class="text-xs text-center mt-2 text-gray-500">Thông báo cho khách hàng bạn đang đến</p>
 
-    {{ else if eq $status "working" }}
-        <a href="/tech/job/{{.Job.Id}}/complete" 
-           class="btn btn-success btn-lg w-full h-20 text-xl shadow-lg border-none text-white">
-            <i class="fa-solid fa-check-circle text-2xl"></i> HOÀN THÀNH
-        </a>
-        <p class="text-xs text-center mt-2 text-gray-500">Đã sửa xong, chuyển sang nghiệm thu</p>
+{{ else if eq $status "moving" }}
+<button hx-post="/api/tech/job/{{.Job.Id}}/status" hx-vals='{"status":"arrived"}' hx-target="#job-actions-container"
+    hx-swap="innerHTML" class="btn btn-warning btn-lg w-full h-20 text-xl shadow-lg border-none">
+    <i class="fa-solid fa-location-dot text-2xl"></i> ĐÃ ĐẾN NƠI (Check-in)
+</button>
+<p class="text-xs text-center mt-2 text-gray-500">Xác nhận đã có mặt tại điểm hẹn</p>
 
-    {{ else }}
-        <div class="alert alert-success shadow-lg">
-            <i class="fa-solid fa-check-circle"></i> <span>Công việc đã hoàn tất</span>
-        </div>
-    {{ end }}
+{{ else if eq $status "arrived" }}
+<div class="space-y-3">
+    <button hx-post="/api/tech/job/{{.Job.Id}}/status" hx-vals='{"status":"working"}' hx-target="#job-actions-container"
+        hx-swap="innerHTML" class="btn btn-primary btn-lg w-full h-16 text-lg shadow-lg border-none">
+        <i class="fa-solid fa-screwdriver-wrench text-xl"></i> BẮT ĐẦU LÀM VIỆC
+    </button>
+
+    <button
+        onclick="if(confirm('Xác nhận khách vắng nhà?')) htmx.ajax('POST', '/api/tech/job/{{.Job.Id}}/status', {target:'#job-actions-container', values:{status:'failed'}})"
+        class="btn btn-outline btn-error w-full">
+        <i class="fa-solid fa-user-xmark"></i> KHÁCH VẮNG NHÀ
+    </button>
+</div>
+<p class="text-xs text-center mt-2 text-gray-500">Vui lòng kiểm tra kỹ trước khi báo cáo</p>
+
+{{ else if eq $status "working" }}
+<a href="/tech/job/{{.Job.Id}}/complete"
+    class="btn btn-success btn-lg w-full h-20 text-xl shadow-lg border-none text-white">
+    <i class="fa-solid fa-check-circle text-2xl"></i> HOÀN THÀNH
+</a>
+<p class="text-xs text-center mt-2 text-gray-500">Đã sửa xong, chuyển sang nghiệm thu</p>
+
+{{ else if eq $status "failed" }}
+<div class="alert alert-error shadow-lg">
+    <i class="fa-solid fa-triangle-exclamation"></i> <span>Đã báo cáo: Khách vắng / Sự cố</span>
+</div>
+
+{{ else }}
+<div class="alert alert-success shadow-lg">
+    <i class="fa-solid fa-check-circle"></i> <span>Công việc đã hoàn tất</span>
+</div>
+{{ end }}
 {{end}}

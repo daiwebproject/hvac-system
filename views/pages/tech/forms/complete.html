@@ -1,5 +1,4 @@
-{{define "content"}} <div class="max-w-md mx-auto bg-gray-50 min-h-screen" 
-     x-data="jobCompletion({
+{{define "content"}} <div class="max-w-md mx-auto bg-gray-50 min-h-screen" x-data="jobCompletion({
          jobId: '{{.Booking.Id}}',
          laborPrice: {{.LaborPrice}}
      })">
@@ -17,37 +16,40 @@
             <h3 class="font-bold text-gray-800 mb-3 flex items-center">
                 <i class="fas fa-camera text-blue-500 mr-2"></i> Ảnh nghiệm thu <span class="text-red-500 ml-1">*</span>
             </h3>
-            
+
             <div class="grid grid-cols-3 gap-3">
                 <template x-for="(photo, index) in photos" :key="index">
                     <div class="relative aspect-square rounded-lg overflow-hidden border shadow-sm group">
                         <img :src="photo" class="w-full h-full object-cover">
-                        <button type="button" @click="removePhoto(index)" 
+                        <button type="button" @click="removePhoto(index)"
                             class="absolute top-1 right-1 bg-red-500/80 text-white rounded-full w-6 h-6 flex items-center justify-center shadow-md backdrop-blur-sm">
                             <i class="fas fa-times text-xs"></i>
                         </button>
                     </div>
                 </template>
 
-                <label class="aspect-square rounded-lg border-2 border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-400 hover:border-blue-500 hover:text-blue-500 bg-gray-50 cursor-pointer transition active:scale-95">
+                <label
+                    class="aspect-square rounded-lg border-2 border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-400 hover:border-blue-500 hover:text-blue-500 bg-gray-50 cursor-pointer transition active:scale-95">
                     <i class="fas fa-plus text-2xl mb-1"></i>
                     <span class="text-xs font-medium">Thêm ảnh</span>
-                    <input type="file" accept="image/*" capture="environment" class="hidden" 
-                           @change="addPhoto($event)">
+                    <input type="file" accept="image/*" capture="environment" class="hidden" @change="addPhoto($event)">
                 </label>
             </div>
         </div>
 
         <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
-             <h3 class="font-bold text-gray-800 mb-2"><i class="fa-solid fa-pen-to-square text-blue-500 mr-2"></i> Ghi chú kỹ thuật</h3>
-            <textarea x-model="notes" rows="3" class="textarea textarea-bordered w-full focus:outline-none focus:border-blue-500" 
+            <h3 class="font-bold text-gray-800 mb-2"><i class="fa-solid fa-pen-to-square text-blue-500 mr-2"></i> Ghi
+                chú kỹ thuật</h3>
+            <textarea x-model="notes" rows="3"
+                class="textarea textarea-bordered w-full focus:outline-none focus:border-blue-500"
                 placeholder="Mô tả công việc đã làm..."></textarea>
         </div>
 
         <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
             <div class="flex justify-between items-center mb-4">
-                <h3 class="font-bold text-gray-800"><i class="fas fa-boxes-stacked text-blue-500 mr-2"></i> Vật tư sử dụng</h3>
-                
+                <h3 class="font-bold text-gray-800"><i class="fas fa-boxes-stacked text-blue-500 mr-2"></i> Vật tư sử
+                    dụng</h3>
+
                 <button type="button" @click="scanQR()" class="btn btn-sm btn-outline btn-primary gap-2">
                     <i class="fas fa-qrcode"></i> Quét mã
                 </button>
@@ -58,21 +60,27 @@
                     <div class="flex justify-between items-center bg-gray-50 p-3 rounded-lg border border-gray-100">
                         <div class="flex-1">
                             <div class="font-bold text-gray-800 text-sm" x-text="item.name"></div>
-                            <div class="text-xs text-gray-500 font-mono mt-1" x-text="formatMoney(item.price) + ' đ'"></div>
-                        </div>
-                        
-                        <div class="flex items-center gap-3">
-                             <div class="join border border-gray-300 rounded-lg bg-white h-8">
-                                <button type="button" @click="updateQty(index, -1)" class="btn btn-xs btn-ghost join-item px-2">-</button>
-                                <div class="join-item px-2 flex items-center text-sm font-bold w-8 justify-center border-x border-gray-200" x-text="item.qty"></div>
-                                <button type="button" @click="updateQty(index, 1)" class="btn btn-xs btn-ghost join-item px-2">+</button>
+                            <div class="text-xs text-gray-500 font-mono mt-1" x-text="formatMoney(item.price) + ' đ'">
                             </div>
-                            <div class="font-bold text-blue-600 text-sm w-20 text-right" x-text="formatMoney(item.price * item.qty)"></div>
+                        </div>
+
+                        <div class="flex items-center gap-3">
+                            <div class="join border border-gray-300 rounded-lg bg-white h-8">
+                                <button type="button" @click="updateQty(index, -1)"
+                                    class="btn btn-xs btn-ghost join-item px-2">-</button>
+                                <div class="join-item px-2 flex items-center text-sm font-bold w-8 justify-center border-x border-gray-200"
+                                    x-text="item.qty"></div>
+                                <button type="button" @click="updateQty(index, 1)"
+                                    class="btn btn-xs btn-ghost join-item px-2">+</button>
+                            </div>
+                            <div class="font-bold text-blue-600 text-sm w-20 text-right"
+                                x-text="formatMoney(item.price * item.qty)"></div>
                         </div>
                     </div>
                 </template>
-                
-                <div x-show="parts.length === 0" class="text-center py-4 text-gray-400 text-sm italic bg-gray-50 rounded-lg border border-dashed">
+
+                <div x-show="parts.length === 0"
+                    class="text-center py-4 text-gray-400 text-sm italic bg-gray-50 rounded-lg border border-dashed">
                     Chưa có vật tư nào được thêm
                 </div>
             </div>
@@ -87,7 +95,8 @@
             </select>
         </div>
 
-        <div class="bg-white p-4 rounded-xl shadow-[0_-5px_20px_rgba(0,0,0,0.05)] border border-gray-200 fixed bottom-0 left-0 right-0 z-30 pb-safe">
+        <div
+            class="bg-white p-4 rounded-xl shadow-[0_-5px_20px_rgba(0,0,0,0.05)] border border-gray-200 fixed bottom-0 left-0 right-0 z-30 pb-safe">
             <div class="max-w-md mx-auto">
                 <div class="space-y-2 mb-4 text-sm">
                     <div class="flex justify-between text-gray-600">
@@ -105,7 +114,8 @@
                     </div>
                 </div>
 
-                <button type="submit" :disabled="loading || photos.length === 0" class="btn btn-primary w-full text-lg shadow-lg">
+                <button type="submit" :disabled="loading || photos.length === 0"
+                    class="btn btn-primary w-full text-lg shadow-lg">
                     <span x-show="!loading"><i class="fas fa-check-circle mr-2"></i> HOÀN THÀNH CÔNG VIỆC</span>
                     <span x-show="loading" class="loading loading-spinner"></span>
                 </button>
@@ -136,7 +146,7 @@
             addPhoto(event) {
                 const file = event.target.files[0];
                 if (!file) return;
-                
+
                 // Nén ảnh đơn giản (nếu cần) hoặc đọc trực tiếp
                 const reader = new FileReader();
                 reader.onload = (e) => this.photos.push(e.target.result);
@@ -149,7 +159,7 @@
 
             addManualPart() {
                 if (!this.selectedPartId) return;
-                
+
                 // Tìm option đang chọn để lấy data attribute
                 const select = document.querySelector('select[x-model="selectedPartId"]');
                 const option = select.options[select.selectedIndex];
@@ -157,7 +167,7 @@
                 const price = parseFloat(option.getAttribute('data-price'));
 
                 this.addPartItem(this.selectedPartId, name, price);
-                
+
                 // Reset select
                 this.selectedPartId = '';
             },
@@ -184,7 +194,7 @@
                 // Tạm thời dùng mock function. 
                 // Sau này tích hợp html5-qrcode: Html5QrcodeScanner
                 alert('Tính năng đang phát triển: Camera sẽ bật lên tại đây!');
-                
+
                 // Giả lập quét thành công 1 món
                 // this.addPartItem('TEST_QR', 'Vật tư từ QR', 50000);
             },
@@ -194,33 +204,43 @@
                     alert('Vui lòng chụp ít nhất 1 ảnh nghiệm thu!');
                     return;
                 }
-                
+
                 if (!confirm(`Xác nhận hoàn thành với tổng tiền ${this.formatMoney(this.grandTotal)}?`)) return;
 
                 this.loading = true;
-                
+
                 // Chuẩn bị FormData
                 const fd = new FormData();
                 fd.append('notes', this.notes);
-                
-                // Gửi ảnh (Base64 -> File hoặc gửi chuỗi Base64 tùy backend xử lý)
-                // Ở đây gửi chuỗi base64 cho đơn giản, backend cần decode
-                this.photos.forEach(p => fd.append('photos[]', p));
-                
-                // Gửi danh sách vật tư (JSON string)
-                fd.append('parts', JSON.stringify(this.parts));
+
+                // ✅ FIX 1: Convert base64 to File objects with correct field name
+                for (let i = 0; i < this.photos.length; i++) {
+                    const base64 = this.photos[i];
+                    // Convert base64 to blob
+                    const res = await fetch(base64);
+                    const blob = await res.blob();
+                    // Create File object with proper name
+                    const file = new File([blob], `photo_${i + 1}.jpg`, { type: 'image/jpeg' });
+                    // Use correct field name that backend expects
+                    fd.append('after_images', file);
+                }
+
+                // ✅ FIX 2: Use correct field name for parts
+                fd.append('parts_json', JSON.stringify(this.parts));
 
                 try {
                     const res = await fetch(`/tech/job/${this.jobId}/complete`, {
                         method: 'POST',
                         body: fd
                     });
-                    
-                    if (res.ok) {
-                        alert('Đã báo cáo hoàn thành!');
-                        window.location.href = '/tech/jobs';
+
+                    // ✅ FIX 3: Follow backend redirect instead of forcing our own
+                    if (res.ok || res.redirected) {
+                        // Backend redirects to invoice-payment page
+                        window.location.href = res.url || `/tech/job/${this.jobId}/invoice-payment`;
                     } else {
-                        alert('Có lỗi xảy ra!');
+                        const errorText = await res.text();
+                        alert('Có lỗi xảy ra: ' + errorText);
                     }
                 } catch (e) {
                     alert('Lỗi kết nối: ' + e.message);

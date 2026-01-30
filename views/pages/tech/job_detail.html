@@ -1,24 +1,37 @@
-{{define "content"}}
+{{ define "content" }}
 <div x-data="jobDetail({
         id: '{{.Job.Id}}',
-        lat: {{.Job.GetFloat "lat"}},
-        long: {{.Job.GetFloat "long"}},
-        address: '{{.Job.GetString "address_details" | js}}', status: '{{.Job.GetString "job_status"}}'
-    })" 
-    class="bg-gray-50 min-h-screen pb-32"> <nav class="bg-white shadow-sm sticky top-0 z-50 px-4 py-3 flex items-center justify-between">
-        <div class="flex items-center gap-3">
-            <a href="/tech/jobs" class="btn btn-sm btn-circle btn-ghost">
-                <i class="fa-solid fa-arrow-left text-lg"></i>
-            </a>
-            <h1 class="font-bold text-lg text-gray-800">Chi tiết công việc</h1>
+        lat: {{.Job.GetFloat " lat"}}, long: {{.Job.GetFloat "long" }}, address: {{printf "%q"
+    (.Job.GetString "address_details" )}}, status: '{{.Job.GetString "job_status"}}' })"
+    class="bg-gray-50 min-h-screen pb-32">
+
+    <nav class="bg-white shadow-sm sticky top-0 z-50">
+        <div class="px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <a href="/tech/jobs" class="btn btn-sm btn-circle btn-ghost">
+                    <i class="fa-solid fa-arrow-left text-lg"></i>
+                </a>
+                <h1 class="font-bold text-lg text-gray-800">Chi tiết công việc</h1>
+            </div>
+            <span class="badge font-bold uppercase text-[10px] tracking-wider" :class="{
+                'badge-warning': status === 'pending' || status === 'assigned',
+                'badge-primary': status === 'moving',
+                'badge-secondary': status === 'working',
+                'badge-success': status === 'completed',
+                'badge-ghost': status === 'cancelled'
+            }" x-text="getStatusLabel(status)"></span>
         </div>
-        <span class="badge font-bold" :class="{
-            'badge-warning': status === 'pending',
-            'badge-info': status === 'assigned',
-            'badge-primary': status === 'moving',
-            'badge-secondary': status === 'working',
-            'badge-success': status === 'completed'
-        }" x-text="getStatusLabel(status)"></span>
+
+        <div class="px-6 py-2 pb-4 bg-white border-b border-gray-100 overflow-x-auto no-scrollbar">
+            <ul class="steps steps-horizontal w-full text-xs">
+                <li class="step"
+                    :class="['assigned','moving','working','completed'].includes(status) ? 'step-primary' : ''">Mới</li>
+                <li class="step" :class="['moving','working','completed'].includes(status) ? 'step-primary' : ''">Di
+                    chuyển</li>
+                <li class="step" :class="['working','completed'].includes(status) ? 'step-primary' : ''">Đang làm</li>
+                <li class="step" :class="status === 'completed' ? 'step-success' : ''">Xong</li>
+            </ul>
+        </div>
     </nav>
 
     <div class="max-w-lg mx-auto p-4 space-y-4">
@@ -27,7 +40,8 @@
             <div class="p-5">
                 <div class="flex items-start justify-between mb-4">
                     <div class="flex gap-3">
-                        <div class="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-xl">
+                        <div
+                            class="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-xl uppercase">
                             {{ slice (.Job.GetString "customer_name") 0 1 }}
                         </div>
                         <div>
@@ -35,7 +49,8 @@
                             <p class="text-gray-500 text-sm">{{.Job.GetString "customer_phone"}}</p>
                         </div>
                     </div>
-                    <a href="tel:{{.Job.GetString "customer_phone"}}" class="btn btn-circle btn-success btn-sm text-white shadow-lg">
+                    <a href="tel:{{.Job.GetString " customer_phone"}}"
+                        class="btn btn-circle btn-success btn-sm text-white shadow-lg">
                         <i class="fa-solid fa-phone"></i>
                     </a>
                 </div>
@@ -47,9 +62,9 @@
                             {{.Job.GetString "address_details"}}
                         </p>
                     </div>
-                    
-                    <a :href="getMapLink()" target="_blank" 
-                       class="btn btn-outline btn-primary btn-sm w-full mt-3 gap-2 rounded-lg">
+
+                    <a :href="getMapLink()" target="_blank"
+                        class="btn btn-outline btn-primary btn-sm w-full mt-3 gap-2 rounded-lg">
                         <i class="fa-solid fa-diamond-turn-right"></i> Dẫn đường (Google Maps)
                     </a>
                 </div>
@@ -59,11 +74,12 @@
         <div class="card bg-white shadow-sm border border-gray-100 rounded-2xl">
             <div class="p-5">
                 <h3 class="font-bold text-gray-500 text-xs uppercase tracking-wider mb-3">Thông tin yêu cầu</h3>
-                
+
                 <div class="space-y-3">
                     <div class="flex justify-between border-b border-dashed pb-2">
                         <span class="text-gray-600">Dịch vụ</span>
-                        <span class="font-bold text-blue-700">{{.Job.GetString "device_type"}}</span>
+                        <span class="font-bold text-blue-700">{{.Job.GetString "device_type"}} {{.Job.GetString
+                            "brand"}}</span>
                     </div>
                     <div class="flex justify-between border-b border-dashed pb-2">
                         <span class="text-gray-600">Thời gian hẹn</span>
@@ -71,7 +87,8 @@
                     </div>
                     <div>
                         <span class="text-gray-600 block mb-1">Ghi chú / Sự cố:</span>
-                        <div class="bg-yellow-50 text-yellow-800 p-3 rounded-lg text-sm italic border border-yellow-100">
+                        <div
+                            class="bg-yellow-50 text-yellow-800 p-3 rounded-lg text-sm italic border border-yellow-100">
                             "{{.Job.GetString "issue_description"}}"
                         </div>
                     </div>
@@ -81,29 +98,38 @@
 
         {{ if eq (.Job.GetString "job_status") "completed" }}
         <div class="card bg-white shadow-sm border-t-4 border-success">
-             <div class="card-body p-5 text-center">
+            <div class="card-body p-5 text-center">
                 <i class="fa-solid fa-check-circle text-5xl text-success mb-2"></i>
                 <h3 class="font-bold text-lg">Đã Hoàn Thành</h3>
-                <p class="text-gray-500">Tổng thu: <span class="font-bold text-primary">{{ if .Invoice }}{{ formatMoney (.Invoice.GetFloat "total_amount") }}{{ end }} ₫</span></p>
-             </div>
+                <p class="text-gray-500">Tổng thu:
+                    <span class="font-bold text-primary">
+                        {{ if .Invoice }}{{ printf "%.0f" (.Invoice.GetFloat "total_amount") }}{{ else }}0{{ end }}k
+                    </span>
+                </p>
+            </div>
         </div>
         {{ end }}
-
     </div>
 
     {{ if ne (.Job.GetString "job_status") "completed" }}
     <div class="fixed bottom-0 left-0 right-0 bg-white border-t p-4 shadow-[0_-5px_15px_rgba(0,0,0,0.1)] z-40">
         <div class="max-w-lg mx-auto flex gap-3">
-            
-            <template x-if="status === 'assigned'">
-                <button @click="updateStatus('moving')" class="btn btn-primary flex-1 shadow-lg text-lg animate-pulse">
-                    <i class="fa-solid fa-motorcycle"></i> BẮT ĐẦU DI CHUYỂN
+
+            <template x-if="status === 'assigned' || status === 'pending'">
+                <button @click="updateStatus('moving')" :disabled="loading"
+                    class="btn btn-primary flex-1 shadow-lg text-lg animate-pulse">
+                    <i class="fa-solid fa-motorcycle" x-show="!loading"></i>
+                    <span x-show="loading" class="loading loading-spinner loading-sm"></span>
+                    BẮT ĐẦU DI CHUYỂN
                 </button>
             </template>
 
             <template x-if="status === 'moving'">
-                <button @click="updateStatus('working')" class="btn btn-secondary flex-1 shadow-lg text-lg">
-                    <i class="fa-solid fa-screwdriver-wrench"></i> ĐÃ ĐẾN & BẮT ĐẦU LÀM
+                <button @click="updateStatus('working')" :disabled="loading"
+                    class="btn btn-secondary flex-1 shadow-lg text-lg">
+                    <i class="fa-solid fa-screwdriver-wrench" x-show="!loading"></i>
+                    <span x-show="loading" class="loading loading-spinner loading-sm"></span>
+                    ĐÃ ĐẾN & BẮT ĐẦU LÀM
                 </button>
             </template>
 
@@ -113,9 +139,46 @@
                 </a>
             </template>
 
+            <!-- Cancel Button (available for all non-completed statuses) -->
+            <button @click="showCancelModal = true" class="btn btn-outline btn-error btn-sm"
+                :class="status === 'completed' || status === 'cancelled' ? 'hidden' : ''">
+                <i class="fa-solid fa-ban"></i> Hủy
+            </button>
+
         </div>
     </div>
     {{ end }}
+
+    <!-- Cancel Modal -->
+    <div x-show="showCancelModal" x-cloak class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+        @click.self="showCancelModal = false">
+        <div class="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl" @click.stop>
+            <h3 class="text-xl font-bold mb-4 text-gray-800">
+                <i class="fa-solid fa-triangle-exclamation text-orange-500"></i> Xác nhận hủy công việc
+            </h3>
+            <p class="text-sm text-gray-600 mb-4">Vui lòng chọn lý do hủy:</p>
+
+            <select x-model="cancelReason" class="select select-bordered w-full mb-4">
+                <option value="">-- Chọn lý do --</option>
+                <option value="customer_not_home">Khách không có nhà</option>
+                <option value="customer_cancelled">Khách hủy yêu cầu</option>
+                <option value="cannot_fix">Không thể sửa được</option>
+                <option value="missing_parts">Thiếu linh kiện</option>
+                <option value="other">Lý do khác</option>
+            </select>
+
+            <textarea x-show="cancelReason === 'other'" x-model="cancelNote"
+                class="textarea textarea-bordered w-full mb-4" placeholder="Nhập lý do cụ thể..."></textarea>
+
+            <div class="flex gap-3 justify-end">
+                <button @click="showCancelModal = false" class="btn btn-ghost">Đóng</button>
+                <button @click="cancelJob()" :disabled="!cancelReason || loading" class="btn btn-error">
+                    <span x-show="loading" class="loading loading-spinner loading-sm"></span>
+                    Xác nhận hủy
+                </button>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -127,56 +190,92 @@
             address: data.address,
             status: data.status,
             loading: false,
+            showCancelModal: false,
+            cancelReason: '',
+            cancelNote: '',
 
-            // Tạo link Google Maps chuẩn xác
+            // SỬA LỖI: Link Google Maps chuẩn (giống Admin Dashboard)
             getMapLink() {
-                if (this.lat && this.long) {
-                    // Ưu tiên tọa độ
-                    return `https://www.google.com/maps/search/?api=1&query=${this.lat},${this.long}`;
+                if (this.lat && this.long && this.lat !== 0) {
+                    return `https://www.google.com/maps?q=${this.lat},${this.long}&z=17`;
                 }
-                // Fallback sang địa chỉ text
-                return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(this.address)}`;
+                return `https://www.google.com/maps?q=${encodeURIComponent(this.address)}`;
             },
 
             getStatusLabel(s) {
                 const map = {
+                    'pending': 'Chờ xử lý',
                     'assigned': 'Mới nhận',
                     'moving': 'Đang đi',
                     'working': 'Đang làm',
-                    'completed': 'Hoàn thành'
+                    'completed': 'Hoàn thành',
+                    'cancelled': 'Đã hủy'
                 };
                 return map[s] || s;
             },
 
             async updateStatus(newStatus) {
-                if(!confirm('Xác nhận chuyển trạng thái?')) return;
-                
+                if (!confirm('Xác nhận chuyển trạng thái?')) return;
+
                 this.loading = true;
                 const fd = new FormData();
                 fd.append('status', newStatus);
 
                 try {
-                    // Gọi API cập nhật trạng thái (Sử dụng HTMX hoặc Fetch)
-                    // Ở đây dùng Fetch cho đơn giản trong Alpine
-                    const res = await fetch(`/api/tech/job/${this.id}/status`, {
+                    // Gọi API (Phù hợp với Handler update status hiện tại)
+                    const res = await fetch(`/api/tech/bookings/${this.id}/status`, {
                         method: 'POST',
                         body: fd
                     });
-                    
-                    if(res.ok) {
+
+                    if (res.ok) {
                         this.status = newStatus;
-                        // Reload nhẹ để cập nhật UI nếu cần
-                        // location.reload(); 
+                        // Scroll lên đầu trang để tech thấy status bar thay đổi
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
                     } else {
-                        alert('Lỗi cập nhật trạng thái');
+                        alert('Lỗi: Không thể cập nhật trạng thái');
                     }
-                } catch(e) {
-                    alert('Lỗi kết nối');
+                } catch (e) {
+                    console.error(e);
+                    alert('Lỗi kết nối mạng');
                 } finally {
                     this.loading = false;
+                }
+            },
+
+            async cancelJob() {
+                if (!this.cancelReason) {
+                    alert('Vui lòng chọn lý do hủy');
+                    return;
+                }
+
+                this.loading = true;
+                const fd = new FormData();
+                const reason = this.cancelReason === 'other' ? this.cancelNote : this.cancelReason;
+                fd.append('reason', reason);
+
+                try {
+                    const res = await fetch(`/api/tech/bookings/${this.id}/cancel`, {
+                        method: 'POST',
+                        body: fd
+                    });
+
+                    if (res.ok) {
+                        alert('Đã hủy công việc thành công');
+                        window.location.href = '/tech/jobs'; // Redirect to job list
+                    } else {
+                        const errorText = await res.text();
+                        alert('Lỗi: ' + errorText);
+                    }
+                } catch (e) {
+                    console.error(e);
+                    alert('Lỗi kết nối mạng');
+                } finally {
+                    this.loading = false;
+                    this.showCancelModal = false;
                 }
             }
         }
     }
 </script>
-{{end}}
+{{ end }}

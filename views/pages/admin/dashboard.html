@@ -55,9 +55,9 @@
                                             data-tip="Xem chi tiết">
                                             <i class="fa-solid fa-eye"></i>
                                         </button>
-                                        <button @click="openEdit(job)" class="btn btn-ghost btn-xs text-gray-400">
+                                        <!-- <button @click="openEdit(job)" class="btn btn-ghost btn-xs text-gray-400">
                                             <i class="fa-solid fa-pen-to-square"></i>
-                                        </button>
+                                        </button> -->
                                     </div>
                                 </div>
                                 <p class="text-xs text-gray-500 mb-1"><i class="fa-solid fa-wrench"></i> <span
@@ -301,8 +301,23 @@
                     </div>
 
                     <div class="modal-action flex justify-between mt-6">
-                        <button class="btn btn-ghost" @click="openEdit(selectedJob)">Sửa thông tin</button>
-                        <label for="modal-view-job" class="btn btn-neutral">Đóng</label>
+                        <div class="flex gap-2">
+                            <button class="btn btn-error btn-outline btn-sm" @click="cancelJob(selectedJob.id)">
+                                <i class="fa-solid fa-ban"></i> Hủy đơn
+                            </button>
+
+                            <button x-show="selectedJob?.status == 'pending'" class="btn btn-primary btn-sm" @click="
+                                document.getElementById('modal-view-job').checked = false;
+                                setTimeout(() => document.getElementById('modal-assign-' + selectedJob.id).checked = true, 100);
+                            ">
+                                <i class="fa-solid fa-user-plus"></i> Giao việc
+                            </button>
+
+                            <button class="btn btn-ghost btn-sm" @click="openEdit(selectedJob)">
+                                <i class="fa-solid fa-pen"></i> Sửa
+                            </button>
+                        </div>
+                        <label for="modal-view-job" class="btn btn-neutral btn-sm">Đóng</label>
                     </div>
                 </div>
                 <label class="modal-backdrop" for="modal-view-job">Close</label>

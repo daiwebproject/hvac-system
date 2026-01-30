@@ -118,7 +118,9 @@ window.kanbanBoard = function (initialData) {
 
         openEdit(job) {
             document.getElementById('modal-view-job').checked = false;
-            this.editingJob = { ...job }; // Clone object để không sửa trực tiếp vào UI khi chưa lưu
+            // Use JSON parse/stringify to deep clone and strip Alpine proxies 
+            // This prevents reactivity loops causing browser freeze
+            this.editingJob = JSON.parse(JSON.stringify(job));
             document.getElementById('modal-edit-booking').checked = true;
         },
 

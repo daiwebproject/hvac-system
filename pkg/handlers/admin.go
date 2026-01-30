@@ -95,7 +95,7 @@ func (h *AdminHandler) Dashboard(e *core.RequestEvent) error {
 	bookings, err := h.App.FindRecordsByFilter(
 		"bookings",
 		"job_status != 'cancelled'",
-		"-id",
+		"+booking_time", // Sort by schedule (earliest first)
 		100,
 		0,
 		nil,
@@ -127,20 +127,29 @@ func (h *AdminHandler) Dashboard(e *core.RequestEvent) error {
 			serviceName = "Kiểm tra / Khác"
 		}
 
-		// Xử lý hiển thị thời gian
+		// Xử lý hiển thị thời gian (Format: HH:MM - HH:MM DD/MM/YYYY)
 		rawTime := b.GetString("booking_time")
 		displayTime := rawTime
+
+		// Parse booking time
+		// Support both DB format "YYYY-MM-DD HH:MM:SS.000Z" and "YYYY-MM-DD HH:MM"
 		parsedTime, err := time.Parse("2006-01-02 15:04:05.000Z", rawTime)
 		if err != nil {
-			parsedTime, err = time.Parse("2006-01-02 15:04:05", rawTime)
+			parsedTime, err = time.Parse("2006-01-02 15:04", rawTime) // Our new format
 		}
+
 		if err == nil {
-			endTime := parsedTime.Add(2 * time.Hour)
-			displayTime = fmt.Sprintf("%02d/%02d %02d:%02d - %02d:%02d",
-				parsedTime.Day(),
-				parsedTime.Month(),
+			// Calculate End Time (Default 2 hours if not expandable, or fetch service if needed)
+			// Optimally we should check service duration, but for list view default is acceptable for MVP
+			// or we can fetch service.
+			// Ideally we assume 1.5 - 2h.
+			duration := 2 * time.Hour
+
+			endTime := parsedTime.Add(duration)
+			displayTime = fmt.Sprintf("%02d:%02d - %02d:%02d ngày %02d/%02d/%d",
 				parsedTime.Hour(), parsedTime.Minute(),
 				endTime.Hour(), endTime.Minute(),
+				parsedTime.Day(), parsedTime.Month(), parsedTime.Year(),
 			)
 		}
 
@@ -350,6 +359,16 @@ func (h *AdminHandler) CancelBooking(e *core.RequestEvent) error {
 		return e.String(404, "Booking not found")
 	}
 
+	// 1. Release Time Slot if exists
+	slotID := booking.GetString("time_slot_id")
+	if slotID != "" && h.SlotService != nil {
+		if err := h.SlotService.ReleaseSlot(slotID); err != nil {
+			fmt.Printf("Warning: Failed to release slot %s: %v\n", slotID, err)
+			// Continue cancelling booking even if slot release fails
+		}
+	}
+
+	// 2. Cancel Booking
 	booking.Set("job_status", "cancelled")
 	if err := h.App.Save(booking); err != nil {
 		return e.String(500, "Failed to cancel booking")

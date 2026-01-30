@@ -1,0 +1,204 @@
+{{ define "content" }}
+<div x-data="invoicePayment()" class="min-h-screen bg-gray-50 flex flex-col">
+    <!-- Header -->
+    <div class="bg-blue-600 text-white p-4 shadow-lg sticky top-0 z-20">
+        <div class="flex items-center justify-between">
+            <h1 class="font-bold text-lg"><i class="fa-solid fa-file-invoice-dollar mr-2"></i>Thanh Toán & Ký Tên</h1>
+        </div>
+    </div>
+
+    <div class="flex-1 p-4 space-y-6 pb-24 max-w-lg mx-auto w-full">
+        <!-- Invoice Details -->
+        <div class="bg-white rounded-xl shadow p-4 border border-gray-100">
+            <h2 class="font-bold text-gray-800 mb-2 border-b pb-2">Hóa Đơn: {{.Invoice.GetString "invoice_code"}}</h2>
+
+            <div class="space-y-2 text-sm">
+                <div class="flex justify-between">
+                    <span class="text-gray-500">Khách hàng:</span>
+                    <span class="font-semibold">{{.Job.GetString "customer_name"}}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-500">Số điện thoại:</span>
+                    <span class="font-mono">{{.Job.GetString "customer_phone"}}</span>
+                </div>
+                <div class="divider my-1"></div>
+                <div class="flex justify-between items-end">
+                    <span class="font-bold text-gray-600">THÀNH TIỀN:</span>
+                    <span class="font-bold text-2xl text-blue-600">
+                        {{.Invoice.GetFloat "total_amount" | printf "%.0f"}} đ
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Signature Pad -->
+        <div class="bg-white rounded-xl shadow p-4 border border-gray-100">
+            <h3 class="font-bold text-gray-800 mb-2 flex items-center">
+                <i class="fa-solid fa-file-signature text-blue-500 mr-2"></i> Chữ ký Khách hàng
+            </h3>
+            <div
+                class="border-2 border-gray-200 rounded-lg bg-[url('https://www.transparenttextures.com/patterns/graphy.png')] bg-gray-50 touch-none relative">
+                <canvas id="signature-pad" class="w-full h-48 block cursor-crosshair"></canvas>
+                <div class="absolute bottom-2 right-2 text-[10px] text-gray-300 pointer-events-none select-none">Ký vào
+                    đây</div>
+            </div>
+            <div class="flex justify-end mt-2">
+                <button type="button" @click="clearSignature()"
+                    class="btn btn-xs btn-ghost text-red-500 hover:bg-red-50">
+                    <i class="fa-solid fa-eraser"></i> Xóa ký lại
+                </button>
+            </div>
+        </div>
+
+        <!-- Payment Method Tabs -->
+        <div class="bg-white rounded-xl shadow p-4 border border-gray-100">
+            <h3 class="font-bold text-gray-800 mb-4 flex items-center">
+                <i class="fa-solid fa-wallet text-green-500 mr-2"></i> Phương thức thanh toán
+            </h3>
+
+            <div class="flex p-1 bg-gray-100 rounded-xl mb-6">
+                <button class="flex-1 py-2 text-sm font-bold rounded-lg transition-all duration-200"
+                    :class="method === 'transfer' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'"
+                    @click="method = 'transfer'">
+                    <i class="fa-solid fa-qrcode mr-1"></i> Chuyển khoản
+                </button>
+                <button class="flex-1 py-2 text-sm font-bold rounded-lg transition-all duration-200"
+                    :class="method === 'cash' ? 'bg-white text-green-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'"
+                    @click="method = 'cash'">
+                    <i class="fa-solid fa-money-bill mr-1"></i> Tiền mặt
+                </button>
+            </div>
+
+            <!-- QR Code Section -->
+            <div x-show="method === 'transfer'" x-transition class="text-center space-y-4">
+                <div class="bg-white p-3 inline-block rounded-xl shadow-md border border-gray-100">
+                    <img :src="getQrUrl('{{.Invoice.GetFloat "
+                        total_amount"}}', 'Thanh toan HD {{.Invoice.GetString "invoice_code"}}' )" alt="VietQR"
+                        class="w-56 h-56 object-contain rounded-lg">
+                </div>
+
+                <div class="text-sm text-gray-600 bg-blue-50 p-4 rounded-xl border border-blue-100 text-left">
+                    <div class="flex justify-between mb-1">
+                        <span>Ngân hàng:</span>
+                        <span class="font-bold">{{.BankName}}</span>
+                    </div>
+                    <div class="flex justify-between mb-1 items-center">
+                        <span>STK:</span>
+                        <div class="flex items-center gap-2">
+                            <span class="font-mono font-bold text-lg cursor-pointer hover:text-blue-600"
+                                @click="navigator.clipboard.writeText('{{.BankAccount}}'); Swal.fire({toast:true,position:'top',icon:'success',title:'Đã sao chép STK',showConfirmButton:false,timer:1500})">
+                                {{.BankAccount}}
+                            </span>
+                            <i class="fa-regular fa-copy text-gray-400 text-xs"></i>
+                        </div>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>Chủ TK:</span>
+                        <span class="font-bold uppercase">{{.AccountName}}</span>
+                    </div>
+                </div>
+                <p class="text-xs text-gray-400 italic">Vui lòng kiểm tra kỹ thông tin người nhận</p>
+            </div>
+
+            <!-- Cash Section -->
+            <div x-show="method === 'cash'" x-transition
+                class="text-center p-8 bg-green-50 rounded-xl border border-green-100 dashed">
+                <div
+                    class="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4 text-green-600">
+                    <i class="fa-solid fa-hand-holding-dollar text-4xl"></i>
+                </div>
+                <h4 class="font-bold text-green-800 text-lg">Thu tiền mặt trực tiếp</h4>
+                <p class="text-green-600 my-2">Vui lòng thu đúng số tiền:</p>
+                <div class="text-3xl font-black text-green-700 tracking-tight">
+                    {{.Invoice.GetFloat "total_amount" | printf "%.0f"}} <span class="text-lg">VNĐ</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="sticky bottom-4">
+            <form id="payment-form" hx-post="/api/tech/job/{{.Job.Id}}/payment" hx-encoding="multipart/form-data"
+                hx-redirect="/tech/jobs">
+                <input type="hidden" name="payment_method" x-model="method">
+
+                <button type="button" @click="submitPayment()" class="btn btn-primary btn-lg w-full shadow-xl">
+                    <i class="fa-solid fa-check-double"></i> XÁC NHẬN ĐÃ THANH TOÁN
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
+<script>
+    document.addEventListener('alpine:init', () => {
+        Alpine.data('invoicePayment', () => ({
+            method: 'transfer',
+            signaturePad: null,
+
+            init() {
+                const canvas = document.getElementById('signature-pad');
+                // Adjust canvas resolution for retina displays
+                const ratio = Math.max(window.devicePixelRatio || 1, 1);
+                canvas.width = canvas.offsetWidth * ratio;
+                canvas.height = canvas.offsetHeight * ratio;
+                canvas.getContext("2d").scale(ratio, ratio);
+
+                this.signaturePad = new SignaturePad(canvas, {
+                    backgroundColor: 'rgba(255, 255, 255, 0)'
+                });
+            },
+
+            clearSignature() {
+                this.signaturePad.clear();
+            },
+
+            getQrUrl(amount, info) {
+                // VietQR QuickLink format
+                // https://img.vietqr.io/image/<BANK_ID>-<ACCOUNT_NO>-<TEMPLATE>.png?amount=<AMOUNT>&addInfo=<INFO>
+                const bankBin = '{{.BankBin}}';
+                const accountNo = '{{.BankAccount}}';
+                return `https://img.vietqr.io/image/${bankBin}-${accountNo}-compact.png?amount=${amount}&addInfo=${encodeURIComponent(info)}`;
+            },
+
+            submitPayment() {
+                if (this.signaturePad.isEmpty()) {
+                    Swal.fire('Lỗi', 'Vui lòng xin chữ ký khách hàng!', 'warning');
+                    return;
+                }
+
+                // Convert signature to blob
+                const dataURL = this.signaturePad.toDataURL();
+                fetch(dataURL)
+                    .then(res => res.blob())
+                    .then(blob => {
+                        const form = document.getElementById('payment-form');
+                        const formData = new FormData(form);
+                        formData.append('signature_file', blob, 'signature.png');
+
+                        // Manually submit via HTMX or Fetch
+                        htmx.ajax('POST', form.getAttribute('hx-post'), {
+                            values: {
+                                payment_method: this.method,
+                                signature_file: blob
+                            },
+                            source: form,
+                        });
+
+                        // Simpler: Use JS to POST.
+                        Swal.fire({
+                            title: 'Đang xử lý...',
+                            didOpen: () => Swal.showLoading()
+                        });
+
+                        fetch(form.getAttribute('hx-post'), { method: 'POST', body: formData })
+                            .then(r => {
+                                if (r.ok || r.redirected) window.location.href = '/tech/jobs';
+                                else Swal.fire('Lỗi', 'Có lỗi xảy ra', 'error');
+                            });
+                    });
+            }
+        }));
+    });
+</script>
+{{ end }}

@@ -30,7 +30,7 @@ func (r *PBAnalyticsRepo) GetDailyRevenue(start, end string) ([]core.RevenueStat
 		"SUM(total_amount) as total",
 	).
 		From("invoices").
-		Where(dbx.NewExp("status = 'paid' && created >= {:start} && created <= {:end}", dbx.Params{
+		Where(dbx.NewExp("status = 'paid' AND created >= {:start} AND created <= {:end}", dbx.Params{
 			"start": start,
 			"end":   end,
 		})).
