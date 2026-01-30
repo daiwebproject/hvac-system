@@ -1,0 +1,19 @@
+{{ define "content" }}
+<div class="card w-96 bg-base-100 shadow-xl">
+    <div class="card-body">
+        <h2 class="card-title justify-center mb-4">🔐 Đăng nhập Quản trị</h2>
+
+        <form action="/login" method="POST" class="space-y-4">
+            <input type="email" name="email" placeholder="Email Admin" class="input input-bordered w-full" required />
+            <input type="password" name="password" placeholder="Mật khẩu" class="input input-bordered w-full"
+                required />
+
+            {{ if .Error }}
+            <div class="alert alert-error text-sm py-2">{{ .Error }}</div>
+            {{ end }}
+
+            <button type="submit" class="btn btn-primary w-full">Đăng nhập</button>
+        </form>
+    </div>
+</div>
+{{ end }}

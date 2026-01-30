@@ -1,0 +1,80 @@
+{{ define "layouts/tech.html" }}
+<!DOCTYPE html>
+<html lang="vi" data-theme="light">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#2563eb">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Tech Portal | HVAC System</title>
+
+    <link rel="manifest" href="/assets/manifest.json">
+    <link rel="apple-touch-icon" href="/assets/icons/icon-192x192.png">
+    <link rel="icon" type="image/png" href="/assets/icons/icon-192x192.png">
+
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.4.19/dist/full.min.css" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/assets/style.css">
+
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+
+    <script src="/assets/qr-scanner.js"></script>
+    <script src="/assets/offline-reporter.js"></script>
+    <!-- <script src="/assets/alpine-components.js"></script> -->
+    <script src="/assets/htmx-sse.js"></script>
+    <script src="/assets/js/utils.js"></script>
+    <script src="/assets/js/tech.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+    <script>
+        window.FIREBASE_CONFIG = {
+            apiKey: "{{ .FirebaseConfig.apiKey }}",
+            projectId: "{{ .FirebaseConfig.projectId }}",
+            messagingSenderId: "{{ .FirebaseConfig.messagingSenderId }}",
+            appId: "{{ .FirebaseConfig.appId }}"
+        };
+        window.VAPID_PUBLIC_KEY = "{{ .VapidPublicKey }}";
+    </script>
+</head>
+
+<body class="bg-gray-50 pb-20 select-none" x-data="offlineIndicator()" x-init="init()">
+
+    <div x-show="!isOnline" x-cloak x-transition
+        class="fixed top-0 left-0 right-0 z-[100] bg-amber-500 text-white px-4 py-2 text-center text-sm font-bold shadow-md">
+        <i class="fa-solid fa-wifi-slash mr-2"></i> Mất kết nối mạng - Chế độ Offline
+    </div>
+
+    <div x-show="isOnline && pendingCount > 0" x-cloak class="fixed top-4 right-4 z-[90] animate-bounce">
+        <button @click="updateStatus()" class="btn btn-sm btn-warning gap-2 shadow-lg">
+            <i class="fa-solid fa-cloud-arrow-up"></i>
+            <span x-text="pendingCount"></span>
+        </button>
+    </div>
+
+    <main id="main-content" class="min-h-screen">
+        {{ block "content" . }}{{ end }}
+    </main>
+
+    {{ template "tech_nav" . }}
+
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js"></script>
+    <script src="/assets/firebase-messaging-client.js"></script>
+
+    <script>
+        // Register SW globally
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/assets/service-worker.js')
+                .then(() => console.log('SW Registered'))
+                .catch(err => console.error('SW Fail', err));
+        }
+    </script>
+</body>
+
+</html>
+{{ end }}

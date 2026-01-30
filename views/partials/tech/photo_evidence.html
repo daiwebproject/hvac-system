@@ -1,0 +1,181 @@
+{{define "tech/partials/photo_evidence"}}
+<div id="photo-evidence-card" class="card bg-base-100 shadow-xl mb-4">
+    <div class="card-body">
+        <h2 class="card-title text-lg mb-4">
+            <i class="fa-solid fa-camera text-primary"></i>
+            Ảnh Nghiệm Thu
+        </h2>
+
+        <div x-data="photoCapture()" class="space-y-4">
+            <!-- Camera Preview -->
+            <div id="camera-container" x-show="showCamera" class="bg-black rounded-lg overflow-hidden mb-4">
+                <video id="camera-video" playsinline autoplay muted style="width: 100%; height: auto;"></video>
+                <div class="flex gap-2 p-4 bg-base-300">
+                    <button @click="capturePhoto()" class="btn btn-sm btn-primary flex-1">
+                        <i class="fa-solid fa-camera"></i>
+                        CHỤP
+                    </button>
+                    <button @click="closeCamera()" class="btn btn-sm btn-ghost flex-1">
+                        <i class="fa-solid fa-xmark"></i>
+                        ĐÓNG
+                    </button>
+                </div>
+            </div>
+
+            <!-- Open Camera Button -->
+            <button @click="openCamera()" x-show="!showCamera && photos.length < 5"
+                class="btn btn-primary w-full btn-lg">
+                <i class="fa-solid fa-camera"></i>
+                MỞ CAMERA CHỤP ẢNH
+            </button>
+
+            <!-- Photos Grid -->
+            {{if .Photos}}
+            <div class="grid grid-cols-3 gap-2">
+                {{range .Photos}}
+                <div class="aspect-square rounded-lg overflow-hidden bg-gray-200">
+                    <img src="{{.}}" class="w-full h-full object-cover" />
+                </div>
+                {{end}}
+            </div>
+            {{end}}
+
+            <!-- Uploaded Photos Display -->
+            <template x-if="photos.length > 0">
+                <div class="grid grid-cols-3 gap-2">
+                    <template x-for="(photo, idx) in photos" :key="idx">
+                        <div class="aspect-square rounded-lg overflow-hidden bg-gray-200 relative group">
+                            <img :src="photo" class="w-full h-full object-cover" />
+                            <button @click="removePhoto(idx)" type="button"
+                                class="absolute top-1 right-1 btn btn-xs btn-circle btn-error opacity-0 group-hover:opacity-100 transition-opacity">
+                                <i class="fa-solid fa-xmark"></i>
+                            </button>
+                        </div>
+                    </template>
+                </div>
+            </template>
+
+            <!-- Hidden file input -->
+            <input type="file" id="photo-input" accept="image/*" capture="environment" style="display: none" />
+
+            <!-- Photo Counter -->
+            <div class="text-center text-sm text-gray-500">
+                <span x-text="`${photos.length}/5 ảnh`"></span>
+            </div>
+
+            <!-- Notes -->
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text font-semibold">Ghi chú công việc</span>
+                    <span class="label-text-alt text-xs text-gray-500">(tuỳ chọn)</span>
+                </label>
+                <textarea x-model="notes" name="photo_notes" placeholder="Mô tả ngắn về công việc đã thực hiện..."
+                    class="textarea textarea-bordered h-20"></textarea>
+            </div>
+
+            <!-- Form Inputs for Submission -->
+            <template x-for="(photo, idx) in photos" :key="`photo-${idx}`">
+                <input type="hidden" name="after_images" :value="photo" />
+            </template>
+
+            <!-- Continue Button -->
+            <button type="button" @click="submitPhotos()" x-show="photos.length > 0"
+                class="btn btn-success w-full btn-lg" :disabled="photos.length === 0">
+                <i class="fa-solid fa-check-circle"></i>
+                <span x-text="`TIẾP TỤC (${photos.length} ảnh)`"></span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    function photoCapture() {
+        return {
+            showCamera: false,
+            photos: [],
+            notes: '',
+            stream: null,
+
+            async openCamera() {
+                try {
+                    this.stream = await navigator.mediaDevices.getUserMedia({
+                        video: {
+                            facingMode: 'environment',
+                            width: { ideal: 1280 },
+                            height: { ideal: 720 }
+                        }
+                    });
+                    const video = document.getElementById('camera-video');
+                    video.srcObject = this.stream;
+                    this.showCamera = true;
+                } catch (error) {
+                    alert('Không thể truy cập camera: ' + error.message);
+                }
+            },
+
+            closeCamera() {
+                if (this.stream) {
+                    this.stream.getTracks().forEach(track => track.stop());
+                }
+                this.showCamera = false;
+            },
+
+            capturePhoto() {
+                const video = document.getElementById('camera-video');
+                const canvas = document.createElement('canvas');
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                canvas.getContext('2d').drawImage(video, 0, 0);
+
+                const photoData = canvas.toDataURL('image/jpeg', 0.8);
+                if (this.photos.length < 5) {
+                    this.photos.push(photoData);
+                } else {
+                    alert('Tối đa 5 ảnh');
+                }
+            },
+
+            removePhoto(idx) {
+                this.photos.splice(idx, 1);
+            },
+
+            async submitPhotos() {
+                if (this.photos.length === 0) {
+                    alert('Vui lòng chụp ít nhất 1 ảnh');
+                    return;
+                }
+
+                // Create FormData from photos
+                const form = document.querySelector('form');
+                if (!form) return;
+
+                // Clear existing photo inputs
+                form.querySelectorAll('input[name="after_images"]').forEach(el => el.remove());
+
+                // Add photos as FormData (convert base64 to blob)
+                for (let i = 0; i < this.photos.length; i++) {
+                    const blob = await fetch(this.photos[i]).then(r => r.blob());
+                    const file = new File([blob], `photo_${i}.jpg`, { type: 'image/jpeg' });
+
+                    // Create hidden input for form submission
+                    const input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = 'after_images_data';
+                    input.value = this.photos[i]; // Store as data URI for now
+                    form.appendChild(input);
+                }
+
+                // Trigger form submission via HTMX
+                htmx.ajax('POST', form.action, {
+                    target: '#job-detail-content',
+                    swap: 'innerHTML',
+                    values: {
+                        'photo_notes': this.notes,
+                        'photos_count': this.photos.length
+                    }
+                });
+            }
+        }
+    }
+</script>
+{{end}}

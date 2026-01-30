@@ -1,0 +1,21 @@
+{{ define "tech_nav" }}
+<!-- Bottom Navigation (Fixed) -->
+<div class="btm-nav btm-nav-lg z-40 bg-base-100 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
+    <a href="/tech/jobs" class="{{if eq .PageType "tech_jobs"}}active text-primary{{end}}">
+        <i class="fa-solid fa-list text-xl"></i>
+        <span class="btm-nav-label text-xs">Công việc</span>
+    </a>
+    <a href="/tech/history" class="{{if eq .PageType "history"}}active text-primary{{end}}">
+        <i class="fa-solid fa-clock-rotate-left text-xl"></i>
+        <span class="btm-nav-label text-xs">Lịch sử</span>
+    </a>
+    <a href="/tech/profile" class="{{if eq .PageType "profile"}}active text-primary{{end}}">
+        <i class="fa-solid fa-user text-xl"></i>
+        <span class="btm-nav-label text-xs">Cá nhân</span>
+    </a>
+    <a href="/tech/logout" class="">
+        <i class="fa-solid fa-sign-out-alt text-xl"></i>
+        <span class="btm-nav-label text-xs">Đăng xuất</span>
+    </a>
+</div>
+{{ end }}

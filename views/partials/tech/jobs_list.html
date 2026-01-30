@@ -1,0 +1,86 @@
+{{define "tech/partials/jobs_list"}}
+<div id="job-list-container" class="space-y-3 pb-24">
+    {{range .Jobs}}
+    {{ $status := .GetString "job_status" }}
+
+    {{ if eq $status "completed" }}
+    <a href="/tech/job/{{.Id}}" class="block">
+        <div class="card bg-base-100 shadow-sm border-l-4 border-success hover:bg-base-200 transition-all">
+            <div class="card-body p-3 flex-row items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-success/10 flex items-center justify-center text-success">
+                    <i class="fa-solid fa-check"></i>
+                </div>
+
+                <div class="flex-1 min-w-0">
+                    <div class="flex justify-between items-center">
+                        <span class="font-bold text-gray-800 truncate">{{.GetString "customer_name"}}</span>
+                        <span class="text-sm font-bold text-success">
+                            {{ if .GetFloat "estimated_cost" }}
+                            {{ formatMoney (.GetFloat "estimated_cost") }}₫
+                            {{ else }}
+                            -
+                            {{ end }}
+                        </span>
+                    </div>
+                    <div class="text-xs text-gray-500 truncate flex items-center gap-1 mt-1">
+                        <i class="fa-solid fa-clock"></i> {{.GetString "updated"}}
+                    </div>
+                </div>
+
+                <div class="text-gray-400">
+                    <i class="fa-solid fa-chevron-right text-sm"></i>
+                </div>
+            </div>
+        </div>
+    </a>
+
+    {{ else }}
+    <div class="card bg-base-100 shadow-lg border border-base-200">
+        <div class="card-body p-4">
+            <div class="flex justify-between items-start mb-3">
+                {{ if eq $status "assigned" }}
+                <div class="badge badge-warning gap-1 p-3 font-bold animate-pulse">
+                    <i class="fa-solid fa-bell"></i> Mới giao
+                </div>
+                {{ else if eq $status "moving" }}
+                <div class="badge badge-info gap-1 p-3 text-white font-bold">
+                    <i class="fa-solid fa-person-running"></i> Đang đến
+                </div>
+                {{ else }}
+                <div class="badge badge-primary gap-1 p-3 font-bold">
+                    <i class="fa-solid fa-wrench"></i> Đang sửa
+                </div>
+                {{ end }}
+                <span class="font-mono text-xs font-bold text-gray-500">#{{.Id}}</span>
+            </div>
+
+            <h3 class="font-bold text-lg text-primary">{{.GetString "customer_name"}}</h3>
+
+            <div class="text-sm text-gray-600 mt-1 flex gap-2">
+                <i class="fa-solid fa-map-pin text-error mt-1"></i>
+                <span class="line-clamp-2">{{.GetString "address"}}</span>
+            </div>
+
+            <div class="divider my-2"></div>
+
+            <a href="/tech/job/{{.Id}}" class="btn btn-primary w-full shadow-md">
+                {{ if eq $status "assigned" }}
+                <i class="fa-solid fa-eye"></i> XEM CHI TIẾT
+                {{ else }}
+                <i class="fa-solid fa-arrow-right"></i> TIẾP TỤC
+                {{ end }}
+            </a>
+        </div>
+    </div>
+    {{ end }}
+    {{else}}
+    <div class="flex flex-col items-center justify-center py-16 text-gray-400">
+        <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-3">
+            <i class="fa-solid fa-box-open text-2xl"></i>
+        </div>
+        <p>Danh sách trống</p>
+    </div>
+    {{end}}
+
+</div>
+{{end}}

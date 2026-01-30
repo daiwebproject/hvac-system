@@ -1,0 +1,141 @@
+{{define "tech/partials/invoice"}}
+<div id="invoice-card" class="card bg-base-100 shadow-xl mb-4">
+    <div class="card-body">
+        <h2 class="card-title text-lg mb-4">
+            <i class="fa-solid fa-receipt text-primary"></i>
+            Hóa Đơn Thanh Toán
+        </h2>
+
+        {{if .Invoice}}
+        <div class="space-y-3 text-sm">
+            <!-- Invoice Details -->
+            <div class="divider my-2"></div>
+
+            <div class="flex justify-between">
+                <span class="text-gray-600">Công việc:</span>
+                <span class="font-semibold">{{.Job.GetString "id"}}</span>
+            </div>
+
+            <div class="flex justify-between">
+                <span class="text-gray-600">Dịch vụ:</span>
+                <span class="font-semibold">{{.Job.GetString "service_id"}}</span>
+            </div>
+
+            <!-- Costs -->
+            <div class="divider my-2"></div>
+
+            <div class="flex justify-between">
+                <span class="text-gray-600">Tiền công:</span>
+                <span class="font-semibold">{{ printf "%.0f" (.Invoice.GetFloat "labor_total") }} VND</span>
+            </div>
+
+            <div class="flex justify-between">
+                <span class="text-gray-600">Tiền linh kiện:</span>
+                <span class="font-semibold">{{ printf "%.0f" (.Invoice.GetFloat "parts_total") }} VND</span>
+            </div>
+
+            {{if gt (.Invoice.GetFloat "discount") 0}}
+            <div class="flex justify-between text-success">
+                <span class="text-gray-600">Giảm giá:</span>
+                <span class="font-semibold">-{{ printf "%.0f" (.Invoice.GetFloat "discount") }} VND</span>
+            </div>
+            {{end}}
+
+            <!-- Total -->
+            <div class="divider my-2"></div>
+
+            <div class="flex justify-between text-lg">
+                <span class="font-bold">TỔNG CỘNG:</span>
+                <span class="font-bold text-primary">{{ printf "%.0f" (.Invoice.GetFloat "total_amount") }} VND</span>
+            </div>
+
+            <!-- Status Badge -->
+            <div class="mt-4 pt-4 border-t">
+                {{$status := .Invoice.GetString "status"}}
+                {{if eq $status "paid"}}
+                <div class="badge badge-success gap-2">
+                    <i class="fa-solid fa-check-circle"></i>
+                    ĐÃ THANH TOÁN
+                </div>
+                {{else if eq $status "unpaid"}}
+                <div class="badge badge-warning gap-2">
+                    <i class="fa-solid fa-clock"></i>
+                    CHỜ THANH TOÁN
+                </div>
+                {{end}}
+            </div>
+        </div>
+        {{end}}
+    </div>
+</div>
+
+<!-- Payment Section -->
+<div id="payment-card" class="card bg-base-100 shadow-xl mb-4">
+    <div class="card-body">
+        <h2 class="card-title text-lg mb-4">
+            <i class="fa-solid fa-money-bill text-success"></i>
+            Phương Thức Thanh Toán
+        </h2>
+
+        {{$status := .Invoice.GetString "status"}}
+        {{if ne $status "paid"}}
+        <form hx-post="/api/tech/job/{{.Job.Id}}/payment" hx-swap="innerHTML" hx-target="#payment-card"
+            class="space-y-3">
+
+            <!-- Payment Methods -->
+            <div class="space-y-2">
+                <label class="cursor-pointer label">
+                    <span class="label-text font-semibold">
+                        <i class="fa-solid fa-money-bill-wave text-success"></i>
+                        Tiền Mặt
+                    </span>
+                    <input type="radio" name="payment_method" value="cash" class="radio radio-primary" checked />
+                </label>
+                <p class="text-xs text-gray-500 ml-8">Nhận tiền trực tiếp từ khách hàng</p>
+            </div>
+
+            <div class="divider my-2"></div>
+
+            <div class="space-y-2">
+                <label class="cursor-pointer label">
+                    <span class="label-text font-semibold">
+                        <i class="fa-solid fa-building-columns text-info"></i>
+                        Chuyển Khoản Ngân Hàng
+                    </span>
+                    <input type="radio" name="payment_method" value="transfer" class="radio radio-primary" />
+                </label>
+                <p class="text-xs text-gray-500 ml-8">Khách hàng sẽ chuyển khoản sau</p>
+            </div>
+
+            <div class="divider my-2"></div>
+
+            <div class="space-y-2">
+                <label class="cursor-pointer label">
+                    <span class="label-text font-semibold">
+                        <i class="fa-solid fa-credit-card text-warning"></i>
+                        Thẻ Tín Dụng / Quét QR
+                    </span>
+                    <input type="radio" name="payment_method" value="card" class="radio radio-primary" />
+                </label>
+                <p class="text-xs text-gray-500 ml-8">Dùng POS hoặc ứng dụng thanh toán</p>
+            </div>
+
+            <!-- Submit Button -->
+            <div class="divider my-4"></div>
+            <button type="submit" class="btn btn-success w-full btn-lg">
+                <i class="fa-solid fa-check-circle"></i>
+                XÁC NHẬN THANH TOÁN
+            </button>
+        </form>
+        {{else}}
+        <div class="alert alert-success">
+            <i class="fa-solid fa-check-circle"></i>
+            <div>
+                <h3 class="font-bold">Thanh Toán Thành Công</h3>
+                <div class="text-xs">Phương thức: {{.Invoice.GetString "payment_method"}}</div>
+            </div>
+        </div>
+        {{end}}
+    </div>
+</div>
+{{end}}

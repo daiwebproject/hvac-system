@@ -1,0 +1,35 @@
+{{ define "booking_row" }}
+<tr class="hover border-b transition-all duration-500" id="row-{{.Record.Id}}">
+    <td class="font-bold text-lg">{{ .Record.GetString "customer_name" }}</td>
+    <td class="font-mono text-blue-600">{{ .Record.GetString "customer_phone" }}</td>
+
+    <td>
+        {{ $assignedTech := .Record.ExpandedOne "technician_id" }}
+
+        {{ if $assignedTech }}
+        <div class="flex items-center gap-2">
+            <span class="badge badge-success text-white p-3">
+                👷 {{ $assignedTech.GetString "name" }}
+            </span>
+            <span class="text-xs text-gray-400">({{ $assignedTech.GetString "phone" }})</span>
+        </div>
+        {{ else }}
+        <form class="flex gap-2 items-center" hx-post="/admin/bookings/{{.Record.Id}}/assign"
+            hx-target="#row-{{.Record.Id}}" hx-swap="outerHTML">
+
+            <select name="technician_id" class="select select-bordered select-xs w-full max-w-xs" required>
+                <option disabled selected value="">-- Chọn thợ --</option>
+                {{ range .Technicians }}
+                <option value="{{.Id}}">{{.GetString "name"}}</option>
+                {{ end }}
+            </select>
+            <button type="submit" class="btn btn-xs btn-primary">Giao việc</button>
+        </form>
+        {{ end }}
+    </td>
+
+    <td class="text-sm text-gray-500">
+        {{ .Record.GetString "created" }}
+    </td>
+</tr>
+{{ end }}

@@ -1,0 +1,42 @@
+{{ define "navbar" }}
+<div 
+    x-data="{ scrolled: false }"
+    @scroll.window="scrolled = (window.pageYOffset > 20)"
+    class="navbar fixed top-0 z-50 transition-all duration-300"
+    :class="scrolled ? 'bg-base-100/90 backdrop-blur shadow-lg' : 'bg-transparent text-white'">
+    <div class="container mx-auto">
+        <div class="navbar-start">
+            <div class="dropdown">
+                <label tabindex="0" class="btn btn-ghost lg:hidden">
+                    <i class="fa-solid fa-bars text-xl"></i>
+                </label>
+                <ul tabindex="0"
+                    class="menu menu-sm dropdown-content mt-3 z-[1] p-2 shadow bg-base-100 rounded-box w-52 text-base-content">
+                    <li><a href="#services">Dịch vụ</a></li>
+                    <li><a href="#about">Về chúng tôi</a></li>
+                    <li><a href="#reviews">Đánh giá</a></li>
+                    <li><a href="#contact">Liên hệ</a></li>
+                </ul>
+            </div>
+            <a href="/" class="btn btn-ghost normal-case text-xl font-bold gap-2">
+                <i class="fa-solid fa-snowflake text-2xl" :class="scrolled ? 'text-blue-600' : 'text-white'"></i>
+                <span :class="scrolled ? 'text-blue-900' : 'text-white'">Đại Điện Lạnh</span>
+            </a>
+        </div>
+        <div class="navbar-center hidden lg:flex">
+            <ul class="menu menu-horizontal px-1 font-medium">
+                <li><a href="#services">Dịch vụ</a></li>
+                <li><a href="#about">Về chúng tôi</a></li>
+                <li><a href="#reviews">Đánh giá</a></li>
+                <li><a href="#contact">Liên hệ</a></li>
+            </ul>
+        </div>
+        <div class="navbar-end">
+            <a href="/book"
+                class="btn btn-warning border-none hover:bg-yellow-500 text-blue-900 font-bold shadow-lg animate-pulse">
+                <i class="fa-solid fa-calendar-check"></i> ĐẶT LỊCH NGAY
+            </a>
+        </div>
+    </div>
+</div>
+{{ end }}

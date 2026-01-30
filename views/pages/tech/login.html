@@ -1,0 +1,29 @@
+{{ define "content" }}
+<div class="card w-full max-w-sm bg-base-100 shadow-xl">
+    <div class="card-body">
+        <h2 class="card-title text-center justify-center text-primary text-2xl mb-4">
+            <i class="fa-solid fa-screwdriver-wrench"></i> TECH PORTAL
+        </h2>
+
+        <!-- Standard Form Submission -->
+        <form action="/tech/login" method="POST" class="space-y-4">
+            <div class="form-control">
+                <label class="label"><span class="label-text">Email</span></label>
+                <input type="email" name="email" class="input input-bordered" required />
+            </div>
+            <div class="form-control">
+                <label class="label"><span class="label-text">Mật khẩu</span></label>
+                <input type="password" name="password" class="input input-bordered" required />
+            </div>
+
+            {{ if .Error }}
+            <div class="alert alert-error text-sm py-2">{{ .Error }}</div>
+            {{ end }}
+
+            <div class="form-control mt-6">
+                <button type="submit" class="btn btn-primary w-full">Đăng Nhập</button>
+            </div>
+        </form>
+    </div>
+</div>
+{{ end }}

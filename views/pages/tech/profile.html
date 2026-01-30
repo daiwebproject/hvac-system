@@ -1,0 +1,30 @@
+{{define "content"}}
+<div class="max-w-2xl mx-auto pb-24 px-4 pt-6">
+    <div class="text-center mb-8">
+        <div class="avatar placeholder mb-4">
+            <div class="bg-neutral-focus text-neutral-content rounded-full w-24">
+                <span class="text-3xl">{{ slice .TechName 0 1 }}</span>
+            </div>
+        </div>
+        <h2 class="text-2xl font-bold">{{ .TechName }}</h2>
+        <p class="text-gray-500">{{ .TechEmail }}</p>
+    </div>
+
+    <div class="grid grid-cols-2 gap-4 mb-6">
+        <div class="stat bg-base-100 shadow rounded-lg p-3 text-center">
+            <div class="text-xs text-gray-500">Đơn hoàn thành</div>
+            <div class="text-2xl font-bold text-success">{{ .TodayCount }}</div>
+        </div>
+        <div class="stat bg-base-100 shadow rounded-lg p-3 text-center">
+            <div class="text-xs text-gray-500">Đánh giá</div>
+            <div class="text-2xl font-bold text-warning">5.0 <i class="fa-solid fa-star text-sm"></i></div>
+        </div>
+    </div>
+
+    <div class="menu bg-base-100 width-full rounded-box shadow">
+        <li><a><i class="fa-solid fa-gear"></i> Cài đặt</a></li>
+        <li><a><i class="fa-solid fa-circle-info"></i> Trợ giúp</a></li>
+        <li><a href="/tech/logout" class="text-error"><i class="fa-solid fa-right-from-bracket"></i> Đăng xuất</a></li>
+    </div>
+</div>
+{{end}}

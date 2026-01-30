@@ -1,0 +1,22 @@
+# Binaries
+hvac-system
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# PocketBase data
+pb_data/
+
+# Temporary files
+*_cookie.txt
+*.log
+tmp/
+
+# OS specific
+.DS_Store
+Thumbs.db
+serviceAccountKey.json
+*.json
+

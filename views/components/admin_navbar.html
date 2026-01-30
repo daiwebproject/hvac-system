@@ -1,0 +1,26 @@
+{{ define "admin_navbar" }}
+<!-- Persistent Navbar -->
+<nav class="navbar bg-base-100 shadow-lg sticky top-0 z-50">
+    <div class="container mx-auto">
+        <div class="flex-1">
+            <a href="/" class="btn btn-ghost normal-case text-xl">
+                <i class="fa-solid fa-snowflake text-primary"></i>
+                Đại Điện Lạnh </a>
+        </div>
+        <div class="flex-none gap-2">
+            <a href="/admin/tools/slots" class="btn btn-ghost btn-sm">
+                <i class="fa-solid fa-calendar"></i>
+                <span class="hidden md:inline">Slots</span>
+            </a>
+            <a href="/admin/tools/inventory" class="btn btn-ghost btn-sm">
+                <i class="fa-solid fa-warehouse"></i>
+                <span class="hidden md:inline">Kho</span>
+            </a>
+            <a href="/admin/logout" class="btn btn-ghost btn-sm">
+                <i class="fa-solid fa-sign-out"></i>
+                <span class="hidden md:inline">Logout</span>
+            </a>
+        </div>
+    </div>
+</nav>
+{{ end }}

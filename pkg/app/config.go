@@ -1,0 +1,72 @@
+package app
+
+import (
+	"errors"
+	"html/template"
+	"log"
+
+	"github.com/dustin/go-humanize"
+	"github.com/spf13/cast"
+)
+
+// InitTemplates initializes the HTML templates with custom functions
+func InitTemplates() (*template.Template, error) {
+	funcMap := template.FuncMap{
+		"dict": func(values ...interface{}) (map[string]interface{}, error) {
+			if len(values)%2 != 0 {
+				return nil, errors.New("invalid dict call")
+			}
+			dict := make(map[string]interface{}, len(values)/2)
+			for i := 0; i < len(values); i += 2 {
+				key, ok := values[i].(string)
+				if !ok {
+					return nil, errors.New("dict keys must be strings")
+				}
+				dict[key] = values[i+1]
+			}
+			return dict, nil
+		},
+		"formatMoney": func(val interface{}) string {
+			amount := cast.ToFloat64(val)
+			return humanize.Commaf(amount)
+		},
+		"sub": func(a, b float64) float64 {
+			return a - b
+		},
+		"mul": func(a, b float64) float64 {
+			return a * b
+		},
+		"div": func(a, b float64) float64 {
+			if b == 0 {
+				return 0
+			}
+			return a / b
+		},
+	}
+
+	t := template.New("").Funcs(funcMap)
+
+	// 1. Load Layouts (Giữ nguyên)
+	if _, err := t.ParseGlob("views/layouts/*.html"); err != nil {
+		log.Println("Warning: Layouts error:", err)
+	}
+
+	// 2. Load Components (Giữ nguyên)
+	if _, err := t.ParseGlob("views/components/*.html"); err != nil {
+		log.Println("Warning: Components error:", err)
+	}
+
+	// 3. Load Partials (New standardized location)
+	if _, err := t.ParseGlob("views/partials/**/*.html"); err != nil {
+		log.Println("Warning: Partials error:", err)
+	}
+	if _, err := t.ParseGlob("views/partials/*/*.html"); err != nil {
+		log.Println("Warning: Partials (subfolder) error:", err)
+	}
+
+	// --- [QUAN TRỌNG] PHẢI COMMENT 2 DÒNG DƯỚI NÀY ---
+	// if _, err := t.ParseGlob("views/pages/*/*.html"); err != nil { ... }
+	// if _, err := t.ParseGlob("views/pages/*/forms/*.html"); err != nil { ... }
+
+	return t, nil
+}

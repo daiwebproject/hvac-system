@@ -1,0 +1,30 @@
+{{ define "layouts/auth.html" }}
+<!DOCTYPE html>
+<html lang="vi" data-theme="winter">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ block "title" . }}Login | ĐẠI ĐIỆN LẠNH{{ end }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.4.19/dist/full.min.css" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+</head>
+
+<body class="bg-base-200 min-h-screen flex items-center justify-center">
+
+    {{ block "content" . }}{{ end }}
+
+</body>
+
+</html>
+{{ end }}
+
+<body class="bg-base-200 min-h-screen flex items-center justify-center">
+
+    {{ block "content" . }}{{ end }}
+
+</body>
+
+</html>

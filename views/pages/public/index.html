@@ -1,0 +1,172 @@
+{{ define "content" }}
+<!-- Hero Section -->
+<div class="hero min-h-screen relative"
+    style="background-image: url('https://images.unsplash.com/photo-1621905251189-08b45d6a269e?q=80&w=2069&auto=format&fit=crop');">
+    <div class="hero-overlay bg-gradient-to-r from-blue-900/90 to-blue-800/60"></div>
+    <div class="hero-content text-center text-neutral-content py-20">
+        <div class="max-w-3xl">
+            <h1 class="mb-5 text-5xl font-extrabold text-white leading-tight">
+                GIẢI PHÁP ĐIỆN LẠNH <br>
+                <span class="text-warning">CHUYÊN NGHIỆP & TẬN TÂM</span>
+            </h1>
+            <p class="mb-8 text-xl text-gray-200">
+                Chúng tôi cung cấp dịch vụ sửa chữa, bảo trì, vệ sinh máy lạnh, máy giặt và lắp đặt camera tại nhà.
+                <br>
+                Cam kết <span class="font-bold text-white">Có mặt trong 30 phút</span> - <span
+                    class="font-bold text-white">Bảo hành dài hạn</span>.
+            </p>
+            <div class="flex gap-4 justify-center flex-wrap">
+                <a href="/book"
+                    class="btn btn-warning btn-lg border-none hover:bg-yellow-500 font-bold px-8 shadow-xl hover:-translate-y-1 transition-transform">
+                    <i class="fa-solid fa-bolt"></i> GỌI THỢ NGAY
+                </a>
+                <a href="#services" class="btn btn-outline btn-lg text-white hover:bg-white hover:text-blue-900 px-8">
+                    XEM BẢNG GIÁ
+                </a>
+            </div>
+
+            <div class="mt-12 grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                <div class="p-2 backdrop-blur-sm bg-white/10 rounded-lg">
+                    <div class="text-3xl font-bold text-warning">5000+</div>
+                    <div class="text-xs text-gray-300">Khách hàng tin dùng</div>
+                </div>
+                <div class="p-2 backdrop-blur-sm bg-white/10 rounded-lg">
+                    <div class="text-3xl font-bold text-warning">30p</div>
+                    <div class="text-xs text-gray-300">Thời gian có mặt</div>
+                </div>
+                <div class="p-2 backdrop-blur-sm bg-white/10 rounded-lg">
+                    <div class="text-3xl font-bold text-warning">24/7</div>
+                    <div class="text-xs text-gray-300">Hỗ trợ kỹ thuật</div>
+                </div>
+                <div class="p-2 backdrop-blur-sm bg-white/10 rounded-lg">
+                    <div class="text-3xl font-bold text-warning">100%</div>
+                    <div class="text-xs text-gray-300">Hài lòng</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Why Choose Us -->
+<section id="about" class="py-20 bg-base-100">
+    <div class="container mx-auto px-4">
+        <div class="text-center mb-16">
+            <span class="text-primary font-bold tracking-wider uppercase text-sm">Về chúng tôi</span>
+            <h2 class="text-4xl font-bold text-base-content mt-2">Tại Sao Chọn ĐẠI ĐIỆN LẠNH?</h2>
+            <div class="w-20 h-1 bg-primary mx-auto mt-4 rounded-full"></div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <!-- Feature 1 -->
+            <div
+                class="card bg-base-100 shadow-xl border border-base-200 hover:shadow-2xl transition-all hover:-translate-y-2">
+                <div class="card-body items-center text-center">
+                    <div class="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center mb-4">
+                        <i class="fa-solid fa-clock text-3xl text-blue-600"></i>
+                    </div>
+                    <h3 class="card-title text-xl mb-2">Nhanh Chóng & Đúng Hẹn</h3>
+                    <p class="text-gray-500">Đội ngũ kỹ thuật viên phân bố khắp các quận, cam kết có mặt đúng giờ đã
+                        hẹn với khách hàng.</p>
+                </div>
+            </div>
+            <!-- Feature 2 -->
+            <div
+                class="card bg-base-100 shadow-xl border border-base-200 hover:shadow-2xl transition-all hover:-translate-y-2">
+                <div class="card-body items-center text-center">
+                    <div class="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mb-4">
+                        <i class="fa-solid fa-file-invoice-dollar text-3xl text-green-600"></i>
+                    </div>
+                    <h3 class="card-title text-xl mb-2">Giá Cả Minh Bạch</h3>
+                    <p class="text-gray-500">Bảng giá niêm yết rõ ràng. Kỹ thuật viên báo giá chi tiết trước khi
+                        thực hiện sửa chữa.</p>
+                </div>
+            </div>
+            <!-- Feature 3 -->
+            <div
+                class="card bg-base-100 shadow-xl border border-base-200 hover:shadow-2xl transition-all hover:-translate-y-2">
+                <div class="card-body items-center text-center">
+                    <div class="w-16 h-16 rounded-full bg-purple-100 flex items-center justify-center mb-4">
+                        <i class="fa-solid fa-shield-halved text-3xl text-purple-600"></i>
+                    </div>
+                    <h3 class="card-title text-xl mb-2">Bảo Hành Uy Tín</h3>
+                    <p class="text-gray-500">Chính sách bảo hành dài hạn từ 3-12 tháng cho linh kiện thay thế và
+                        dịch vụ sửa chữa.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Services Section -->
+<section id="services" class="py-20 bg-base-200">
+    <div class="container mx-auto px-4">
+        <div class="flex justify-between items-end mb-12">
+            <div class="max-w-2xl">
+                <span class="text-primary font-bold tracking-wider uppercase text-sm">Dịch vụ của chúng tôi</span>
+                <h2 class="text-4xl font-bold text-base-content mt-2">Giải Pháp Toàn Diện Cho Ngôi Nhà Của Bạn</h2>
+            </div>
+            <a href="/book" class="btn btn-outline btn-primary hidden md:flex">Xem tất cả <i
+                    class="fa-solid fa-arrow-right"></i></a>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {{ range .Services }}
+            <div class="card bg-base-100 shadow-lg hover:shadow-xl transition-all group overflow-hidden h-full">
+                <figure class="h-48 relative overflow-hidden">
+                    {{ if .Image }}
+                    <img src="/api/files/services/{{ .Id }}/{{ .Image }}"
+                        class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                        alt="{{ .Name }}">
+                    {{ else }}
+                    <div class="w-full h-full bg-gray-200 flex items-center justify-center">
+                        <i class="fa-solid fa-screwdriver-wrench text-4xl text-gray-400"></i>
+                    </div>
+                    {{ end }}
+                    <div class="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors"></div>
+                </figure>
+                <div class="card-body p-6">
+                    <h3 class="card-title text-lg font-bold group-hover:text-primary transition-colors">{{ .Name }}
+                    </h3>
+                    <p class="text-sm text-gray-500 line-clamp-2">{{ .Description }}</p>
+                    <div class="card-actions justify-between items-center mt-4">
+                        <div class="text-lg font-bold text-blue-600">{{ formatMoney .Price }}đ</div>
+                        <a href="/book?service={{ .Id }}" class="btn btn-sm btn-primary btn-circle">
+                            <i class="fa-solid fa-plus"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {{ end }}
+        </div>
+
+        <div class="mt-8 text-center md:hidden">
+            <a href="/book" class="btn btn-outline btn-primary w-full">Xem tất cả dịch vụ</a>
+        </div>
+    </div>
+</section>
+
+<!-- Call to Action / App Download -->
+<section class="py-20 bg-blue-900 relative overflow-hidden">
+    <!-- Decoration circles -->
+    <div
+        class="absolute top-0 left-0 w-64 h-64 bg-blue-800 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob">
+    </div>
+    <div
+        class="absolute bottom-0 right-0 w-64 h-64 bg-indigo-800 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-2000">
+    </div>
+
+    <div class="container mx-auto px-4 relative z-10 text-center">
+        <h2 class="text-3xl md:text-4xl font-bold text-white mb-6">Bạn Gặp Sự Cố Về Điện Lạnh?</h2>
+        <p class="text-blue-100 text-lg mb-8 max-w-2xl mx-auto">Đừng để sự cố làm gián đoạn cuộc sống của bạn. Gọi
+            ngay cho chúng tôi để được tư vấn và hỗ trợ nhanh nhất.</p>
+        <div class="flex flex-col md:flex-row gap-4 justify-center">
+            <a href="tel:1900xxxx" class="btn btn-lg btn-white text-blue-900 border-none hover:bg-gray-100">
+                <i class="fa-solid fa-phone"></i> Hotline: 1900.XXXX
+            </a>
+            <a href="/book" class="btn btn-lg btn-warning border-none text-blue-900 hover:bg-yellow-500">
+                <i class="fa-solid fa-calendar-check"></i> Đặt Lịch Online
+            </a>
+        </div>
+    </div>
+</section>
+{{ end }}
