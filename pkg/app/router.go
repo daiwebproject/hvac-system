@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 
+	domain "hvac-system/internal/core"
 	"hvac-system/pkg/broker"
 	"hvac-system/pkg/handlers"
 	"hvac-system/pkg/middleware"
@@ -18,7 +19,7 @@ import (
 )
 
 // RegisterRoutes configures all application routes
-func RegisterRoutes(app *pocketbase.PocketBase, t *template.Template, eventBroker *broker.SegmentedBroker, analytics *services.AnalyticsService) {
+func RegisterRoutes(app *pocketbase.PocketBase, t *template.Template, eventBroker *broker.SegmentedBroker, analytics domain.AnalyticsService) {
 	app.OnServe().BindFunc(func(se *core.ServeEvent) error {
 
 		// ---------------------------------------------------------
@@ -137,10 +138,10 @@ func RegisterRoutes(app *pocketbase.PocketBase, t *template.Template, eventBroke
 
 		adminGroup.GET("/", admin.Dashboard)
 		adminGroup.GET("/stream", admin.Stream)
-		adminGroup.POST("/bookings/{id}/assign", admin.AssignJob)
+		// adminGroup.POST("/bookings/{id}/assign", admin.AssignJob)
 		adminGroup.POST("/bookings/{id}/cancel", admin.CancelBooking)
 		adminGroup.POST("/bookings/{id}/update", admin.UpdateBookingInfo)
-		adminGroup.POST("/api/bookings/{id}/status", admin.UpdateBookingStatus)
+		// adminGroup.POST("/api/bookings/{id}/status", admin.UpdateBookingStatus)
 
 		// Admin Tools
 		adminGroup.GET("/tools/slots", adminTools.ShowSlotManager)

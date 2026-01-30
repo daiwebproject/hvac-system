@@ -137,5 +137,27 @@ function initializeFirebaseClient() {
   window.fcmClient = new FirebaseMessagingClient(config);
   window.fcmClient.init();
 }
+// function initializeFirebaseClient() {
+//   if (window.fcmClient) return;
+
+//   // Chặn chạy ở trang Login để tránh lỗi 401
+//   if (window.location.pathname.includes('/login')) {
+//     console.log('FCM: Skipped on login page');
+//     return;
+//   }
+
+//   const config = {
+//     apiKey: "AIzaSyB1zmMjyK6XtqVm8Kcu-EwwAUpfSTkg8AA",
+//     authDomain: "techapp-hvac.firebaseapp.com",
+//     projectId: "techapp-hvac",
+//     storageBucket: "techapp-hvac.firebasestorage.app",
+//     messagingSenderId: "250596752999",
+//     appId: "1:250596752999:web:6d810cf577eedfb7d55ec2",
+//     measurementId: "G-TDF9H77TG2"
+//   };
+
+//   window.fcmClient = new FirebaseMessagingClient(config);
+//   window.fcmClient.init();
+// }
 
 document.addEventListener('DOMContentLoaded', initializeFirebaseClient);

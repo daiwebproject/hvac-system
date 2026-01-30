@@ -53,6 +53,39 @@ func (s *BookingManagementService) AssignTechnician(bookingID, technicianID stri
 	return nil
 }
 
+// RecallToPending resets a job to pending status, releasing resources
+func (s *BookingManagementService) RecallToPending(bookingID string, slotService *TimeSlotService) error {
+	booking, err := s.app.FindRecordById("bookings", bookingID)
+	if err != nil {
+		return fmt.Errorf("booking not found: %w", err)
+	}
+
+	// 1. Release slot if exists
+	slotID := booking.GetString("slot_id")
+	if slotID != "" {
+		if err := slotService.ReleaseSlot(slotID); err != nil {
+			// Log warning but continue
+			fmt.Printf("Warning: Failed to release slot %s: %v\n", slotID, err)
+		}
+		booking.Set("slot_id", nil)
+	}
+
+	// 2. Clear technician and movement times
+	booking.Set("technician_id", nil)
+	booking.Set("moving_start_at", nil)
+	booking.Set("working_start_at", nil)
+	booking.Set("completed_at", nil)
+
+	// 3. pending status
+	booking.Set("job_status", "pending")
+
+	if err := s.app.Save(booking); err != nil {
+		return fmt.Errorf("failed to save booking: %w", err)
+	}
+
+	return nil
+}
+
 // UpdateStatus updates the booking status
 // Business rule: Validates status transitions
 func (s *BookingManagementService) UpdateStatus(bookingID, newStatus string) error {

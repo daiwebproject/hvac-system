@@ -24,58 +24,73 @@ type TechPerformance struct {
 	TotalRevenue   float64 `json:"total_revenue"`
 }
 
+type DashboardStats struct {
+	TotalRevenue   float64
+	BookingsToday  int
+	ActiveTechs    int
+	PendingCount   int
+	CompletedCount int
+	CompletionRate float64
+}
+
 func NewAnalyticsService(app *pocketbase.PocketBase) *AnalyticsService {
 	return &AnalyticsService{App: app}
 }
 
-// GetRevenueLast7Days returns daily revenue for the last 7 days
+// GetRevenueLast7Days returns daily revenue for the last 7 days optimized with single query
 func (s *AnalyticsService) GetRevenueLast7Days() ([]RevenueStat, error) {
 	stats := make([]RevenueStat, 0)
 
-	// Lặp 7 ngày từ quá khứ đến hiện tại
-	start := time.Now().AddDate(0, 0, -6)
+	// Create map for easy lookup
+	statsMap := make(map[string]float64)
 
+	end := time.Now()
+	start := end.AddDate(0, 0, -6)
+
+	// Format for DB query
+	startStr := start.Format("2006-01-02 00:00:00")
+	endStr := end.Format("2006-01-02 23:59:59")
+
+	// Single query using GROUP BY on SQLite date function
+	// Assuming created is stored as UTC text "YYYY-MM-DD HH:MM:SS.MMMZ" or similar
+	type queryResult struct {
+		Day   string  `db:"day"`
+		Total float64 `db:"total"`
+	}
+
+	var results []queryResult
+
+	// Note: substr(created, 1, 10) extracts YYYY-MM-DD from the timestamp string
+	err := s.App.DB().Select(
+		"substr(created, 1, 10) as day",
+		"SUM(total_amount) as total",
+	).
+		From("invoices").
+		Where(dbx.NewExp("status = 'paid' && created >= {:start} && created <= {:end}", dbx.Params{
+			"start": startStr,
+			"end":   endStr,
+		})).
+		GroupBy("day").
+		All(&results)
+
+	if err != nil {
+		log.Printf("Error fetching revenue stats: %v", err)
+		// Return empty/zero'd stats on error instead of breaking everything,
+		// but ideally should handle better
+	}
+
+	for _, r := range results {
+		statsMap[r.Day] = r.Total
+	}
+
+	// Fill in last 7 days ensuring no gaps
 	for i := 0; i < 7; i++ {
 		date := start.AddDate(0, 0, i)
 		dateStr := date.Format("2006-01-02")
 
-		// Xác định khoảng thời gian đầu ngày và cuối ngày
-		dayStart := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, date.Location())
-		dayEnd := dayStart.Add(24 * time.Hour)
-
-		// Chuyển sang chuỗi format chuẩn của PocketBase
-		startStr := dayStart.Format("2006-01-02 15:04:05")
-		endStr := dayEnd.Format("2006-01-02 15:04:05")
-
-		// [FIX] Xóa .Dao(), gọi trực tiếp s.App.FindRecordsByFilter
-		invoices, err := s.App.FindRecordsByFilter(
-			"invoices",
-			"status = 'paid' && created >= {:start} && created < {:end}",
-			"", // Không cần sort
-			0,  // Không giới hạn số lượng
-			0,  // Offset 0
-			dbx.Params{
-				"start": startStr,
-				"end":   endStr,
-			},
-		)
-
-		if err != nil {
-			log.Printf("Error fetching invoices for %s: %v", dateStr, err)
-			// Nếu lỗi, coi như doanh thu bằng 0 và tiếp tục
-			stats = append(stats, RevenueStat{Date: dateStr, Amount: 0})
-			continue
-		}
-
-		// Tính tổng thủ công
-		var total float64
-		for _, inv := range invoices {
-			total += inv.GetFloat("total_amount")
-		}
-
 		stats = append(stats, RevenueStat{
 			Date:   dateStr,
-			Amount: total,
+			Amount: statsMap[dateStr],
 		})
 	}
 
@@ -86,9 +101,6 @@ func (s *AnalyticsService) GetRevenueLast7Days() ([]RevenueStat, error) {
 func (s *AnalyticsService) GetTopTechnicians(limit int) ([]TechPerformance, error) {
 	var results []TechPerformance
 
-	// [FIX] Xóa .DB(), dùng s.App.DB() trực tiếp (nếu App expose DB)
-	// Tuy nhiên, PocketBase struct thường expose DB() qua interface
-	// Nếu s.App là *pocketbase.PocketBase thì nó có phương thức DB()
 	query := s.App.DB().Select(
 		"t.id as technician_id",
 		"t.name as technician_name",
@@ -107,5 +119,44 @@ func (s *AnalyticsService) GetTopTechnicians(limit int) ([]TechPerformance, erro
 	}
 
 	return results, nil
+}
 
+// GetDashboardStats aggregates common dashboard metrics in parallel or efficient steps
+func (s *AnalyticsService) GetDashboardStats() (*DashboardStats, error) {
+	stats := &DashboardStats{}
+
+	// 1. Total Revenue (Paid Invoices)
+	// Query sum directly instead of fetching all records
+	var revenueResult struct {
+		Total float64 `db:"total"`
+	}
+	err := s.App.DB().Select("SUM(total_amount) as total").
+		From("invoices").
+		Where(dbx.HashExp{"status": "paid"}).
+		One(&revenueResult)
+
+	if err == nil {
+		stats.TotalRevenue = revenueResult.Total
+	}
+
+	// 2. Counts
+	today := time.Now().Format("2006-01-02")
+	bookingsToday, _ := s.App.CountRecords("bookings", dbx.NewExp("created >= {:date}", dbx.Params{"date": today}))
+	stats.BookingsToday = int(bookingsToday)
+
+	activeTechs, _ := s.App.CountRecords("technicians", dbx.NewExp("verified=true")) // Assuming active means verified here based on old code
+	stats.ActiveTechs = int(activeTechs)
+
+	pending, _ := s.App.CountRecords("bookings", dbx.NewExp("job_status = 'pending'"))
+	stats.PendingCount = int(pending)
+
+	completed, _ := s.App.CountRecords("bookings", dbx.NewExp("job_status = 'completed'"))
+	stats.CompletedCount = int(completed)
+
+	// 3. Rate
+	if stats.BookingsToday > 0 {
+		stats.CompletionRate = (float64(stats.CompletedCount) / float64(stats.BookingsToday)) * 100
+	}
+
+	return stats, nil
 }

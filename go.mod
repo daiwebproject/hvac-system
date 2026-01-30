@@ -1,10 +1,11 @@
 module hvac-system
 
-go 1.24.0
+go 1.25.0
 
 require (
 	firebase.google.com/go/v4 v4.19.0
 	github.com/dustin/go-humanize v1.0.1
+	github.com/labstack/echo/v5 v5.0.1
 	github.com/pocketbase/dbx v1.11.0
 	github.com/pocketbase/pocketbase v0.36.1
 	github.com/spf13/cast v1.10.0
