@@ -51,17 +51,23 @@ func InitTemplates() (*template.Template, error) {
 		log.Println("Warning: Layouts error:", err)
 	}
 
-	// 2. Load Components (Giữ nguyên)
+	// 2. Load Components (including subdirectories)
 	if _, err := t.ParseGlob("views/components/*.html"); err != nil {
 		log.Println("Warning: Components error:", err)
 	}
+	if _, err := t.ParseGlob("views/components/ui/*.html"); err != nil {
+		log.Println("Warning: UI Components error:", err)
+	}
 
-	// 3. Load Partials (New standardized location)
-	if _, err := t.ParseGlob("views/partials/**/*.html"); err != nil {
+	// 3. Load Partials (explicit subdirectories)
+	if _, err := t.ParseGlob("views/partials/*.html"); err != nil {
 		log.Println("Warning: Partials error:", err)
 	}
-	if _, err := t.ParseGlob("views/partials/*/*.html"); err != nil {
-		log.Println("Warning: Partials (subfolder) error:", err)
+	if _, err := t.ParseGlob("views/partials/tech/*.html"); err != nil {
+		log.Println("Warning: Tech Partials error:", err)
+	}
+	if _, err := t.ParseGlob("views/partials/admin/*.html"); err != nil {
+		log.Println("Warning: Admin Partials error:", err)
 	}
 
 	// --- [QUAN TRỌNG] PHẢI COMMENT 2 DÒNG DƯỚI NÀY ---

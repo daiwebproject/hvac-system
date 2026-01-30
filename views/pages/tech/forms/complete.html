@@ -46,14 +46,9 @@
         </div>
 
         <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="font-bold text-gray-800"><i class="fas fa-boxes-stacked text-blue-500 mr-2"></i> Vật tư sử
-                    dụng</h3>
-
-                <button type="button" @click="scanQR()" class="btn btn-sm btn-outline btn-primary gap-2">
-                    <i class="fas fa-qrcode"></i> Quét mã
-                </button>
-            </div>
+            <h3 class="font-bold text-gray-800 mb-4">
+                <i class="fas fa-boxes-stacked text-blue-500 mr-2"></i> Vật tư sử dụng
+            </h3>
 
             <div class="space-y-3 mb-4">
                 <template x-for="(item, index) in parts" :key="index">
@@ -188,15 +183,6 @@
                 if (item.qty <= 0) {
                     this.parts.splice(index, 1);
                 }
-            },
-
-            scanQR() {
-                // Tạm thời dùng mock function. 
-                // Sau này tích hợp html5-qrcode: Html5QrcodeScanner
-                alert('Tính năng đang phát triển: Camera sẽ bật lên tại đây!');
-
-                // Giả lập quét thành công 1 món
-                // this.addPartItem('TEST_QR', 'Vật tư từ QR', 50000);
             },
 
             async submitForm() {

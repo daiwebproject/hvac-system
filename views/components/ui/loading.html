@@ -1,0 +1,25 @@
+{{/*
+Loading Spinner Component
+
+Usage:
+{{template "ui/loading" dict
+"Size" "md"
+"Text" "Loading..."
+"Centered" true
+"Class" "extra-classes"
+}}
+
+Sizes: xs, sm, md, lg
+*/}}
+{{ define "ui/loading" }}
+{{if .Centered}}
+<div class="flex flex-col items-center justify-center py-8 {{.Class}}">
+    {{else}}
+    <div class="inline-flex items-center gap-2 {{.Class}}">
+        {{end}}
+        <span class="loading loading-spinner {{if .Size}}loading-{{.Size}}{{else}}loading-md{{end}}"></span>
+        {{if .Text}}
+        <span class="text-gray-600">{{.Text}}</span>
+        {{end}}
+    </div>
+    {{ end }}

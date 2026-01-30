@@ -1,0 +1,179 @@
+{{ define "content" }}
+<div class="max-w-6xl mx-auto p-8 space-y-12">
+
+    <!-- Header -->
+    <div class="text-center mb-12">
+        <h1 class="text-4xl font-bold mb-4">UI Component Library</h1>
+        <p class="text-gray-600">Reusable components for HVAC System</p>
+    </div>
+
+    <!-- Buttons -->
+    <section>
+        <h2 class="text-2xl font-bold mb-6 border-b pb-2">Buttons</h2>
+
+        <div class="space-y-6">
+            <!-- Variants -->
+            <div>
+                <h3 class="font-semibold mb-3 text-gray-700">Variants</h3>
+                <div class="flex flex-wrap gap-3">
+                    {{template "ui/button" dict "Text" "Primary" "Variant" "primary"}}
+                    {{template "ui/button" dict "Text" "Secondary" "Variant" "secondary"}}
+                    {{template "ui/button" dict "Text" "Success" "Variant" "success"}}
+                    {{template "ui/button" dict "Text" "Error" "Variant" "error"}}
+                    {{template "ui/button" dict "Text" "Warning" "Variant" "warning"}}
+                    {{template "ui/button" dict "Text" "Ghost" "Variant" "ghost"}}
+                </div>
+            </div>
+
+            <!-- Sizes -->
+            <div>
+                <h3 class="font-semibold mb-3 text-gray-700">Sizes</h3>
+                <div class="flex flex-wrap items-center gap-3">
+                    {{template "ui/button" dict "Text" "Extra Small" "Variant" "primary" "Size" "xs"}}
+                    {{template "ui/button" dict "Text" "Small" "Variant" "primary" "Size" "sm"}}
+                    {{template "ui/button" dict "Text" "Medium" "Variant" "primary" "Size" "md"}}
+                    {{template "ui/button" dict "Text" "Large" "Variant" "primary" "Size" "lg"}}
+                </div>
+            </div>
+
+            <!-- With Icons -->
+            <div>
+                <h3 class="font-semibold mb-3 text-gray-700">With Icons</h3>
+                <div class="flex flex-wrap gap-3">
+                    {{template "ui/button" dict "Text" "Save" "Variant" "success" "Icon" "fa-solid fa-save"}}
+                    {{template "ui/button" dict "Text" "Delete" "Variant" "error" "Icon" "fa-solid fa-trash"}}
+                    {{template "ui/button" dict "Text" "Download" "Variant" "primary" "Icon" "fa-solid fa-download"}}
+                </div>
+            </div>
+
+            <!-- States -->
+            <div>
+                <h3 class="font-semibold mb-3 text-gray-700">States</h3>
+                <div class="flex flex-wrap gap-3">
+                    {{template "ui/button" dict "Text" "Loading..." "Variant" "primary" "Loading" true}}
+                    {{template "ui/button" dict "Text" "Disabled" "Variant" "primary" "Disabled" true}}
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Badges -->
+    <section>
+        <h2 class="text-2xl font-bold mb-6 border-b pb-2">Badges</h2>
+
+        <div class="space-y-6">
+            <!-- Variants -->
+            <div>
+                <h3 class="font-semibold mb-3 text-gray-700">Variants</h3>
+                <div class="flex flex-wrap gap-3">
+                    {{template "ui/badge" dict "Text" "Primary" "Variant" "primary"}}
+                    {{template "ui/badge" dict "Text" "Success" "Variant" "success"}}
+                    {{template "ui/badge" dict "Text" "Error" "Variant" "error"}}
+                    {{template "ui/badge" dict "Text" "Warning" "Variant" "warning"}}
+                    {{template "ui/badge" dict "Text" "Info" "Variant" "info"}}
+                    {{template "ui/badge" dict "Text" "Neutral" "Variant" "neutral"}}
+                </div>
+            </div>
+
+            <!-- With Icons -->
+            <div>
+                <h3 class="font-semibold mb-3 text-gray-700">With Icons</h3>
+                <div class="flex flex-wrap gap-3">
+                    {{template "ui/badge" dict "Text" "Active" "Variant" "success" "Icon" "fa-solid fa-check"}}
+                    {{template "ui/badge" dict "Text" "Pending" "Variant" "warning" "Icon" "fa-solid fa-clock"}}
+                    {{template "ui/badge" dict "Text" "Failed" "Variant" "error" "Icon" "fa-solid fa-times"}}
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Cards -->
+    <section>
+        <h2 class="text-2xl font-bold mb-6 border-b pb-2">Cards</h2>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Basic Card -->
+            <div>
+                {{template "ui/card" dict
+                "Title" "Basic Card"
+                "Content" "<p class='text-gray-600'>This is a basic card with a title and content.</p>"
+                }}
+            </div>
+
+            <!-- Card with Footer -->
+            <div>
+                {{template "ui/card" dict
+                "Title" "Card with Footer"
+                "Content" "<p class='text-gray-600'>This card has a footer section for actions.</p>"
+                "Footer" "<button class='btn btn-primary btn-sm'>Action</button>"
+                }}
+            </div>
+
+            <!-- Compact Card -->
+            <div>
+                {{template "ui/card" dict
+                "Title" "Compact Card"
+                "Content" "<p class='text-gray-600'>This card uses compact padding.</p>"
+                "Compact" true
+                }}
+            </div>
+
+            <!-- Card without Title -->
+            <div>
+                {{template "ui/card" dict
+                "Content" "<p class='text-gray-600'>This card has no title, just content.</p>"
+                }}
+            </div>
+        </div>
+    </section>
+
+    <!-- Empty States -->
+    <section>
+        <h2 class="text-2xl font-bold mb-6 border-b pb-2">Empty States</h2>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="border border-gray-200 rounded-lg">
+                {{template "ui/empty_state" dict
+                "Icon" "fa-solid fa-inbox"
+                "Title" "No items found"
+                "Message" "There are no items to display at this time."
+                }}
+            </div>
+
+            <div class="border border-gray-200 rounded-lg">
+                {{template "ui/empty_state" dict
+                "Icon" "fa-solid fa-search"
+                "Title" "No results"
+                "Message" "Try adjusting your search criteria."
+                "Action" "<button class='btn btn-primary'>Clear Filters</button>"
+                }}
+            </div>
+        </div>
+    </section>
+
+    <!-- Loading States -->
+    <section>
+        <h2 class="text-2xl font-bold mb-6 border-b pb-2">Loading States</h2>
+
+        <div class="space-y-6">
+            <div>
+                <h3 class="font-semibold mb-3 text-gray-700">Sizes</h3>
+                <div class="flex flex-wrap items-center gap-6">
+                    {{template "ui/loading" dict "Size" "xs" "Text" "Extra Small"}}
+                    {{template "ui/loading" dict "Size" "sm" "Text" "Small"}}
+                    {{template "ui/loading" dict "Size" "md" "Text" "Medium"}}
+                    {{template "ui/loading" dict "Size" "lg" "Text" "Large"}}
+                </div>
+            </div>
+
+            <div>
+                <h3 class="font-semibold mb-3 text-gray-700">Centered</h3>
+                <div class="border border-gray-200 rounded-lg">
+                    {{template "ui/loading" dict "Size" "lg" "Text" "Loading content..." "Centered" true}}
+                </div>
+            </div>
+        </div>
+    </section>
+
+</div>
+{{ end }}

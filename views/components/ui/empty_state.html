@@ -1,0 +1,35 @@
+{{/*
+Empty State Component
+
+Usage:
+{{template "ui/empty_state" dict
+"Icon" "fa-solid fa-inbox"
+"Title" "No items found"
+"Message" "There are no items to display"
+"Action" (block "empty_action" .)
+"Class" "extra-classes"
+}}
+*/}}
+{{ define "ui/empty_state" }}
+<div class="text-center py-12 {{.Class}}">
+    {{if .Icon}}
+    <div class="mb-4">
+        <i class="{{.Icon}} text-6xl text-gray-300"></i>
+    </div>
+    {{end}}
+
+    {{if .Title}}
+    <h3 class="text-xl font-semibold text-gray-700 mb-2">{{.Title}}</h3>
+    {{end}}
+
+    {{if .Message}}
+    <p class="text-gray-500 text-base mb-4">{{.Message}}</p>
+    {{end}}
+
+    {{if .Action}}
+    <div class="mt-6">
+        {{.Action}}
+    </div>
+    {{end}}
+</div>
+{{ end }}

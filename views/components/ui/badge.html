@@ -1,0 +1,21 @@
+{{/*
+Badge Component
+
+Usage:
+{{template "ui/badge" dict
+"Text" "Active"
+"Variant" "success"
+"Size" "md"
+"Icon" "fa-solid fa-check"
+"Class" "extra-classes"
+}}
+
+Variants: primary, secondary, success, error, warning, info, neutral
+Sizes: xs, sm, md, lg
+*/}}
+{{ define "ui/badge" }}
+<span class="badge {{if .Variant}}badge-{{.Variant}}{{end}} {{if .Size}}badge-{{.Size}}{{end}} {{.Class}}">
+    {{if .Icon}}<i class="{{.Icon}} text-xs"></i>{{end}}
+    {{.Text}}
+</span>
+{{ end }}

@@ -1,7 +1,7 @@
 // Service Worker for Offline-First Support
 // [Updated: Version v8 - FIX LỖI 401]
 
-const CACHE_VERSION = 'hvac-tech-v8'; // <--- TĂNG LÊN v8 ĐỂ ÉP CẬP NHẬT
+const CACHE_VERSION = 'hvac-tech-v9'; // <--- TĂNG LÊN v9 ĐỂ ÉP CẬP NHẬT
 const CACHE_NAME = `static-${CACHE_VERSION}`;
 const DYNAMIC_CACHE = `dynamic-${CACHE_VERSION}`;
 const OFFLINE_DB = 'hvac_offline_db';
@@ -64,7 +64,20 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // C. Cache các file tĩnh như bình thường
+  // C. [FIX TEMPLATE CACHE] Bỏ qua HTML pages - không cache
+  // Chỉ cache static assets (CSS, JS, images)
+  const isHTMLPage = event.request.mode === 'navigate' ||
+    event.request.destination === 'document' ||
+    url.includes('/tech/') ||
+    url.includes('/admin/') ||
+    url.endsWith('.html');
+
+  if (isHTMLPage) {
+    // Network-first cho HTML pages
+    return;
+  }
+
+  // D. Cache các file tĩnh như bình thường (CSS, JS, images)
   event.respondWith(
     caches.match(event.request).then((response) => {
       if (response) return response;

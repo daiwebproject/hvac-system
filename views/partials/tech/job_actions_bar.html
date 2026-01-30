@@ -1,0 +1,47 @@
+{{/*
+Job Action Buttons Partial
+
+Conditionally displays action buttons based on job status
+Used in job_detail.html
+*/}}
+{{ define "tech/job_actions_bar" }}
+<div class="fixed bottom-0 left-0 right-0 bg-white border-t p-4 shadow-[0_-5px_15px_rgba(0,0,0,0.1)] z-50">
+    <div class="max-w-lg mx-auto flex gap-3">
+
+        <!-- Start Moving Button (assigned/pending status) -->
+        <template x-if="status === 'assigned' || status === 'pending'">
+            <button @click="updateStatus('moving')" :disabled="loading"
+                class="btn btn-primary flex-1 shadow-lg text-lg animate-pulse">
+                <i class="fa-solid fa-motorcycle" x-show="!loading"></i>
+                <span x-show="loading" class="loading loading-spinner loading-sm"></span>
+                BẮT ĐẦU DI CHUYỂN
+            </button>
+        </template>
+
+        <!-- Arrived & Start Working Button (moving status) -->
+        <template x-if="status === 'moving'">
+            <button @click="updateStatus('working')" :disabled="loading"
+                class="btn btn-secondary flex-1 shadow-lg text-lg">
+                <i class="fa-solid fa-screwdriver-wrench" x-show="!loading"></i>
+                <span x-show="loading" class="loading loading-spinner loading-sm"></span>
+                ĐÃ ĐẾN & BẮT ĐẦU LÀM
+            </button>
+        </template>
+
+        <!-- Complete Job Button (working status) -->
+        <template x-if="status === 'working'">
+            <a href="/tech/job/{{.JobId}}/complete" class="btn btn-success text-white flex-1 shadow-lg text-lg">
+                <i class="fa-solid fa-clipboard-check"></i>
+                HOÀN THÀNH & NGHIỆM THU
+            </a>
+        </template>
+
+        <!-- Cancel Button (all non-completed/cancelled statuses) -->
+        <button @click="showCancelModal = true" class="btn btn-outline btn-error btn-sm"
+            :class="status === 'completed' || status === 'cancelled' ? 'hidden' : ''">
+            <i class="fa-solid fa-ban"></i> Hủy
+        </button>
+
+    </div>
+</div>
+{{ end }}

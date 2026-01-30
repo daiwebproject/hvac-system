@@ -1,0 +1,18 @@
+{{/* Tech Dashboard Stats Cards */}}
+{{ define "tech/dashboard_stats" }}
+<div class="grid grid-cols-2 gap-4">
+    <!-- Completed Today -->
+    <div class="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/10">
+        <p class="text-xs text-blue-200 mb-1">Hoàn thành hôm nay</p>
+        <p class="text-2xl font-bold">{{.CompletedTodayCount}} <span class="text-sm font-normal">ca</span></p>
+    </div>
+
+    <!-- Estimated Earnings -->
+    <div class="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/10">
+        <p class="text-xs text-blue-200 mb-1">Thu nhập ước tính</p>
+        <p class="text-2xl font-bold text-yellow-300">
+            {{if .TodayEarnings}}{{.TodayEarnings | printf "%.0f"}}k{{else}}0{{end}}
+        </p>
+    </div>
+</div>
+{{ end }}

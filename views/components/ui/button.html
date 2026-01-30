@@ -1,0 +1,32 @@
+{{/*
+Button Component
+
+Usage:
+{{template "ui/button" dict
+"Text" "Save"
+"Variant" "primary"
+"Size" "md"
+"Icon" "fa-solid fa-save"
+"Loading" false
+"Disabled" false
+"Type" "button"
+"Click" "handleClick()"
+"Class" "extra-classes"
+}}
+
+Variants: primary, secondary, success, error, warning, ghost, outline
+Sizes: xs, sm, md, lg
+*/}}
+{{ define "ui/button" }}
+<button type="{{if .Type}}{{.Type}}{{else}}button{{end}}"
+    class="btn {{if .Variant}}btn-{{.Variant}}{{end}} {{if .Size}}btn-{{.Size}}{{end}} {{.Class}}" {{if or .Disabled
+    .Loading}}disabled{{end}} {{if .Click}}@click="{{.Click}}" {{end}} {{if .HxPost}}hx-post="{{.HxPost}}" {{end}} {{if
+    .HxGet}}hx-get="{{.HxGet}}" {{end}} {{if .HxTarget}}hx-target="{{.HxTarget}}" {{end}}>
+    {{if .Loading}}
+    <span class="loading loading-spinner loading-sm"></span>
+    {{else}}
+    {{if .Icon}}<i class="{{.Icon}}"></i>{{end}}
+    {{if .Text}}{{.Text}}{{end}}
+    {{end}}
+</button>
+{{ end }}

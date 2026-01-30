@@ -1,0 +1,22 @@
+{{/*
+Job Status Stepper Component
+Shows progress through job stages
+*/}}
+{{ define "tech/status_stepper" }}
+<div class="px-6 py-2 pb-4 bg-white border-b border-gray-100 overflow-x-auto no-scrollbar">
+    <ul class="steps steps-horizontal w-full text-xs">
+        <li class="step" :class="['assigned','moving','working','completed'].includes(status) ? 'step-primary' : ''">
+            Mới
+        </li>
+        <li class="step" :class="['moving','working','completed'].includes(status) ? 'step-primary' : ''">
+            Di chuyển
+        </li>
+        <li class="step" :class="['working','completed'].includes(status) ? 'step-primary' : ''">
+            Đang làm
+        </li>
+        <li class="step" :class="status === 'completed' ? 'step-success' : ''">
+            Xong
+        </li>
+    </ul>
+</div>
+{{ end }}
