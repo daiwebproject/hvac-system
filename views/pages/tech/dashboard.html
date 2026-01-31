@@ -1,7 +1,7 @@
 {{ define "content" }}
 <script>
     window.TECH_INIT = {
-        userActive: {{ if .Auth.GetBool "active" }}true{ { else } } false{ { end } }
+        userActive: {{ if .Auth.GetBool "active" }} true {{ else }} false {{ end }}
         };
     console.log('✅ TECH_INIT loaded:', window.TECH_INIT);
 </script>

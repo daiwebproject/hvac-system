@@ -5,7 +5,7 @@
 
     {{ if eq $status "completed" }}
     <!-- History Card -->
-    <a href="/tech/job/{{.Id}}" class="block group">
+    <a href="/tech/job/{{.Id}}" class="block group" data-job-id="{{.Id}}">
         <div
             class="card bg-white shadow-sm border border-gray-100 hover:shadow-md transition-all rounded-xl overflow-hidden">
             <div class="card-body p-4 flex-row items-center gap-4">
@@ -35,7 +35,7 @@
 
     {{ else }}
     <!-- Active Job Card -->
-    <div
+    <div data-job-id="{{.Id}}"
         class="card bg-white shadow-lg shadow-blue-900/5 border border-blue-50 rounded-2xl overflow-hidden relative group hover:shadow-xl transition-shadow">
         <!-- Status Banner -->
         <div class="absolute top-0 right-0 rounded-bl-xl px-3 py-1 text-[10px] font-black uppercase tracking-wider shadow-sm z-10

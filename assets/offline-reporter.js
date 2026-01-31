@@ -78,6 +78,20 @@ class OfflineJobReporter {
       this.isOnline = true;
       console.log('Online - starting sync');
       this.syncPendingReports(); // Manual sync fallback
+
+      // Dispatch event to notify UI to reload data
+      window.dispatchEvent(new CustomEvent('network:online'));
+
+      // Reconnect SSE if HTMX is used
+      if (typeof htmx !== 'undefined') {
+        // Find element with sse-connect (usually body) and trigger connect
+        const sseEl = document.querySelector('[sse-connect]');
+        if (sseEl) {
+          // HTMX SSE extension re-connects on node swap or explicit trigger logic?
+          // The extension usually auto-reconnects, but we can force it or just rely on list reload.
+          console.log('Online: Triggering UI refresh');
+        }
+      }
     });
 
     window.addEventListener('offline', () => {
@@ -114,21 +128,21 @@ class OfflineJobReporter {
 
       request.onsuccess = async () => {
         console.log('Report saved locally:', report.id);
-        
+
         // IMPROVEMENT: Đăng ký Background Sync
         if ('serviceWorker' in navigator && 'sync' in navigator.serviceWorker.ready) {
-            try {
-                const sw = await navigator.serviceWorker.ready;
-                await sw.sync.register('sync-reports');
-                console.log('Background Sync registered');
-            } catch (e) {
-                console.warn('Background Sync registration failed, using manual sync:', e);
-            }
+          try {
+            const sw = await navigator.serviceWorker.ready;
+            await sw.sync.register('sync-reports');
+            console.log('Background Sync registered');
+          } catch (e) {
+            console.warn('Background Sync registration failed, using manual sync:', e);
+          }
         }
 
         // Nếu đang online thì thử gửi luôn (Fallback)
         if (this.isOnline) {
-            this.uploadReport(report).catch(err => console.log('Manual upload deferred:', err));
+          this.uploadReport(report).catch(err => console.log('Manual upload deferred:', err));
         }
 
         resolve(report);
@@ -191,7 +205,7 @@ class OfflineJobReporter {
     const formData = new FormData();
     // formData.append('job_id', report.jobId); // ID nằm trên URL
     formData.append('notes', report.notes);
-    
+
     // FIX: Match field name with Go handler (parts_json)
     formData.append('parts_json', JSON.stringify(report.parts));
 
@@ -219,7 +233,7 @@ class OfflineJobReporter {
     // Mark as synced
     await this.markReportSynced(report.id);
     console.log('Report synced:', report.id);
-    
+
     // Notify UI immediately
     window.dispatchEvent(new CustomEvent('report-synced', { detail: { reportId: report.id } }));
   }
@@ -235,13 +249,13 @@ class OfflineJobReporter {
       getRequest.onsuccess = () => {
         const report = getRequest.result;
         if (report) {
-            report.synced = true;
-            report.syncedAt = Date.now();
-            const updateRequest = store.put(report);
-            updateRequest.onerror = () => reject(updateRequest.error);
-            updateRequest.onsuccess = () => resolve();
+          report.synced = true;
+          report.syncedAt = Date.now();
+          const updateRequest = store.put(report);
+          updateRequest.onerror = () => reject(updateRequest.error);
+          updateRequest.onsuccess = () => resolve();
         } else {
-            resolve(); // Report might have been deleted or not found
+          resolve(); // Report might have been deleted or not found
         }
       };
 
@@ -260,12 +274,12 @@ class OfflineJobReporter {
       getRequest.onsuccess = () => {
         const report = getRequest.result;
         if (report) {
-            report.syncAttempts = (report.syncAttempts || 0) + 1;
-            const updateRequest = store.put(report);
-            updateRequest.onerror = () => reject(updateRequest.error);
-            updateRequest.onsuccess = () => resolve();
+          report.syncAttempts = (report.syncAttempts || 0) + 1;
+          const updateRequest = store.put(report);
+          updateRequest.onerror = () => reject(updateRequest.error);
+          updateRequest.onsuccess = () => resolve();
         } else {
-            resolve();
+          resolve();
         }
       };
 

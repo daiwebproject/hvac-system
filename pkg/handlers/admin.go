@@ -381,6 +381,19 @@ func (h *AdminHandler) CancelBooking(e *core.RequestEvent) error {
 		Data:      map[string]interface{}{"id": id},
 	})
 
+	// Notify Technician if assigned
+	techID := booking.GetString("technician_id")
+	if techID != "" {
+		h.Broker.Publish(broker.ChannelTech, techID, broker.Event{
+			Type:      "job.cancelled",
+			Timestamp: time.Now().Unix(),
+			Data: map[string]interface{}{
+				"booking_id": id,
+				"reason":     "Admin cancelled", // Could be parameterized if needed
+			},
+		})
+	}
+
 	return e.JSON(200, map[string]string{"message": "Cancelled successfully"})
 }
 

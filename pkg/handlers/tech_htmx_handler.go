@@ -28,8 +28,10 @@ func (h *TechHandler) UpdateJobStatusHTMX(e *core.RequestEvent) error {
 	validTransition := map[string][]string{
 		"pending":  {"moving", "cancelled"},
 		"assigned": {"moving", "cancelled"},
-		"moving":   {"working", "cancelled"},
-		"working":  {"completed", "cancelled"},
+		// "assigned": {"moving", "cancelled"},
+		"moving":  {"arrived", "working", "cancelled"},
+		"arrived": {"working", "cancelled"},
+		"working": {"completed", "cancelled"},
 	}
 
 	allowed := false
@@ -43,7 +45,10 @@ func (h *TechHandler) UpdateJobStatusHTMX(e *core.RequestEvent) error {
 	}
 
 	if !allowed {
-		return e.String(400, fmt.Sprintf("Cannot transition from %s to %s", currentStatus, newStatus))
+		if currentStatus == "cancelled" {
+			return e.String(409, "Đơn hàng này đã bị hủy hoặc thay đổi trạng thái bởi Admin.")
+		}
+		return e.String(409, fmt.Sprintf("Trạng thái không hợp lệ (Hiện tại: %s)", currentStatus))
 	}
 
 	// Update job status

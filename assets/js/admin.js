@@ -19,7 +19,7 @@ window.kanbanBoard = function (initialData) {
             rawJobs.forEach(job => {
                 let status = job.status;
                 // Chuẩn hóa status để khớp với tên cột
-                if (status === 'moving' || status === 'working') status = 'working';
+                if (status === 'moving' || status === 'arrived' || status === 'working' || status === 'failed') status = 'working';
 
                 if (this.columns[status]) {
                     this.columns[status].push(job);
@@ -34,103 +34,165 @@ window.kanbanBoard = function (initialData) {
             eventSource.addEventListener('message', (e) => {
                 try {
                     const event = JSON.parse(e.data);
-                    // Reload nhẹ nhàng nếu có booking mới/update
-                    // (Trong thực tế nên dùng Optimistic Update, nhưng reload an toàn hơn cho MVP)
-                    if (event.type === 'booking.created' || event.type === 'booking.updated') {
-                        // Debounce reload
+                    console.log('Admin SSE:', event);
+
+                    // Handle Job Status Change (Real-time Move)
+                    if (event.type === 'job.status_changed') {
+                        const { booking_id, status } = event.data;
+                        this.moveJobLocally(booking_id, status);
+                    }
+                    // Handle Job Assign (Real-time Move)
+                    else if (event.type === 'job.assigned') {
+                        const { booking_id, tech_id } = event.data;
+                        this.moveJobLocally(booking_id, 'assigned', { staff_id: tech_id });
+                        // Optional: Reload if we need full data
+                        // setTimeout(() => window.location.reload(), 2000); 
+                    }
+                    // Handle Cancellations
+                    else if (event.type === 'booking.cancelled' || event.type === 'job.cancelled') {
+                        const { id, booking_id } = event.data;
+                        this.removeJobLocally(id || booking_id);
+                    }
+                    // Fallback for creation (New jobs)
+                    else if (event.type === 'booking.created') {
                         if (!this._reloadTimeout) {
-                            this._reloadTimeout = setTimeout(() => window.location.reload(), 1000);
+                            this._reloadTimeout = setTimeout(() => window.location.reload(), 1500);
                         }
                     }
                 } catch (err) { console.error('SSE Error', err); }
             });
         },
 
-        // --- Drag & Drop Logic ---
-        dragStart(e, job) {
-            e.dataTransfer.setData('jobId', job.id);
-            e.dataTransfer.effectAllowed = 'move';
-        },
+        // Helper to move job between columns without reload
+        moveJobLocally(jobId, newStatus, extraUpdates = {}) {
+            // 1. Determine target column
+            let targetCol = newStatus;
+            if (['moving', 'arrived', 'working', 'failed'].includes(newStatus)) targetCol = 'working';
 
-        drop(e, targetCol) {
-            const jobId = e.dataTransfer.getData('jobId');
-
-            // Tìm job đang nằm ở cột nào
-            let sourceCol = null;
-            let jobIndex = -1;
+            // 2. Find and remove from current column
             let job = null;
-
-            for (const colName in this.columns) {
-                const idx = this.columns[colName].findIndex(j => j.id === jobId);
+            for (const col in this.columns) {
+                const idx = this.columns[col].findIndex(j => j.id === jobId);
                 if (idx !== -1) {
-                    sourceCol = colName;
-                    jobIndex = idx;
-                    job = this.columns[colName][idx];
+                    job = this.columns[col].splice(idx, 1)[0];
                     break;
                 }
             }
 
-            if (!sourceCol || sourceCol === targetCol) return;
+            // 3. Update and Add to new column
+            if (job) {
+                job.status = newStatus;
+                job.status_label = newStatus; // Update label
+                // Apply extra updates (e.g. staff_id)
+                Object.assign(job, extraUpdates);
 
-            // Xử lý logic nghiệp vụ
-
-            // 1. Kéo về Pending (Hủy giao việc)
-            if (targetCol === 'pending') {
-                if (!confirm(`⚠️ HỦY GIAO VIỆC?\n\nĐơn "${job.customer}" sẽ quay lại hàng chờ.`)) return;
-            }
-
-            // 2. Kéo vào Assigned (Giao việc) -> Mở Modal
-            if (targetCol === 'assigned') {
-                const modalCheckbox = document.getElementById('modal-assign-' + jobId);
-                if (modalCheckbox) modalCheckbox.checked = true;
-                return; // Dừng tại đây, Modal sẽ lo việc submit
-            }
-
-            // 3. Cập nhật UI (Optimistic)
-            this.columns[sourceCol].splice(jobIndex, 1);
-            this.columns[targetCol].push(job);
-
-            // 4. Gọi API
-            let newStatus = targetCol;
-            if (targetCol === 'working') newStatus = 'moving'; // Default working status start
-
-            fetch(`/admin/api/bookings/${jobId}/status`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: `status=${newStatus}`
-            }).then(res => {
-                if (!res.ok) {
-                    alert('Lỗi cập nhật trạng thái');
-                    window.location.reload();
-                } else if (targetCol === 'pending') {
-                    // Reload để đảm bảo data sạch (xóa tên thợ)
-                    setTimeout(() => window.location.reload(), 500);
+                if (this.columns[targetCol]) {
+                    this.columns[targetCol].unshift(job); // Add to top
+                } else {
+                    this.columns.pending.unshift(job); // Fallback
                 }
-            });
+            } else {
+                // If job not found (maybe new?), reload to be safe
+                console.warn('Job not found locally, reloading...');
+                window.location.reload();
+            }
+
+            // --- Drag & Drop Logic ---
+            dragStart(e, job) {
+                e.dataTransfer.setData('jobId', job.id);
+                e.dataTransfer.effectAllowed = 'move';
+            },
+
+            drop(e, targetCol) {
+                const jobId = e.dataTransfer.getData('jobId');
+
+                // Tìm job đang nằm ở cột nào
+                let sourceCol = null;
+                let jobIndex = -1;
+                let job = null;
+
+                for (const colName in this.columns) {
+                    const idx = this.columns[colName].findIndex(j => j.id === jobId);
+                    if (idx !== -1) {
+                        sourceCol = colName;
+                        jobIndex = idx;
+                        job = this.columns[colName][idx];
+                        break;
+                    }
+                }
+
+                if (!sourceCol || sourceCol === targetCol) return;
+
+                // Xử lý logic nghiệp vụ
+
+                // 1. Kéo về Pending (Hủy giao việc)
+                if (targetCol === 'pending') {
+                    if (!confirm(`⚠️ HỦY GIAO VIỆC?\n\nĐơn "${job.customer}" sẽ quay lại hàng chờ.`)) return;
+                }
+
+                // 2. Kéo vào Assigned (Giao việc) -> Mở Modal
+                if (targetCol === 'assigned') {
+                    const modalCheckbox = document.getElementById('modal-assign-' + jobId);
+                    if (modalCheckbox) modalCheckbox.checked = true;
+                    return; // Dừng tại đây, Modal sẽ lo việc submit
+                }
+
+                // 3. Cập nhật UI (Optimistic)
+                this.columns[sourceCol].splice(jobIndex, 1);
+                this.columns[targetCol].push(job);
+
+                // 4. Gọi API
+                let newStatus = targetCol;
+                if (targetCol === 'working') newStatus = 'moving'; // Default working status start
+
+                fetch(`/admin/api/bookings/${jobId}/status`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: `status=${newStatus}`
+                }).then(res => {
+                    if (!res.ok) {
+                        alert('Lỗi cập nhật trạng thái');
+                        window.location.reload();
+                    } else if (targetCol === 'pending') {
+                        // Reload để đảm bảo data sạch (xóa tên thợ)
+                        setTimeout(() => window.location.reload(), 500);
+                    }
+                });
+            },
+
+            // --- Modal Logic ---
+            viewJob(job) {
+                this.selectedJob = job;
+                console.log(this.selectedJob);
+                document.getElementById('modal-view-job').checked = true;
+            },
+
+            openEdit(job) {
+                document.getElementById('modal-view-job').checked = false;
+                // Use JSON parse/stringify to deep clone and strip Alpine proxies 
+                // This prevents reactivity loops causing browser freeze
+                this.editingJob = JSON.parse(JSON.stringify(job));
+                document.getElementById('modal-edit-booking').checked = true;
+            },
+
+            cancelJob(id) {
+                if (confirm('Bạn có chắc chắn muốn HỦY đơn hàng này?')) {
+                    fetch('/admin/bookings/' + id + '/cancel', { method: 'POST' })
+                        .then(res => {
+                            if (res.ok) window.location.reload();
+                            else alert('Lỗi khi hủy đơn');
+                        });
+                }
+            }
         },
 
-        // --- Modal Logic ---
-        viewJob(job) {
-            this.selectedJob = job;
-            console.log(this.selectedJob);
-            document.getElementById('modal-view-job').checked = true;
-        },
-
-        openEdit(job) {
-            document.getElementById('modal-view-job').checked = false;
-            // Use JSON parse/stringify to deep clone and strip Alpine proxies 
-            // This prevents reactivity loops causing browser freeze
-            this.editingJob = JSON.parse(JSON.stringify(job));
-            document.getElementById('modal-edit-booking').checked = true;
-        },
-
-        cancelJob(id) {
-            if (confirm('Bạn có chắc chắn muốn HỦY đơn hàng này?')) {
-                fetch('/admin/bookings/' + id + '/cancel', { method: 'POST' })
-                    .then(res => {
-                        if (res.ok) window.location.reload();
-                        else alert('Lỗi khi hủy đơn');
-                    });
+        removeJobLocally(jobId) {
+            for (const col in this.columns) {
+                const idx = this.columns[col].findIndex(j => j.id === jobId);
+                if (idx !== -1) {
+                    this.columns[col].splice(idx, 1);
+                    return;
+                }
             }
         }
     };
