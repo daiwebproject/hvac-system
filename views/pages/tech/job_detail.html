@@ -112,27 +112,43 @@
         @click.self="showCancelModal = false">
         <div class="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl" @click.stop>
             <h3 class="text-xl font-bold mb-4 text-gray-800">
-                <i class="fa-solid fa-triangle-exclamation text-orange-500"></i> Xác nhận hủy công việc
+                <i class="fa-solid fa-triangle-exclamation text-orange-500"></i> Báo cáo sự cố / Hủy
             </h3>
-            <p class="text-sm text-gray-600 mb-4">Vui lòng chọn lý do hủy:</p>
+            <p class="text-sm text-gray-600 mb-4">Vui lòng chọn tình huống:</p>
 
             <select x-model="cancelReason" class="select select-bordered w-full mb-4">
                 <option value="">-- Chọn lý do --</option>
-                <option value="customer_not_home">Khách không có nhà</option>
+                <option value="customer_not_home">Khách không có nhà (Cần ảnh)</option>
+                <option value="reschedule">Khách hẹn lại lịch</option>
                 <option value="customer_cancelled">Khách hủy yêu cầu</option>
                 <option value="cannot_fix">Không thể sửa được</option>
                 <option value="missing_parts">Thiếu linh kiện</option>
                 <option value="other">Lý do khác</option>
             </select>
 
-            <textarea x-show="cancelReason === 'other'" x-model="cancelNote"
-                class="textarea textarea-bordered w-full mb-4" placeholder="Nhập lý do cụ thể..."></textarea>
+            <!-- Photo Evidence Input -->
+            <div x-show="cancelReason === 'customer_not_home'" class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Chụp ảnh cửa nhà khách (*)</label>
+                <input type="file" x-ref="evidenceInput" accept="image/*" capture="environment"
+                    class="file-input file-input-bordered w-full" />
+            </div>
+
+            <!-- New Time Input -->
+            <div x-show="cancelReason === 'reschedule'" class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Chọn thời gian mới (*)</label>
+                <input type="datetime-local" x-model="newTime" class="input input-bordered w-full" />
+            </div>
+
+            <textarea
+                x-show="cancelReason === 'other' || cancelReason === 'cannot_fix' || cancelReason === 'missing_parts'"
+                x-model="cancelNote" class="textarea textarea-bordered w-full mb-4"
+                placeholder="Nhập ghi chú cụ thể..."></textarea>
 
             <div class="flex gap-3 justify-end">
                 <button @click="showCancelModal = false" class="btn btn-ghost">Đóng</button>
                 <button @click="cancelJob()" :disabled="!cancelReason || loading" class="btn btn-error">
                     <span x-show="loading" class="loading loading-spinner loading-sm"></span>
-                    Xác nhận hủy
+                    <span x-text="cancelReason === 'reschedule' ? 'Đổi lịch' : 'Xác nhận hủy'"></span>
                 </button>
             </div>
         </div>
@@ -151,6 +167,7 @@
             showCancelModal: false,
             cancelReason: '',
             cancelNote: '',
+            newTime: '',
 
             // SỬA LỖI: Link Google Maps chuẩn (giống Admin Dashboard)
             getMapLink() {
@@ -203,14 +220,34 @@
 
             async cancelJob() {
                 if (!this.cancelReason) {
-                    alert('Vui lòng chọn lý do hủy');
+                    alert('Vui lòng chọn lý do');
+                    return;
+                }
+
+                if (this.cancelReason === 'customer_not_home') {
+                    if (!this.$refs.evidenceInput.files.length) {
+                        alert('Vui lòng chụp ảnh bằng chứng');
+                        return;
+                    }
+                }
+
+                if (this.cancelReason === 'reschedule' && !this.newTime) {
+                    alert('Vui lòng chọn thời gian mới');
                     return;
                 }
 
                 this.loading = true;
                 const fd = new FormData();
-                const reason = this.cancelReason === 'other' ? this.cancelNote : this.cancelReason;
-                fd.append('reason', reason);
+                fd.append('reason', this.cancelReason);
+                fd.append('note', this.cancelNote);
+
+                if (this.newTime) {
+                    fd.append('new_time', this.newTime);
+                }
+
+                if (this.$refs.evidenceInput && this.$refs.evidenceInput.files.length > 0) {
+                    fd.append('evidence', this.$refs.evidenceInput.files[0]);
+                }
 
                 try {
                     const res = await fetch(`/api/tech/bookings/${this.id}/cancel`, {
@@ -219,11 +256,20 @@
                     });
 
                     if (res.ok) {
-                        alert('Đã hủy công việc thành công');
-                        window.location.href = '/tech/jobs'; // Redirect to job list
+                        if (this.cancelReason === 'reschedule') {
+                            alert('Đã đổi lịch thành công');
+                        } else {
+                            alert('Đã hủy công việc');
+                        }
+                        window.location.href = '/tech/jobs';
                     } else {
                         const errorText = await res.text();
-                        alert('Lỗi: ' + errorText);
+                        try {
+                            const errJson = JSON.parse(errorText);
+                            alert('Lỗi: ' + (errJson.error || errJson.message));
+                        } catch (e) {
+                            alert('Lỗi: ' + errorText);
+                        }
                     }
                 } catch (e) {
                     console.error(e);

@@ -3,7 +3,9 @@
 
 {{ if eq $status "assigned" }}
 <button hx-post="/api/tech/job/{{.Job.Id}}/status" hx-vals='{"status":"moving"}' hx-target="#job-actions-container"
-    hx-swap="innerHTML" class="btn btn-info btn-lg w-full h-20 text-xl shadow-lg border-none text-white">
+    hx-swap="innerHTML"
+    hx-on::after-request="if(event.detail.successful) Swal.fire({icon: 'success', title: 'Đã nhận việc!', text: 'Chúc bạn lên đường thượng lộ bình an!', timer: 1500, showConfirmButton: false})"
+    class="btn btn-info btn-lg w-full h-20 text-xl shadow-lg border-none text-white">
     <i class="fa-solid fa-person-walking-arrow-right text-2xl"></i> BẮT ĐẦU DI CHUYỂN
 </button>
 <p class="text-xs text-center mt-2 text-gray-500">Thông báo cho khách hàng bạn đang đến</p>

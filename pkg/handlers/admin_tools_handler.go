@@ -61,12 +61,15 @@ func (h *AdminToolsHandler) GenerateSlotsForWeek(e *core.RequestEvent) error {
 
 // ShowInventoryManager hiển thị trang quản lý kho
 func (h *AdminToolsHandler) ShowInventoryManager(e *core.RequestEvent) error {
+	fmt.Println("🔍 ShowInventoryManager: Starting...")
+
 	// 1. Lấy dữ liệu từ Database (PocketBase)
 	items, err := h.InventoryService.GetActiveItems()
 	if err != nil {
-		return e.String(500, "Error loading inventory")
+		fmt.Println("❌ Error loading inventory from service:", err)
+		return e.String(500, "Error loading inventory: "+err.Error())
 	}
-	fmt.Println(items)
+	fmt.Printf("✅ Loaded %d items from DB\n", len(items))
 
 	// 2. Định nghĩa cấu trúc JSON cho Frontend (JavaScript)
 	//    Lưu ý: Các `json:"..."` phải khớp chính xác với biến trong file HTML/JS
@@ -95,13 +98,18 @@ func (h *AdminToolsHandler) ShowInventoryManager(e *core.RequestEvent) error {
 	}
 
 	// 4. Mã hóa thành chuỗi JSON
-	itemsJSON, _ := json.Marshal(itemsList)
+	itemsJSON, err := json.Marshal(itemsList)
+	if err != nil {
+		fmt.Println("❌ Error marshaling JSON:", err)
+		return e.String(500, "JSON Error")
+	}
 
 	// Xử lý trường hợp danh sách rỗng để tránh lỗi "null" ở frontend
 	if len(itemsList) == 0 {
 		itemsJSON = []byte("[]")
 	}
 
+	fmt.Println("✅ Rendering page: admin/inventory.html")
 	// 5. Gửi xuống View
 	return RenderPage(h.Templates, e, "layouts/admin.html", "admin/inventory.html", map[string]interface{}{
 		"ItemsJSON": template.JS(string(itemsJSON)), // Biến này sẽ được dùng trong x-data
@@ -111,8 +119,11 @@ func (h *AdminToolsHandler) ShowInventoryManager(e *core.RequestEvent) error {
 // CreateInventoryItem adds a new part to inventory
 // POST /admin/tools/inventory/create
 func (h *AdminToolsHandler) CreateInventoryItem(e *core.RequestEvent) error {
+	fmt.Println("🔍 CreateInventoryItem: Received Request")
+
 	collection, err := h.App.FindCollectionByNameOrId("inventory_items")
 	if err != nil {
+		fmt.Println("❌ Collection 'inventory_items' not found:", err)
 		return e.JSON(500, map[string]string{"error": "Collection not found"})
 	}
 
@@ -126,6 +137,8 @@ func (h *AdminToolsHandler) CreateInventoryItem(e *core.RequestEvent) error {
 	stockStr := e.Request.FormValue("stock_quantity")
 	unit := e.Request.FormValue("unit")
 	description := e.Request.FormValue("description")
+
+	fmt.Printf("📝 Data: Name=%s, SKU=%s, Category=%s, Price=%s, Stock=%s\n", name, sku, category, priceStr, stockStr)
 
 	if name == "" || priceStr == "" {
 		return e.JSON(400, map[string]string{"error": "Name and price are required"})
@@ -144,8 +157,11 @@ func (h *AdminToolsHandler) CreateInventoryItem(e *core.RequestEvent) error {
 	record.Set("is_active", true)
 
 	if err := h.App.Save(record); err != nil {
+		fmt.Println("❌ Error saving record:", err)
 		return e.JSON(500, map[string]string{"error": err.Error()})
 	}
+
+	fmt.Println("✅ Inventory Item Created:", record.Id)
 
 	return e.JSON(200, map[string]interface{}{
 		"success": true,

@@ -1,0 +1,59 @@
+{{ define "content" }}
+<div x-data="techManager()" class="p-4" @techListUpdated.window="refreshList()">
+    <div class="flex justify-between items-center mb-6">
+        <h2 class="text-2xl font-bold text-gray-800"><i class="fa-solid fa-users-gear mr-2"></i>Quản Lý Thợ</h2>
+        <button onclick="modal_add_tech.showModal()" class="btn btn-primary gap-2">
+            <i class="fa-solid fa-plus"></i> Thêm Thợ
+        </button>
+    </div>
+
+    <div id="tech-list-container" hx-get="/admin/techs" hx-trigger="load, techListUpdated from:body"
+        hx-swap="innerHTML">
+        <!-- Render from partial -->
+        <div class="flex justify-center p-8">
+            <span class="loading loading-spinner loading-lg"></span>
+        </div>
+    </div>
+
+    <!-- Modal Add Tech -->
+    <dialog id="modal_add_tech" class="modal">
+        <div class="modal-box">
+            <h3 class="font-bold text-lg mb-4">Thêm Nhân Viên Kỹ Thuật</h3>
+            <form hx-post="/admin/techs/create" hx-swap="none"
+                hx-on::after-request="if(event.detail.successful) { modal_add_tech.close(); this.reset(); Swal.fire('Thành công', 'Đã tạo tài khoản thợ', 'success'); } else { Swal.fire('Lỗi', event.detail.xhr.responseText, 'error'); }">
+                <div class="form-control mb-3">
+                    <label class="label"><span class="label-text">Họ và Tên</span></label>
+                    <input type="text" name="name" required class="input input-bordered" placeholder="Nguyễn Văn A" />
+                </div>
+                <div class="form-control mb-3">
+                    <label class="label"><span class="label-text">Email (Tên đăng nhập)</span></label>
+                    <input type="email" name="email" required class="input input-bordered"
+                        placeholder="tech@example.com" />
+                </div>
+                <div class="form-control mb-4">
+                    <label class="label"><span class="label-text">Mật khẩu</span></label>
+                    <input type="password" name="password" required class="input input-bordered" minlength="8" />
+                </div>
+                <div class="modal-action">
+                    <button type="button" class="btn" onclick="modal_add_tech.close()">Hủy</button>
+                    <button type="submit" class="btn btn-primary">Tạo tài khoản</button>
+                </div>
+            </form>
+        </div>
+        <form method="dialog" class="modal-backdrop">
+            <button>close</button>
+        </form>
+    </dialog>
+
+</div>
+
+<script>
+    function techManager() {
+        return {
+            refreshList() {
+                htmx.trigger('#tech-list-container', 'load');
+            }
+        }
+    }
+</script>
+{{ end }}

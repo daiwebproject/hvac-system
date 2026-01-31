@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"strconv"
 	"time"
 
+	domain "hvac-system/internal/core"
 	"hvac-system/pkg/broker"
 	"hvac-system/pkg/services"
 
@@ -20,6 +22,7 @@ type TechHandler struct {
 	Broker         *broker.SegmentedBroker
 	Inventory      *services.InventoryService
 	InvoiceService *services.InvoiceService
+	BookingService domain.BookingService
 }
 
 // --- Auth ---
@@ -567,6 +570,37 @@ func (h *TechHandler) UpdateLocation(e *core.RequestEvent) error {
 	}
 
 	return e.JSON(200, map[string]string{"status": "ok"})
+}
+
+// HandleTechCheckIn processes the technician's check-in request
+// POST /api/tech/bookings/{id}/checkin
+func (h *TechHandler) HandleTechCheckIn(e *core.RequestEvent) error {
+	bookingID := e.Request.PathValue("id")
+	latStr := e.Request.FormValue("lat")
+	longStr := e.Request.FormValue("long")
+
+	if latStr == "" || longStr == "" {
+		return e.JSON(400, map[string]string{"error": "Missing coordinates"})
+	}
+
+	lat, err := strconv.ParseFloat(latStr, 64)
+	if err != nil {
+		return e.JSON(400, map[string]string{"error": "Invalid latitude"})
+	}
+
+	long, err := strconv.ParseFloat(longStr, 64)
+	if err != nil {
+		return e.JSON(400, map[string]string{"error": "Invalid longitude"})
+	}
+
+	// Call Service
+	err = h.BookingService.TechCheckIn(bookingID, lat, long)
+	if err != nil {
+		// Return friendly error message
+		return e.JSON(400, map[string]string{"error": err.Error()})
+	}
+
+	return e.JSON(200, map[string]string{"status": "success", "message": "Check-in thành công"})
 }
 
 // POST /tech/job/{id}/evidence

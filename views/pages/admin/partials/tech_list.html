@@ -1,0 +1,77 @@
+<div class="overflow-x-auto bg-base-100 rounded-lg shadow">
+    <table class="table w-full">
+        <thead>
+            <tr class="bg-base-200">
+                <th>Avatar</th>
+                <th>Thông Tin</th>
+                <th>Trạng Thái</th>
+                <th>Thao Tác</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{ range .Techs }}
+            <tr class="hover">
+                <td>
+                    <div class="avatar placeholder">
+                        <div class="bg-neutral-focus text-neutral-content rounded-full w-12">
+                            {{ if .Avatar }}
+                            <img src="/api/files/technicians/{{.ID}}/{{.Avatar}}" />
+                            {{ else }}
+                            <span class="text-xl">{{ printf "%.1s" .Name }}</span>
+                            {{ end }}
+                        </div>
+                    </div>
+                </td>
+                <td>
+                    <div class="font-bold">{{ .Name }}</div>
+                    <div class="text-sm opacity-50">{{ .Email }}</div>
+                </td>
+                <td>
+                    {{ if .Active }}
+                    <div class="badge badge-success gap-2">
+                        <div class="w-2 h-2 rounded-full bg-white"></div> Online
+                    </div>
+                    {{ else }}
+                    <div class="badge badge-ghost gap-2">Offline</div>
+                    {{ end }}
+                </td>
+                <th>
+                    <div class="flex gap-2">
+                        <button class="btn btn-xs btn-outline"
+                            onclick="document.getElementById('modal-reset-{{.ID}}').showModal()">
+                            <i class="fa-solid fa-key"></i> Đổi Pass
+                        </button>
+                        <button class="btn btn-xs {{if .Active}}btn-error{{else}}btn-success{{end}}"
+                            hx-post="/admin/techs/{{.ID}}/toggle" hx-swap="none">
+                            <i class="fa-solid fa-power-off"></i>
+                        </button>
+                    </div>
+
+                    <!-- Modal Reset Password -->
+                    <dialog id="modal-reset-{{.ID}}" class="modal font-normal">
+                        <div class="modal-box">
+                            <h3 class="font-bold text-lg mb-4">Đổi Mật Khẩu: {{.Name}}</h3>
+                            <form hx-post="/admin/techs/{{.ID}}/password" hx-swap="none"
+                                hx-on::after-request="if(event.detail.successful) { document.getElementById('modal-reset-{{.ID}}').close(); Swal.fire('Thành công', 'Đã đổi mật khẩu', 'success'); }">
+                                <div class="form-control mb-4">
+                                    <input type="text" name="password" class="input input-bordered"
+                                        placeholder="Nhập mật khẩu mới..." required minlength="8" />
+                                </div>
+                                <div class="modal-action">
+                                    <button type="button" class="btn"
+                                        onclick="document.getElementById('modal-reset-{{.ID}}').close()">Đóng</button>
+                                    <button type="submit" class="btn btn-warning">Lưu thay đổi</button>
+                                </div>
+                            </form>
+                        </div>
+                    </dialog>
+                </th>
+            </tr>
+            {{ else }}
+            <tr>
+                <td colspan="4" class="text-center py-8 text-gray-500">Chưa có kỹ thuật viên nào</td>
+            </tr>
+            {{ end }}
+        </tbody>
+    </table>
+</div>

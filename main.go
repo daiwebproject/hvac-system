@@ -53,7 +53,7 @@ func main() {
 	bookingHandler := handler.NewBookingHandler(bookingServiceInternal)
 
 	// 4. Register Routes (Legacy)
-	app.RegisterRoutes(pb, templates, eventBroker, analyticsServiceInternal)
+	app.RegisterRoutes(pb, templates, eventBroker, analyticsServiceInternal, bookingServiceInternal)
 
 	// Register New Handler Routes (Mixing with legacy for transition)
 	pb.OnServe().BindFunc(func(e *core.ServeEvent) error {

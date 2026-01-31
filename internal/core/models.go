@@ -25,12 +25,20 @@ type Booking struct {
 	// Coordinates
 	Lat  float64 `json:"lat"`
 	Long float64 `json:"long"`
+
+	// Status timestamps
+	ArrivedAt string `json:"arrived_at"`
+
+	// Exception Handling
+	CancelReason string `json:"cancel_reason"`
 }
 
 // Technician represents a service staff member
 type Technician struct {
 	ID       string `json:"id"`
 	Name     string `json:"name"`
+	Email    string `json:"email"`
+	Avatar   string `json:"avatar"`
 	Active   bool   `json:"active"`
 	Verified bool   `json:"verified"`
 }

@@ -22,6 +22,7 @@ type AdminHandler struct {
 	Broker           *broker.SegmentedBroker
 	BookingService   *services.BookingManagementService // TODO: Migrate this too
 	SlotService      *services.TimeSlotService          // TODO: Migrate this too
+	TechService      *services.TechManagementService    // NEW: Tech Management
 	AnalyticsService domain.AnalyticsService
 	UIComponents     *ui.Components
 }
@@ -94,7 +95,8 @@ func (h *AdminHandler) Dashboard(e *core.RequestEvent) error {
 	// 1. Fetch active bookings (Kanban items)
 	bookings, err := h.App.FindRecordsByFilter(
 		"bookings",
-		"job_status != 'cancelled'",
+		// "job_status != 'cancelled'", // Allow cancelled jobs to show
+		"",              // No filter, or maybe "created >= '2024-01-01'" if too many
 		"+booking_time", // Sort by schedule (earliest first)
 		100,
 		0,
@@ -173,10 +175,14 @@ func (h *AdminHandler) Dashboard(e *core.RequestEvent) error {
 
 	bookingsJSONBytes, _ := json.Marshal(bookingsJSON)
 
+	// Fetch Services for Dropdown
+	servicesList, _ := h.App.FindRecordsByFilter("services", "active=true", "-created", 100, 0, nil)
+
 	data := map[string]interface{}{
 		"Bookings":       bookings,
 		"BookingsJSON":   template.JS(string(bookingsJSONBytes)),
 		"Technicians":    technicians,
+		"Services":       servicesList,
 		"TotalRevenue":   stats.TotalRevenue,
 		"BookingsToday":  stats.BookingsToday,
 		"ActiveTechs":    stats.ActiveTechs,
@@ -190,6 +196,68 @@ func (h *AdminHandler) Dashboard(e *core.RequestEvent) error {
 	}
 
 	return RenderPage(h.Templates, e, "layouts/admin.html", "admin/dashboard.html", data)
+}
+
+// POST /admin/bookings/create
+func (h *AdminHandler) CreateBooking(e *core.RequestEvent) error {
+	name := e.Request.FormValue("customer_name")
+	phone := e.Request.FormValue("customer_phone")
+	address := e.Request.FormValue("address")
+	serviceID := e.Request.FormValue("service_id")
+	bookingTime := e.Request.FormValue("booking_time") // Expect "2006-01-02T15:04"
+	issue := e.Request.FormValue("issue_description")
+
+	if name == "" || phone == "" {
+		return e.String(400, "Vui lòng nhập tên và số điện thoại")
+	}
+
+	collection, err := h.App.FindCollectionByNameOrId("bookings")
+	if err != nil {
+		return e.String(500, "Collection not found")
+	}
+
+	record := core.NewRecord(collection)
+	record.Set("customer_name", name)
+	record.Set("customer_phone", phone)
+	record.Set("address", address)
+	record.Set("service_id", serviceID)
+
+	// Lookup service name/device_type
+	if serviceID != "" {
+		svc, err := h.App.FindRecordById("services", serviceID)
+		if err == nil {
+			record.Set("device_type", svc.GetString("name"))
+			record.Set("estimated_cost", svc.GetFloat("base_price"))
+		}
+	} else {
+		record.Set("device_type", "Kiểm tra / Khác")
+	}
+
+	// Format time
+	// UI sends "YYYY-MM-DDTHH:MM", DB expects "YYYY-MM-DD HH:MM:SS.000Z"
+	// Actually we are storing "YYYY-MM-DD HH:MM" string in SQLite roughly
+	formattedTime := bookingTime
+	if len(bookingTime) == 16 {
+		formattedTime = bookingTime[:10] + " " + bookingTime[11:]
+	}
+	record.Set("booking_time", formattedTime)
+
+	record.Set("issue_description", issue)
+	record.Set("job_status", "pending")
+	record.Set("created", time.Now().Format("2006-01-02 15:04:05.000Z"))
+
+	if err := h.App.Save(record); err != nil {
+		return e.String(500, "Lỗi lưu đơn hàng: "+err.Error())
+	}
+
+	// Event
+	h.Broker.Publish(broker.ChannelAdmin, "", broker.Event{
+		Type:      "booking.created",
+		Timestamp: time.Now().Unix(),
+		Data:      map[string]interface{}{"id": record.Id},
+	})
+
+	return e.JSON(200, map[string]string{"message": "Đã tạo đơn hàng mới"})
 }
 
 func (h *AdminHandler) UpdateBookingStatus(e *core.RequestEvent) error {

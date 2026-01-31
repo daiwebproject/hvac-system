@@ -14,7 +14,7 @@ window.kanbanBoard = function (initialData) {
             const rawJobs = initialData || [];
 
             // Reset columns để tránh duplicate nếu re-init
-            this.columns = { pending: [], assigned: [], working: [], completed: [] };
+            this.columns = { pending: [], assigned: [], working: [], completed: [], cancelled: [] };
 
             rawJobs.forEach(job => {
                 let status = job.status;
@@ -96,94 +96,121 @@ window.kanbanBoard = function (initialData) {
                 console.warn('Job not found locally, reloading...');
                 window.location.reload();
             }
+        },
 
-            // --- Drag & Drop Logic ---
-            dragStart(e, job) {
-                e.dataTransfer.setData('jobId', job.id);
-                e.dataTransfer.effectAllowed = 'move';
-            },
+        // --- Drag & Drop Logic ---
 
-            drop(e, targetCol) {
-                const jobId = e.dataTransfer.getData('jobId');
+        dragStart(e, job) {
+            e.dataTransfer.setData('jobId', job.id);
+            e.dataTransfer.effectAllowed = 'move';
+        },
 
-                // Tìm job đang nằm ở cột nào
-                let sourceCol = null;
-                let jobIndex = -1;
-                let job = null;
+        drop(e, targetCol) {
+            const jobId = e.dataTransfer.getData('jobId');
 
-                for (const colName in this.columns) {
-                    const idx = this.columns[colName].findIndex(j => j.id === jobId);
-                    if (idx !== -1) {
-                        sourceCol = colName;
-                        jobIndex = idx;
-                        job = this.columns[colName][idx];
-                        break;
-                    }
-                }
+            // Tìm job đang nằm ở cột nào
+            let sourceCol = null;
+            let jobIndex = -1;
+            let job = null;
 
-                if (!sourceCol || sourceCol === targetCol) return;
-
-                // Xử lý logic nghiệp vụ
-
-                // 1. Kéo về Pending (Hủy giao việc)
-                if (targetCol === 'pending') {
-                    if (!confirm(`⚠️ HỦY GIAO VIỆC?\n\nĐơn "${job.customer}" sẽ quay lại hàng chờ.`)) return;
-                }
-
-                // 2. Kéo vào Assigned (Giao việc) -> Mở Modal
-                if (targetCol === 'assigned') {
-                    const modalCheckbox = document.getElementById('modal-assign-' + jobId);
-                    if (modalCheckbox) modalCheckbox.checked = true;
-                    return; // Dừng tại đây, Modal sẽ lo việc submit
-                }
-
-                // 3. Cập nhật UI (Optimistic)
-                this.columns[sourceCol].splice(jobIndex, 1);
-                this.columns[targetCol].push(job);
-
-                // 4. Gọi API
-                let newStatus = targetCol;
-                if (targetCol === 'working') newStatus = 'moving'; // Default working status start
-
-                fetch(`/admin/api/bookings/${jobId}/status`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: `status=${newStatus}`
-                }).then(res => {
-                    if (!res.ok) {
-                        alert('Lỗi cập nhật trạng thái');
-                        window.location.reload();
-                    } else if (targetCol === 'pending') {
-                        // Reload để đảm bảo data sạch (xóa tên thợ)
-                        setTimeout(() => window.location.reload(), 500);
-                    }
-                });
-            },
-
-            // --- Modal Logic ---
-            viewJob(job) {
-                this.selectedJob = job;
-                console.log(this.selectedJob);
-                document.getElementById('modal-view-job').checked = true;
-            },
-
-            openEdit(job) {
-                document.getElementById('modal-view-job').checked = false;
-                // Use JSON parse/stringify to deep clone and strip Alpine proxies 
-                // This prevents reactivity loops causing browser freeze
-                this.editingJob = JSON.parse(JSON.stringify(job));
-                document.getElementById('modal-edit-booking').checked = true;
-            },
-
-            cancelJob(id) {
-                if (confirm('Bạn có chắc chắn muốn HỦY đơn hàng này?')) {
-                    fetch('/admin/bookings/' + id + '/cancel', { method: 'POST' })
-                        .then(res => {
-                            if (res.ok) window.location.reload();
-                            else alert('Lỗi khi hủy đơn');
-                        });
+            for (const colName in this.columns) {
+                const idx = this.columns[colName].findIndex(j => j.id === jobId);
+                if (idx !== -1) {
+                    sourceCol = colName;
+                    jobIndex = idx;
+                    job = this.columns[colName][idx];
+                    break;
                 }
             }
+
+            if (!sourceCol || sourceCol === targetCol) return;
+
+            // Xử lý logic nghiệp vụ
+
+            // 1. Kéo về Pending (Hủy giao việc)
+            if (targetCol === 'pending') {
+                if (!confirm(`⚠️ HỦY GIAO VIỆC?\n\nĐơn "${job.customer}" sẽ quay lại hàng chờ.`)) return;
+            }
+
+            // 2. Kéo vào Assigned (Giao việc) -> Mở Modal
+            if (targetCol === 'assigned') {
+                const modalCheckbox = document.getElementById('modal-assign-' + jobId);
+                if (modalCheckbox) modalCheckbox.checked = true;
+                return; // Dừng tại đây, Modal sẽ lo việc submit
+            }
+
+            // 3. Cập nhật UI (Optimistic)
+            this.columns[sourceCol].splice(jobIndex, 1);
+            this.columns[targetCol].push(job);
+
+            // 4. Gọi API
+            let newStatus = targetCol;
+            if (targetCol === 'working') newStatus = 'moving'; // Default working status start
+
+            fetch(`/admin/api/bookings/${jobId}/status`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `status=${newStatus}`
+            }).then(res => {
+                if (!res.ok) {
+                    alert('Lỗi cập nhật trạng thái');
+                    window.location.reload();
+                } else if (targetCol === 'pending') {
+                    // Reload để đảm bảo data sạch (xóa tên thợ)
+                    setTimeout(() => window.location.reload(), 500);
+                }
+            });
+        },
+
+        // --- Modal Logic ---
+        viewJob(job) {
+            this.selectedJob = job;
+            console.log(this.selectedJob);
+            document.getElementById('modal-view-job').checked = true;
+        },
+
+        openEdit(job) {
+            document.getElementById('modal-view-job').checked = false;
+            // Use JSON parse/stringify to deep clone and strip Alpine proxies 
+            // This prevents reactivity loops causing browser freeze
+            this.editingJob = JSON.parse(JSON.stringify(job));
+            document.getElementById('modal-edit-booking').checked = true;
+        },
+
+        cancelJob(id) {
+            if (confirm('Bạn có chắc chắn muốn HỦY đơn hàng này?')) {
+                fetch('/admin/bookings/' + id + '/cancel', { method: 'POST' })
+                    .then(res => {
+                        if (res.ok) window.location.reload();
+                        else alert('Lỗi khi hủy đơn');
+                    });
+            }
+        },
+
+        createJob(event) {
+            const form = event.target;
+            const formData = new FormData(form);
+
+            fetch(form.action, {
+                method: 'POST',
+                body: formData
+            }).then(res => {
+                if (res.ok) {
+                    Swal.fire({
+                        title: 'Thành công',
+                        text: 'Đã tạo đơn hàng mới',
+                        icon: 'success',
+                        timer: 1500,
+                        showConfirmButton: false
+                    });
+                    document.getElementById('modal-create-job').checked = false;
+                    form.reset();
+                    // Reload to fetch new data (or we could manually add to pending)
+                    setTimeout(() => window.location.reload(), 1500);
+                } else {
+                    res.text().then(text => Swal.fire('Lỗi', text, 'error'));
+                }
+            }).catch(err => Swal.fire('Lỗi', 'Lỗi kết nối', 'error'));
         },
 
         removeJobLocally(jobId) {

@@ -60,15 +60,20 @@ func InitTemplates() (*template.Template, error) {
 	}
 
 	// 3. Load Partials (explicit subdirectories)
-	if _, err := t.ParseGlob("views/partials/*.html"); err != nil {
-		log.Println("Warning: Partials error:", err)
-	}
+	// if _, err := t.ParseGlob("views/partials/*.html"); err != nil {
+	// 	log.Println("Warning: Partials error:", err)
+	// }
 	if _, err := t.ParseGlob("views/partials/tech/*.html"); err != nil {
 		log.Println("Warning: Tech Partials error:", err)
 	}
 	if _, err := t.ParseGlob("views/partials/admin/*.html"); err != nil {
 		log.Println("Warning: Admin Partials error:", err)
 	}
+	if _, err := t.ParseGlob("views/pages/admin/partials/*.html"); err != nil {
+		log.Println("Warning: Admin Page Partials error:", err)
+	}
+
+	log.Println("✅ Loaded Templates:", t.DefinedTemplates())
 
 	// --- [QUAN TRỌNG] PHẢI COMMENT 2 DÒNG DƯỚI NÀY ---
 	// if _, err := t.ParseGlob("views/pages/*/*.html"); err != nil { ... }

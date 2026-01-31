@@ -18,6 +18,11 @@ type BookingRepository interface {
 type TechnicianRepository interface {
 	GetByID(id string) (*Technician, error)
 	GetAvailable() ([]*Technician, error)
+	GetAll() ([]*Technician, error)
+	Create(tech *Technician, password string) error
+	Update(tech *Technician) error
+	SetPassword(id, password string) error
+	ToggleActive(id string) error
 }
 
 type TimeSlotRepository interface {
@@ -57,6 +62,9 @@ type BookingService interface {
 	AssignTechnician(bookingID, technicianID string) error
 	RecallToPending(bookingID string) error
 	UpdateStatus(bookingID, status string) error
+	TechCheckIn(bookingID string, techLat, techLong float64) error
+	CancelBooking(bookingID, reason, note string) error
+	RescheduleBooking(bookingID, newTime string) error
 }
 
 // DTOs for Service Layer

@@ -8,13 +8,21 @@
                 Đại Điện Lạnh </a>
         </div>
         <div class="flex-none gap-2">
-            <a href="/admin/tools/slots" class="btn btn-ghost btn-sm">
+            <a href="/admin" class="btn btn-ghost btn-sm" hx-boost="true" hx-target="#main-content">
+                <i class="fa-solid fa-chart-line"></i>
+                <span class="hidden md:inline">Dashboard</span>
+            </a>
+            <a href="/admin/tools/slots" class="btn btn-ghost btn-sm" hx-boost="true" hx-target="#main-content">
                 <i class="fa-solid fa-calendar"></i>
                 <span class="hidden md:inline">Slots</span>
             </a>
-            <a href="/admin/tools/inventory" class="btn btn-ghost btn-sm">
+            <a href="/admin/tools/inventory" class="btn btn-ghost btn-sm" hx-boost="true" hx-target="#main-content">
                 <i class="fa-solid fa-warehouse"></i>
                 <span class="hidden md:inline">Kho</span>
+            </a>
+            <a href="/admin/techs" class="btn btn-ghost btn-sm" hx-boost="true" hx-target="#main-content">
+                <i class="fa-solid fa-users-gear"></i>
+                <span class="hidden md:inline">Thợ</span>
             </a>
             <a href="/admin/logout" class="btn btn-ghost btn-sm">
                 <i class="fa-solid fa-sign-out"></i>

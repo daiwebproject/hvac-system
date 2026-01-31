@@ -54,3 +54,43 @@ func RenderPage(t *template.Template, e *core.RequestEvent, layoutName string, p
 
 	return nil
 }
+
+// RenderPartial renders just a template file/block without any layout logic.
+// Useful for small HTMX swaps (like lists, table rows, modals).
+func RenderPartial(t *template.Template, e *core.RequestEvent, pagePath string, data interface{}) error {
+	tmpl, err := t.Clone()
+	if err != nil {
+		fmt.Println("❌ Template Clone Error:", err)
+		return e.String(500, "Template error")
+	}
+
+	fullPath := filepath.Join("views", "pages", pagePath+".html")
+	_, err = tmpl.ParseFiles(fullPath)
+	if err != nil {
+		fmt.Printf("❌ Error parsing file %s: %v\n", fullPath, err)
+		return e.String(500, "Page not found")
+	}
+
+	e.Response.Header().Set("Content-Type", "text/html; charset=utf-8")
+
+	// Try executing "content" block first if defined, else potentially the whole file or a specific name?
+	// For simple partials, usually the file content *is* the block or we define a block inside.
+	// But `ExecuteTemplate` needs a name. If the file purely contains HTML without define, `Execute` on root is hard.
+	// Convention: All partials should `{{ define "content" }}` or we simply rely on the fact that `ParseFiles` adds it to the set.
+	// Let's assume partials are just HTML fragments. ParseFiles returns unique template name associated with filename.
+
+	// Actually, safer pattern:
+	// If the user provided "admin/partials/tech_list", we parse "views/pages/admin/partials/tech_list.html".
+	// To execute it, we might need to know the template name derived from filename (e.g. "tech_list.html").
+
+	fileName := filepath.Base(fullPath)
+	if err := tmpl.ExecuteTemplate(e.Response, fileName, data); err != nil {
+		// Callback: If define "content" is standard in your partials
+		if err2 := tmpl.ExecuteTemplate(e.Response, "content", data); err2 != nil {
+			fmt.Println("❌ Render Partial Error:", err, err2)
+			return e.String(500, "Render error")
+		}
+	}
+
+	return nil
+}

@@ -1,6 +1,9 @@
+// inventory_service.go
 package services
 
 import (
+	"database/sql"
+	"errors"
 	"fmt"
 
 	"github.com/pocketbase/pocketbase/core"
@@ -70,6 +73,9 @@ func (s *InventoryService) GetActiveItems() ([]InventoryItem, error) {
 		nil,
 	)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) || err.Error() == "sql: no rows in result set" {
+			return []InventoryItem{}, nil
+		}
 		return nil, err
 	}
 

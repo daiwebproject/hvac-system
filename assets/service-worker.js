@@ -50,50 +50,10 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// 3. FETCH (ĐÂY LÀ PHẦN QUAN TRỌNG NHẤT)
+// 3. FETCH - NETWORK ONLY (No Cache)
 self.addEventListener('fetch', (event) => {
-  const url = event.request.url;
-
-  // A. Bỏ qua request không phải http
-  if (!url.startsWith('http')) return;
-
-  // B. [FIX LỖI 401] Bỏ qua API và POST request
-  // Service Worker sẽ KHÔNG CHẶN các request này nữa
-  // Trình duyệt sẽ tự gửi Cookie đi kèm -> Hết lỗi 401
-  if (url.includes('/api/') || event.request.method === 'POST') {
-    return;
-  }
-
-  // C. [FIX TEMPLATE CACHE] Bỏ qua HTML pages - không cache
-  // Chỉ cache static assets (CSS, JS, images)
-  const isHTMLPage = event.request.mode === 'navigate' ||
-    event.request.destination === 'document' ||
-    url.includes('/tech/') ||
-    url.includes('/admin/') ||
-    url.endsWith('.html');
-
-  if (isHTMLPage) {
-    // Network-first cho HTML pages
-    return;
-  }
-
-  // D. Cache các file tĩnh như bình thường (CSS, JS, images)
-  event.respondWith(
-    caches.match(event.request).then((response) => {
-      if (response) return response;
-
-      return fetch(event.request).then((networkResponse) => {
-        if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic') {
-          return networkResponse;
-        }
-        const responseToCache = networkResponse.clone();
-        caches.open(DYNAMIC_CACHE).then((cache) => {
-          cache.put(event.request, responseToCache);
-        });
-        return networkResponse;
-      });
-    })
-  );
+  // Pass through everything
+  return;
 });
 
 // ... (Các phần Sync và Notification giữ nguyên)

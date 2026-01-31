@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 
+	"hvac-system/internal/adapter/repository"
 	domain "hvac-system/internal/core"
 	"hvac-system/pkg/broker"
 	"hvac-system/pkg/handlers"
@@ -19,7 +20,7 @@ import (
 )
 
 // RegisterRoutes configures all application routes
-func RegisterRoutes(app *pocketbase.PocketBase, t *template.Template, eventBroker *broker.SegmentedBroker, analytics domain.AnalyticsService) {
+func RegisterRoutes(app *pocketbase.PocketBase, t *template.Template, eventBroker *broker.SegmentedBroker, analytics domain.AnalyticsService, bookingServiceInternal domain.BookingService) {
 	app.OnServe().BindFunc(func(se *core.ServeEvent) error {
 
 		// ---------------------------------------------------------
@@ -65,6 +66,10 @@ func RegisterRoutes(app *pocketbase.PocketBase, t *template.Template, eventBroke
 			Templates: t,
 		}
 
+		// Services Check
+		techRepo := repository.NewTechnicianRepo(app)
+		techService := services.NewTechManagementService(techRepo)
+
 		// ---------------------------------------------------------
 		// 3. HANDLERS SETUP
 		// ---------------------------------------------------------
@@ -74,6 +79,7 @@ func RegisterRoutes(app *pocketbase.PocketBase, t *template.Template, eventBroke
 			Broker:           eventBroker,
 			BookingService:   bookingService,
 			SlotService:      slotService,
+			TechService:      techService, // Injected
 			AnalyticsService: analytics,
 			UIComponents:     uiComponents,
 		}
@@ -84,6 +90,7 @@ func RegisterRoutes(app *pocketbase.PocketBase, t *template.Template, eventBroke
 			Broker:         eventBroker,
 			Inventory:      inventoryService,
 			InvoiceService: invoiceService,
+			BookingService: bookingServiceInternal, // Injected Internal Service
 		}
 
 		slot := &handlers.SlotHandler{
@@ -111,6 +118,12 @@ func RegisterRoutes(app *pocketbase.PocketBase, t *template.Template, eventBroke
 			FCMService: fcmService,
 		}
 
+		public := &handlers.PublicHandler{
+			App:            app,
+			Templates:      t,
+			InvoiceService: invoiceService,
+		}
+
 		// ---------------------------------------------------------
 		// 4. PUBLIC ROUTES
 		// ---------------------------------------------------------
@@ -118,6 +131,10 @@ func RegisterRoutes(app *pocketbase.PocketBase, t *template.Template, eventBroke
 		se.Router.GET("/book", web.BookingPage)
 		se.Router.POST("/book", web.BookService)
 		se.Router.GET("/api/slots/available", slot.GetAvailableSlots)
+
+		// Super Invoice Public Routes
+		se.Router.GET("/invoice/{hash}", public.ShowInvoice)
+		se.Router.POST("/api/invoice/{hash}/feedback", public.SubmitFeedback)
 
 		// ---------------------------------------------------------
 		// 5. AUTH ROUTES
@@ -141,7 +158,14 @@ func RegisterRoutes(app *pocketbase.PocketBase, t *template.Template, eventBroke
 		// adminGroup.POST("/bookings/{id}/assign", admin.AssignJob)
 		adminGroup.POST("/bookings/{id}/cancel", admin.CancelBooking)
 		adminGroup.POST("/bookings/{id}/update", admin.UpdateBookingInfo)
+		adminGroup.POST("/bookings/create", admin.CreateBooking) // NEW: Manual Creation
 		// adminGroup.POST("/api/bookings/{id}/status", admin.UpdateBookingStatus)
+
+		// Admin Tech Management
+		adminGroup.GET("/techs", admin.TechsList)
+		adminGroup.POST("/techs/create", admin.CreateTech)
+		adminGroup.POST("/techs/{id}/password", admin.ResetTechPassword)
+		adminGroup.POST("/techs/{id}/toggle", admin.ToggleTechStatus)
 
 		// Admin Tools
 		adminGroup.GET("/tools/slots", adminTools.ShowSlotManager)
@@ -191,7 +215,8 @@ func RegisterRoutes(app *pocketbase.PocketBase, t *template.Template, eventBroke
 		apiGroup.POST("/bookings/{id}/cancel", tech.CancelBooking)       // New
 		apiGroup.GET("/job/{id}/invoice", tech.GetJobInvoice)
 		apiGroup.POST("/job/{id}/payment", tech.ProcessPayment)
-		apiGroup.POST("/status/toggle", tech.ToggleOnlineStatus) // New
+		apiGroup.POST("/status/toggle", tech.ToggleOnlineStatus)        // New
+		apiGroup.POST("/bookings/{id}/checkin", tech.HandleTechCheckIn) // GPS Check-in
 		// Đường dẫn mới sẽ là: /api/tech/fcm/token
 		apiGroup.POST("/fcm/token", fcm.RegisterDeviceToken)
 
