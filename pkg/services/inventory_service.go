@@ -55,11 +55,11 @@ type InventoryItem struct {
 
 // JobPart represents a part used in a job
 type JobPart struct {
-	ItemID       string
-	ItemName     string
-	Quantity     float64
-	PricePerUnit float64
-	Total        float64
+	ItemID       string  `json:"id"`
+	ItemName     string  `json:"name"`
+	Quantity     float64 `json:"qty"`
+	PricePerUnit float64 `json:"price"`
+	Total        float64 `json:"total"`
 }
 
 // GetActiveItems returns all active inventory items

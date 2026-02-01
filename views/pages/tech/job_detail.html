@@ -1,8 +1,8 @@
 {{ define "content" }}
 <div x-data="JobDetailController({
         id: '{{.Job.Id}}',
-        lat: {{.Job.GetFloat " lat"}}, long: {{.Job.GetFloat "long" }}, address: {{printf "%q"
-    (.Job.GetString "address_details" )}}, status: '{{.Job.GetString "job_status"}}' })"
+        lat: {{.Job.GetFloat " lat"}}, long: {{.Job.GetFloat "long" }}, address: {{printf "%q" (or
+    (.Job.GetString "address_details" ) (.Job.GetString "address" ))}}, status: '{{.Job.GetString "job_status"}}' })"
     class="bg-gray-50 min-h-screen pb-32">
 
     <nav class="bg-white shadow-sm sticky top-0 z-50">
@@ -77,5 +77,5 @@
     {{template "tech/cancel_modal" .}}
 </div>
 
-<script src="/assets/js/controllers/job_detail_controller.js?v=5"></script>
+<script src="/assets/js/controllers/job_detail_controller.js?v=7"></script>
 {{ end }}

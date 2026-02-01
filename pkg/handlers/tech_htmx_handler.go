@@ -127,6 +127,7 @@ func (h *TechHandler) GetJobInvoice(e *core.RequestEvent) error {
 func (h *TechHandler) ProcessPayment(e *core.RequestEvent) error {
 	jobID := e.Request.PathValue("id")
 	paymentMethod := e.Request.FormValue("payment_method")
+	transactionCode := e.Request.FormValue("transaction_code")
 
 	invoices, _ := h.App.FindRecordsByFilter(
 		"invoices",
@@ -145,16 +146,27 @@ func (h *TechHandler) ProcessPayment(e *core.RequestEvent) error {
 	invoice.Set("payment_method", paymentMethod)
 	invoice.Set("status", "paid")
 
-	// Handle Signature Upload
-	// Expecting "signature_file" from FormData (converted from canvas blob)
-	file, _, err := e.Request.FormFile("signature_file")
-	if err == nil {
-		defer file.Close()
-		// Create a filesystem file from multipart/form-data
-		// PocketBase core.FileField expects *multipart.FileHeader or similar.
-		// Actually e.FindUploadedFiles is easier.
+	// Save Transaction Code if provided (e.g., for Bank Transfer)
+	if transactionCode != "" {
+		// Append to existing notes or set new field if available
+		// Using 'payment_note' assuming it fits standard schema, fallback to description if needed
+		currentNote := invoice.GetString("payment_note")
+		if currentNote != "" {
+			invoice.Set("payment_note", fmt.Sprintf("%s | Ref: %s", currentNote, transactionCode))
+		} else {
+			invoice.Set("payment_note", fmt.Sprintf("Ref: %s", transactionCode))
+		}
 	}
 
+	// Ensure Public Hash exists for external viewing
+	if invoice.GetString("public_hash") == "" {
+		// Simple hash generation using timestamp and ID
+		hash := fmt.Sprintf("%x", time.Now().UnixNano())
+		invoice.Set("public_hash", hash)
+	}
+
+	// Handle Signature Upload
+	// Expecting "signature_file" from FormData (converted from canvas blob)
 	files, _ := e.FindUploadedFiles("signature_file")
 	if len(files) > 0 {
 		invoice.Set("customer_signature", files[0])
@@ -169,7 +181,7 @@ func (h *TechHandler) ProcessPayment(e *core.RequestEvent) error {
 	job, _ := h.App.FindRecordById("bookings", jobID)
 	if job != nil {
 		job.Set("payment_status", "paid")
-		// Maybe set job_status to completed if not already (it is)
+		job.Set("job_status", "completed") // Ensure completed
 		h.App.Save(job)
 	}
 
@@ -184,15 +196,14 @@ func (h *TechHandler) ProcessPayment(e *core.RequestEvent) error {
 		},
 	})
 
-	// HTMX redirect or Client redirect
-	// Since this is a full page form usually (or heavy partial), let's redirect to dashboard
-	// Or return success JSON
-	if e.Request.Header.Get("HX-Request") != "" {
-		e.Response.Header().Set("HX-Redirect", "/tech/jobs")
-		return e.NoContent(200)
-	}
-
-	return e.Redirect(http.StatusSeeOther, "/tech/jobs")
+	// Check if this is an HTMX or API request
+	// Always return JSON for our custom frontend logic
+	return e.JSON(200, map[string]interface{}{
+		"success":      true,
+		"invoice_id":   invoice.Id,
+		"invoice_hash": invoice.GetString("public_hash"),
+		"message":      "Thanh toán thành công",
+	})
 }
 
 // GET /api/tech/jobs/list - Get refreshed job list (for HTMX pull)

@@ -22,7 +22,7 @@
             <div class="flex gap-2 items-start">
                 <i class="fa-solid fa-location-dot text-red-500 mt-1"></i>
                 <p class="text-sm text-gray-700 font-medium leading-relaxed">
-                    {{.Job.GetString "address_details"}}
+                    {{ or (.Job.GetString "address_details") (.Job.GetString "address") }}
                 </p>
             </div>
 

@@ -98,6 +98,14 @@
                     </div>
                 </div>
                 <p class="text-xs text-gray-400 italic">Vui lòng kiểm tra kỹ thông tin người nhận</p>
+                <!-- Transaction Code Input -->
+                <div class="form-control w-full max-w-xs mx-auto mt-4">
+                    <label class="label">
+                        <span class="label-text font-semibold">Mã giao dịch / Nội dung CK:</span>
+                    </label>
+                    <input type="text" x-model="transactionCode" placeholder="Nhập mã giao dịch..."
+                        class="input input-bordered w-full" />
+                </div>
             </div>
 
             <!-- Cash Section -->
@@ -134,6 +142,7 @@
     document.addEventListener('alpine:init', () => {
         Alpine.data('invoicePayment', () => ({
             method: 'transfer',
+            transactionCode: '',
             signaturePad: null,
 
             init() {
@@ -175,30 +184,87 @@
                         const form = document.getElementById('payment-form');
                         const formData = new FormData(form);
                         formData.append('signature_file', blob, 'signature.png');
+                        formData.append('transaction_code', this.transactionCode); // Add code
 
-                        // Manually submit via HTMX or Fetch
-                        htmx.ajax('POST', form.getAttribute('hx-post'), {
-                            values: {
-                                payment_method: this.method,
-                                signature_file: blob
-                            },
-                            source: form,
-                        });
-
-                        // Simpler: Use JS to POST.
+                        // Show Loading
                         Swal.fire({
                             title: 'Đang xử lý...',
                             didOpen: () => Swal.showLoading()
                         });
 
                         fetch(form.getAttribute('hx-post'), { method: 'POST', body: formData })
-                            .then(r => {
-                                if (r.ok || r.redirected) window.location.href = '/tech/jobs';
-                                else Swal.fire('Lỗi', 'Có lỗi xảy ra', 'error');
+                            .then(res => res.json())
+                            .then(data => {
+                                if (data.success) {
+                                    const invoiceUrl = window.location.origin + "/invoice/" + data.invoice_hash;
+                                    const zaloShareUrl = `https://zalo.me/share?url=${encodeURIComponent(invoiceUrl)}`;
+
+                                    Swal.fire({
+                                        title: 'Thanh toán thành công!',
+                                        icon: 'success',
+                                        html: `
+                                            <div class="grid gap-3 mt-4">
+                                                <button onclick="shareInvoice('${invoiceUrl}')" class="btn btn-info text-white">
+                                                    <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/91/Icon_of_Zalo.svg/1200px-Icon_of_Zalo.svg.png" 
+                                                         class="w-6 h-6 mr-2 bg-white rounded-full p-0.5">
+                                                    Gửi Zalo cho Khách
+                                                </button>
+                                                
+                                                <div class="join w-full">
+                                                    <input type="text" value="${invoiceUrl}" class="input input-bordered input-sm join-item w-full text-xs" readonly>
+                                                    <button onclick="copyToClipboard('${invoiceUrl}')" class="btn btn-sm join-item">
+                                                        <i class="fa-regular fa-copy"></i>
+                                                    </button>
+                                                </div>
+
+                                                <div class="divider my-1 text-xs text-gray-400">Hoặc</div>
+
+                                                <a href="/invoice/${data.invoice_hash}" target="_blank" class="btn btn-outline btn-primary btn-sm">
+                                                    <i class="fa-solid fa-receipt"></i> Xem hóa đơn
+                                                </a>
+                                                <a href="/tech/jobs" class="btn btn-neutral btn-sm">
+                                                    <i class="fa-solid fa-house"></i> Về Trang Chủ
+                                                </a>
+                                            </div>
+                                        `,
+                                        showConfirmButton: false,
+                                        allowOutsideClick: false
+                                    });
+                                } else {
+                                    Swal.fire('Lỗi', data.error || 'Có lỗi xảy ra', 'error');
+                                }
+                            })
+                            .catch(err => {
+                                Swal.fire('Lỗi kết nối', err.message, 'error');
                             });
                     });
             }
         }));
     });
+    // Global helpers for SweetAlert interactions
+    window.shareInvoice = function (url) {
+        if (navigator.share) {
+            navigator.share({
+                title: 'Hóa đơn dịch vụ',
+                text: 'Cảm ơn quý khách đã sử dụng dịch vụ. Dưới đây là hóa đơn điện tử của bạn:',
+                url: url
+            }).catch(console.error);
+        } else {
+            // Fallback to Zalo Share URL
+            window.open(`https://zalo.me/share?url=${encodeURIComponent(url)}`, '_blank');
+        }
+    };
+
+    window.copyToClipboard = function (text) {
+        navigator.clipboard.writeText(text).then(() => {
+            const Toast = Swal.mixin({
+                toast: true,
+                position: 'top-end',
+                showConfirmButton: false,
+                timer: 2000
+            });
+            Toast.fire({ icon: 'success', title: 'Đã sao chép link' });
+        });
+    };
 </script>
 {{ end }}

@@ -14,11 +14,11 @@ window.JobDetailController = function (data) {
         // SỬA LỖI: Link Google Maps chuẩn (giống Admin Dashboard)
         getMapLink() {
             if (this.lat && this.long && this.lat !== 0) {
-                // Corrected template literal syntax for lat/long
-                return `http://googleusercontent.com/maps.google.com/maps?q=${this.lat},${this.long}&z=17`;
+                // Use standard Google Maps URL
+                return `https://www.google.com/maps?q=${this.lat},${this.long}&z=17`;
             }
-            // Corrected template literal syntax for address
-            return `http://googleusercontent.com/maps.google.com/maps?q=${encodeURIComponent(this.address)}`;
+            // Use standard Google Maps URL for address
+            return `https://www.google.com/maps?q=${encodeURIComponent(this.address)}`;
         },
 
         getStatusLabel(s) {

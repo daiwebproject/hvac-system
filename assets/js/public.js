@@ -47,34 +47,57 @@ window.bookingWizard = function () {
         },
 
         getLocation() {
-            this.locationStatus = 'Đang lấy vị trí...';
+            this.locationStatus = 'Đang lấy vị trí (vui lòng cho phép)...';
+
             if (!navigator.geolocation) {
-                this.locationStatus = 'Trình duyệt không hỗ trợ vị trí.';
+                this.locationStatus = 'Trình duyệt không hỗ trợ định vị.';
                 return;
             }
+
+            const options = {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 0
+            };
+
             navigator.geolocation.getCurrentPosition(
                 async (position) => {
                     this.formData.lat = position.coords.latitude;
                     this.formData.long = position.coords.longitude;
                     this.locationStatus = 'Đã lấy tọa độ. Đang tìm địa chỉ...';
+
                     try {
                         const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${this.formData.lat}&lon=${this.formData.long}&zoom=18&addressdetails=1`);
                         const data = await res.json();
                         if (data && data.display_name) {
+                            // Format address nicely if possible, or just use display_name
                             this.formData.address = data.display_name;
-                            this.locationStatus = 'Đã cập nhật vị trí và địa chỉ!';
+                            this.locationStatus = 'Định vị thành công!';
                         } else {
-                            this.locationStatus = 'Đã ghim tọa độ. Vui lòng nhập địa chỉ cụ thể.';
+                            this.locationStatus = 'Đã ghim tọa độ. Vui lòng điền địa chỉ cụ thể.';
                         }
                     } catch (e) {
                         console.error(e);
-                        this.locationStatus = 'Đã ghim tọa độ. Không thể lấy tên đường (Lỗi mạng).';
+                        this.locationStatus = 'Đã lấy tọa độ (Lỗi tìm tên đường). Vui lòng nhập địa chỉ.';
                     }
                 },
                 (err) => {
                     console.error(err);
-                    this.locationStatus = 'Không thể lấy vị trí. Hãy kiểm tra quyền truy cập hoặc nhập tay.';
-                }
+                    let msg = 'Không thể lấy vị trí.';
+                    switch (err.code) {
+                        case err.PERMISSION_DENIED:
+                            msg = 'Bạn đã từ chối quyền truy cập vị trí. Hãy bật lại trong cài đặt Safari/Trình duyệt.';
+                            break;
+                        case err.POSITION_UNAVAILABLE:
+                            msg = 'Không tìm thấy vị trí hiện tại.';
+                            break;
+                        case err.TIMEOUT:
+                            msg = 'Quá thời gian chờ lấy vị trí. Hãy thử lại.';
+                            break;
+                    }
+                    this.locationStatus = msg;
+                },
+                options
             );
         },
 
