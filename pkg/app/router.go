@@ -196,6 +196,7 @@ func RegisterRoutes(app *pocketbase.PocketBase, t *template.Template, eventBroke
 		// Job Completion Flow
 		techGroup.GET("/job/{id}/complete", tech.ShowCompleteJob)
 		techGroup.POST("/job/{id}/complete", tech.SubmitCompleteJob)
+		techGroup.GET("/job/{id}/invoice-payment", tech.ShowInvoicePayment) // Added missing route
 
 		// Quote & Report Stubs
 		techGroup.GET("/jobs/{id}/quote", tech.ShowQuote)

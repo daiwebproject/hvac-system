@@ -10,22 +10,40 @@ Used in job_detail.html
 
         <!-- Start Moving Button (assigned/pending status) -->
         <template x-if="status === 'assigned' || status === 'pending'">
-            <button @click="updateStatus('moving')" :disabled="loading"
-                class="btn btn-primary flex-1 shadow-lg text-lg animate-pulse">
-                <i class="fa-solid fa-motorcycle" x-show="!loading"></i>
+            <button @click="updateStatusAPI('moving')" :disabled="loading"
+                class="btn btn-info text-white flex-1 shadow-lg text-lg animate-pulse">
+                <i class="fa-solid fa-person-walking-arrow-right" x-show="!loading"></i>
                 <span x-show="loading" class="loading loading-spinner loading-sm"></span>
                 BẮT ĐẦU DI CHUYỂN
             </button>
         </template>
 
-        <!-- Arrived & Start Working Button (moving status) -->
+        <!-- Arrived / Check-in Button (moving status) -->
         <template x-if="status === 'moving'">
-            <button @click="updateStatus('working')" :disabled="loading"
-                class="btn btn-secondary flex-1 shadow-lg text-lg">
-                <i class="fa-solid fa-screwdriver-wrench" x-show="!loading"></i>
+            <button @click="checkIn()" :disabled="loading" class="btn btn-warning flex-1 shadow-lg text-lg">
+                <i class="fa-solid fa-location-dot" x-show="!loading"></i>
                 <span x-show="loading" class="loading loading-spinner loading-sm"></span>
-                ĐÃ ĐẾN & BẮT ĐẦU LÀM
+                ĐÃ ĐẾN NƠI (Check-in)
             </button>
+        </template>
+
+        <!-- Start Working Button (arrived status) -->
+
+
+        <!-- Start Working Button (arrived status) -->
+        <template x-if="status === 'arrived'">
+            <div class="flex gap-2 flex-1">
+                <button @click="updateStatusAPI('working')" :disabled="loading"
+                    class="btn btn-primary flex-1 shadow-lg text-lg">
+                    <i class="fa-solid fa-screwdriver-wrench" x-show="!loading"></i>
+                    <span x-show="loading" class="loading loading-spinner loading-sm"></span>
+                    BẮT ĐẦU LÀM VIỆC
+                </button>
+                <button @click="reportIssue('customer_not_home')" :disabled="loading"
+                    class="btn btn-error btn-outline shadow-lg" title="Khách vắng nhà">
+                    <i class="fa-solid fa-user-xmark"></i>
+                </button>
+            </div>
         </template>
 
         <!-- Complete Job Button (working status) -->

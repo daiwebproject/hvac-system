@@ -1,4 +1,6 @@
-{{define "content"}} <div class="max-w-md mx-auto bg-gray-50 min-h-screen" x-data="jobCompletion({
+{{define "content"}}
+<script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
+<div class="max-w-md mx-auto bg-gray-50 min-h-screen" x-data="jobCompletion({
          jobId: '{{.Booking.Id}}',
          laborPrice: {{.LaborPrice}}
      })">
@@ -83,11 +85,67 @@
             <select x-model="selectedPartId" @change="addManualPart()" class="select select-bordered select-sm w-full">
                 <option value="">+ Chọn vật tư từ danh sách...</option>
                 {{range .Inventory}}
-                <option value="{{.Id}}" data-price="{{.Price}}" data-name="{{.Name}}">
+                <option value="{{.ID}}" data-price="{{.Price}}" data-name="{{.Name}}">
                     {{.Name}} - {{.Price}}đ
                 </option>
                 {{end}}
             </select>
+        </div>
+
+        <!-- Payment & Signature Section (Merged) -->
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+            <h3 class="font-bold text-gray-800 mb-4 flex items-center">
+                <i class="fa-solid fa-file-signature text-blue-500 mr-2"></i> Xác nhận & Thanh toán
+            </h3>
+
+            <!-- Signature Pad -->
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Chữ ký khách hàng <span
+                        class="text-red-500">*</span></label>
+                <div
+                    class="border-2 border-gray-200 rounded-lg bg-[url('https://www.transparenttextures.com/patterns/graphy.png')] bg-gray-50 touch-none relative">
+                    <canvas id="signature-pad" class="w-full h-48 block cursor-crosshair"></canvas>
+                    <div class="absolute bottom-2 right-2 text-[10px] text-gray-300 pointer-events-none select-none">Ký
+                        vào đây</div>
+                </div>
+                <div class="flex justify-end mt-2">
+                    <button type="button" @click="clearSignature()"
+                        class="btn btn-xs btn-ghost text-red-500 hover:bg-red-50">
+                        <i class="fa-solid fa-eraser"></i> Xóa ký lại
+                    </button>
+                </div>
+            </div>
+
+            <!-- Payment Method -->
+            <h4 class="font-bold text-sm text-gray-700 mb-2">Phương thức thanh toán:</h4>
+            <div class="flex p-1 bg-gray-100 rounded-xl mb-6">
+                <button type="button" class="flex-1 py-2 text-sm font-bold rounded-lg transition-all duration-200"
+                    :class="paymentMethod === 'transfer' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'"
+                    @click="paymentMethod = 'transfer'">
+                    <i class="fa-solid fa-qrcode mr-1"></i> Chuyển khoản
+                </button>
+                <button type="button" class="flex-1 py-2 text-sm font-bold rounded-lg transition-all duration-200"
+                    :class="paymentMethod === 'cash' ? 'bg-white text-green-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'"
+                    @click="paymentMethod = 'cash'">
+                    <i class="fa-solid fa-money-bill mr-1"></i> Tiền mặt
+                </button>
+            </div>
+
+            <!-- QR Code (Transfer) -->
+            <div x-show="paymentMethod === 'transfer'" x-transition class="text-center space-y-4 mb-4">
+                <div class="bg-white p-3 inline-block rounded-xl shadow-md border border-gray-100">
+                    <!-- Dynamic QR: Account info hardcoded for now or passed from backend -->
+                    <img :src="getQrUrl(grandTotal, 'Thanh toan Job {{.Booking.Id}}')"
+                        class="w-48 h-48 object-contain rounded-lg">
+                </div>
+                <p class="text-xs text-gray-500">Quét mã để thanh toán</p>
+            </div>
+
+            <!-- Cash Info -->
+            <div x-show="paymentMethod === 'cash'" x-transition
+                class="text-center p-4 bg-green-50 rounded-lg border border-green-100 mb-4">
+                <p class="text-green-700 text-sm font-bold">Thu tiền mặt trực tiếp từ khách</p>
+            </div>
         </div>
 
         <div
@@ -129,6 +187,19 @@
             parts: [], // {id, name, price, qty}
             selectedPartId: '',
             loading: false,
+            paymentMethod: 'transfer',
+            signaturePad: null,
+
+            init() {
+                const canvas = document.getElementById('signature-pad');
+                if (canvas) {
+                    const ratio = Math.max(window.devicePixelRatio || 1, 1);
+                    canvas.width = canvas.offsetWidth * ratio;
+                    canvas.height = canvas.offsetHeight * ratio;
+                    canvas.getContext("2d").scale(ratio, ratio);
+                    this.signaturePad = new SignaturePad(canvas, { backgroundColor: 'rgba(255,255,255,0)' });
+                }
+            },
 
             // Computed Properties (mô phỏng)
             get partsTotal() {
@@ -177,67 +248,86 @@
                 }
             },
 
-            updateQty(index, change) {
-                const item = this.parts[index];
-                item.qty += change;
-                if (item.qty <= 0) {
-                    this.parts.splice(index, 1);
-                }
-            },
+            if(item.qty <= 0) {
+            this.parts.splice(index, 1);
+        }
+    },
+
+    clearSignature() {
+        if (this.signaturePad) this.signaturePad.clear();
+    },
+
+    getQrUrl(amount, info) {
+        // Use hardcoded bank info from template or reliable source. 
+        // For now hardcoded based on previous file: Bin 970422 (MB), Acc 0333666999
+        const bankBin = '970422';
+        const accountNo = '0333666999';
+        return `https://img.vietqr.io/image/${bankBin}-${accountNo}-compact.png?amount=${amount}&addInfo=${encodeURIComponent(info)}`;
+    },
 
             async submitForm() {
-                if (this.photos.length === 0) {
-                    alert('Vui lòng chụp ít nhất 1 ảnh nghiệm thu!');
-                    return;
-                }
+        if (this.photos.length === 0) {
+            alert('Vui lòng chụp ít nhất 1 ảnh nghiệm thu!');
+            return;
+        }
 
-                if (!confirm(`Xác nhận hoàn thành với tổng tiền ${this.formatMoney(this.grandTotal)}?`)) return;
+        if (this.signaturePad && this.signaturePad.isEmpty()) {
+            alert('Vui lòng xin chữ ký khách hàng!');
+            return;
+        }
 
-                this.loading = true;
+        if (!confirm(`Xác nhận hoàn thành với tổng tiền ${this.formatMoney(this.grandTotal)}?`)) return;
 
-                // Chuẩn bị FormData
-                const fd = new FormData();
-                fd.append('notes', this.notes);
+        this.loading = true;
 
-                // ✅ FIX 1: Convert base64 to File objects with correct field name
-                for (let i = 0; i < this.photos.length; i++) {
-                    const base64 = this.photos[i];
-                    // Convert base64 to blob
-                    const res = await fetch(base64);
-                    const blob = await res.blob();
-                    // Create File object with proper name
-                    const file = new File([blob], `photo_${i + 1}.jpg`, { type: 'image/jpeg' });
-                    // Use correct field name that backend expects
-                    fd.append('after_images', file);
-                }
+        // Chuẩn bị FormData
+        const fd = new FormData();
+        fd.append('notes', this.notes);
+        fd.append('payment_method', this.paymentMethod);
 
-                // ✅ FIX 2: Use correct field name for parts
-                fd.append('parts_json', JSON.stringify(this.parts));
+        // Add Signature
+        if (this.signaturePad) {
+            const sigData = this.signaturePad.toDataURL();
+            const res = await fetch(sigData);
+            const blob = await res.blob();
+            fd.append('signature_file', blob, 'signature.png');
+        }
 
-                try {
-                    const res = await fetch(`/tech/job/${this.jobId}/complete`, {
-                        method: 'POST',
-                        body: fd
-                    });
+        // ✅ FIX 1: Convert base64 to File objects
+        for (let i = 0; i < this.photos.length; i++) {
+            const base64 = this.photos[i];
+            const res = await fetch(base64);
+            const blob = await res.blob();
+            const file = new File([blob], `photo_${i + 1}.jpg`, { type: 'image/jpeg' });
+            fd.append('after_images', file);
+        }
 
-                    // ✅ FIX 3: Follow backend redirect instead of forcing our own
-                    if (res.ok || res.redirected) {
-                        // Backend redirects to invoice-payment page
-                        window.location.href = res.url || `/tech/job/${this.jobId}/invoice-payment`;
-                    } else {
-                        const errorText = await res.text();
-                        alert('Có lỗi xảy ra: ' + errorText);
-                    }
-                } catch (e) {
-                    alert('Lỗi kết nối: ' + e.message);
-                } finally {
-                    this.loading = false;
-                }
-            },
+        // ✅ FIX 2: Use correct field name for parts
+        fd.append('parts_json', JSON.stringify(this.parts));
 
-            formatMoney(amount) {
-                return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount).replace('₫', '');
+        try {
+            const res = await fetch(`/tech/job/${this.jobId}/complete`, {
+                method: 'POST',
+                body: fd
+            });
+
+            if (res.ok || res.redirected) {
+                // After success, go back to jobs list or dashboard
+                window.location.href = '/tech/jobs';
+            } else {
+                const errorText = await res.text();
+                alert('Có lỗi xảy ra: ' + errorText);
             }
+        } catch (e) {
+            alert('Lỗi kết nối: ' + e.message);
+        } finally {
+            this.loading = false;
+        }
+    },
+
+    formatMoney(amount) {
+        return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount).replace('₫', '');
+    }
         }
     }
 </script>

@@ -79,9 +79,11 @@ func (h *TechHandler) UpdateJobStatusHTMX(e *core.RequestEvent) error {
 		},
 	})
 
-	// Return updated action button HTML
-	e.Response.Header().Set("HX-Trigger", `{"statusUpdated": true}`)
-	return h.renderJobActionButtons(e, job)
+	// Return updated status in JSON format (Frontend Controller handles UI update)
+	return e.JSON(200, map[string]string{
+		"status":  newStatus,
+		"message": "Cập nhật trạng thái thành công",
+	})
 }
 
 // GET /api/tech/job/{id}/invoice - Get invoice preview

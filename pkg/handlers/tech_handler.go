@@ -600,7 +600,10 @@ func (h *TechHandler) HandleTechCheckIn(e *core.RequestEvent) error {
 		return e.JSON(400, map[string]string{"error": err.Error()})
 	}
 
-	return e.JSON(200, map[string]string{"status": "success", "message": "Check-in thành công"})
+	return e.JSON(200, map[string]string{
+		"message": "Check-in thành công",
+		"status":  "arrived", // Return new status for Frontend to update
+	})
 }
 
 // POST /tech/job/{id}/evidence
