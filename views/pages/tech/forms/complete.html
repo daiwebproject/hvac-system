@@ -248,86 +248,93 @@
                 }
             },
 
-            if(item.qty <= 0) {
-            this.parts.splice(index, 1);
-        }
-    },
+            // --- ĐOẠN ĐÃ SỬA ---
+            updateQty(index, change) {
+                const item = this.parts[index];
+                if (!item) return;
 
-    clearSignature() {
-        if (this.signaturePad) this.signaturePad.clear();
-    },
+                item.qty += change;
 
-    getQrUrl(amount, info) {
-        // Use hardcoded bank info from template or reliable source. 
-        // For now hardcoded based on previous file: Bin 970422 (MB), Acc 0333666999
-        const bankBin = '970422';
-        const accountNo = '0333666999';
-        return `https://img.vietqr.io/image/${bankBin}-${accountNo}-compact.png?amount=${amount}&addInfo=${encodeURIComponent(info)}`;
-    },
+                if (item.qty <= 0) {
+                    this.parts.splice(index, 1);
+                }
+            },
+
+            clearSignature() {
+                if (this.signaturePad) this.signaturePad.clear();
+            },
+
+            getQrUrl(amount, info) {
+                // Use hardcoded bank info from template or reliable source. 
+                // For now hardcoded based on previous file: Bin 970422 (MB), Acc 0333666999
+                const bankBin = '970422';
+                const accountNo = '0333666999';
+                return `https://img.vietqr.io/image/${bankBin}-${accountNo}-compact.png?amount=${amount}&addInfo=${encodeURIComponent(info)}`;
+            },
 
             async submitForm() {
-        if (this.photos.length === 0) {
-            alert('Vui lòng chụp ít nhất 1 ảnh nghiệm thu!');
-            return;
-        }
+                if (this.photos.length === 0) {
+                    alert('Vui lòng chụp ít nhất 1 ảnh nghiệm thu!');
+                    return;
+                }
 
-        if (this.signaturePad && this.signaturePad.isEmpty()) {
-            alert('Vui lòng xin chữ ký khách hàng!');
-            return;
-        }
+                if (this.signaturePad && this.signaturePad.isEmpty()) {
+                    alert('Vui lòng xin chữ ký khách hàng!');
+                    return;
+                }
 
-        if (!confirm(`Xác nhận hoàn thành với tổng tiền ${this.formatMoney(this.grandTotal)}?`)) return;
+                if (!confirm(`Xác nhận hoàn thành với tổng tiền ${this.formatMoney(this.grandTotal)}?`)) return;
 
-        this.loading = true;
+                this.loading = true;
 
-        // Chuẩn bị FormData
-        const fd = new FormData();
-        fd.append('notes', this.notes);
-        fd.append('payment_method', this.paymentMethod);
+                // Chuẩn bị FormData
+                const fd = new FormData();
+                fd.append('notes', this.notes);
+                fd.append('payment_method', this.paymentMethod);
 
-        // Add Signature
-        if (this.signaturePad) {
-            const sigData = this.signaturePad.toDataURL();
-            const res = await fetch(sigData);
-            const blob = await res.blob();
-            fd.append('signature_file', blob, 'signature.png');
-        }
+                // Add Signature
+                if (this.signaturePad) {
+                    const sigData = this.signaturePad.toDataURL();
+                    const res = await fetch(sigData);
+                    const blob = await res.blob();
+                    fd.append('signature_file', blob, 'signature.png');
+                }
 
-        // ✅ FIX 1: Convert base64 to File objects
-        for (let i = 0; i < this.photos.length; i++) {
-            const base64 = this.photos[i];
-            const res = await fetch(base64);
-            const blob = await res.blob();
-            const file = new File([blob], `photo_${i + 1}.jpg`, { type: 'image/jpeg' });
-            fd.append('after_images', file);
-        }
+                // ✅ FIX 1: Convert base64 to File objects
+                for (let i = 0; i < this.photos.length; i++) {
+                    const base64 = this.photos[i];
+                    const res = await fetch(base64);
+                    const blob = await res.blob();
+                    const file = new File([blob], `photo_${i + 1}.jpg`, { type: 'image/jpeg' });
+                    fd.append('after_images', file);
+                }
 
-        // ✅ FIX 2: Use correct field name for parts
-        fd.append('parts_json', JSON.stringify(this.parts));
+                // ✅ FIX 2: Use correct field name for parts
+                fd.append('parts_json', JSON.stringify(this.parts));
 
-        try {
-            const res = await fetch(`/tech/job/${this.jobId}/complete`, {
-                method: 'POST',
-                body: fd
-            });
+                try {
+                    const res = await fetch(`/tech/job/${this.jobId}/complete`, {
+                        method: 'POST',
+                        body: fd
+                    });
 
-            if (res.ok || res.redirected) {
-                // After success, go back to jobs list or dashboard
-                window.location.href = '/tech/jobs';
-            } else {
-                const errorText = await res.text();
-                alert('Có lỗi xảy ra: ' + errorText);
+                    if (res.ok || res.redirected) {
+                        // After success, go back to jobs list or dashboard
+                        window.location.href = '/tech/jobs';
+                    } else {
+                        const errorText = await res.text();
+                        alert('Có lỗi xảy ra: ' + errorText);
+                    }
+                } catch (e) {
+                    alert('Lỗi kết nối: ' + e.message);
+                } finally {
+                    this.loading = false;
+                }
+            },
+
+            formatMoney(amount) {
+                return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount).replace('₫', '');
             }
-        } catch (e) {
-            alert('Lỗi kết nối: ' + e.message);
-        } finally {
-            this.loading = false;
-        }
-    },
-
-    formatMoney(amount) {
-        return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount).replace('₫', '');
-    }
         }
     }
 </script>

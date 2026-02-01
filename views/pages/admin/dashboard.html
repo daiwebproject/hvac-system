@@ -1,214 +1,218 @@
 {{ define "content" }}
 {{template "admin/stats_cards" .}}
 
-<div class="grid grid-cols-1 lg:grid-cols-4 gap-6" x-data="kanbanBoard({{ .BookingsJSON }})">
+<div x-data="kanbanBoard({{ .BookingsJSON }})">
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
 
-    <div class="lg:col-span-3">
-        <div class="flex justify-between items-center mb-4">
-            <h2 class="text-xl font-bold"><i class="fa-solid fa-clipboard-list mr-2"></i>Tiến độ công việc</h2>
-            <div class="flex gap-3">
-                <label for="modal-create-job" class="btn btn-sm btn-primary gap-2">
-                    <i class="fa-solid fa-plus"></i> Tạo đơn mới
-                </label>
-                <div class="join">
-                    <button class="btn btn-sm btn-active join-item"><i class="fa-solid fa-grip-vertical"></i>
-                        Kanban</button>
-                    <button class="btn btn-sm join-item"><i class="fa-solid fa-list"></i> List</button>
+        <div class="lg:col-span-3">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold"><i class="fa-solid fa-clipboard-list mr-2"></i>Tiến độ công việc</h2>
+                <div class="flex gap-3">
+                    <label for="modal-create-job" class="btn btn-sm btn-primary gap-2">
+                        <i class="fa-solid fa-plus"></i> Tạo đơn mới
+                    </label>
+                    <div class="join">
+                        <button class="btn btn-sm btn-active join-item"><i class="fa-solid fa-grip-vertical"></i>
+                            Kanban</button>
+                        <button class="btn btn-sm join-item"><i class="fa-solid fa-list"></i> List</button>
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <div class="flex gap-4 overflow-x-auto pb-4 h-[calc(100vh-250px)]">
+            <div class="flex gap-4 overflow-x-auto pb-4 h-[calc(100vh-250px)]">
 
-            <div class="flex-shrink-0 w-80 bg-base-200 rounded-lg flex flex-col max-h-full">
-                <div class="p-3 font-bold text-gray-500 border-b border-gray-300 flex justify-between">
-                    <span>MỚI (PENDING)</span>
-                    <span class="badge badge-sm" x-text="columns.pending.length"></span>
-                </div>
-                <div class="flex-1 overflow-y-auto p-2 space-y-3" @dragover.prevent @drop="drop($event, 'pending')">
-                    <template x-for="job in columns.pending" :key="job.id">
-                        <div class="card bg-base-100 shadow-sm border-l-4 border-warning cursor-move hover:shadow-md transition-all"
-                            draggable="true" @dragstart="dragStart($event, job)">
-                            <div class="card-body p-3">
-                                <div class="flex justify-between items-start">
-                                    <h3 class="font-bold text-sm truncate w-2/3" x-text="job.customer"></h3>
-                                    <div class="flex gap-1">
-                                        <button @click="viewJob(job)" class="btn btn-ghost btn-xs text-blue-500 tooltip"
-                                            data-tip="Xem chi tiết">
-                                            <i class="fa-solid fa-eye"></i>
-                                        </button>
-                                        <!-- <button @click="openEdit(job)" class="btn btn-ghost btn-xs text-gray-400">
+                <div class="flex-shrink-0 w-80 bg-base-200 rounded-lg flex flex-col max-h-full">
+                    <div class="p-3 font-bold text-gray-500 border-b border-gray-300 flex justify-between">
+                        <span>MỚI (PENDING)</span>
+                        <span class="badge badge-sm" x-text="columns.pending.length"></span>
+                    </div>
+                    <div class="flex-1 overflow-y-auto p-2 space-y-3" @dragover.prevent @drop="drop($event, 'pending')">
+                        <template x-for="job in columns.pending" :key="job.id">
+                            <div class="card bg-base-100 shadow-sm border-l-4 border-warning cursor-move hover:shadow-md transition-all"
+                                draggable="true" @dragstart="dragStart($event, job)">
+                                <div class="card-body p-3">
+                                    <div class="flex justify-between items-start">
+                                        <h3 class="font-bold text-sm truncate w-2/3" x-text="job.customer"></h3>
+                                        <div class="flex gap-1">
+                                            <button @click="viewJob(job)"
+                                                class="btn btn-ghost btn-xs text-blue-500 tooltip"
+                                                data-tip="Xem chi tiết">
+                                                <i class="fa-solid fa-eye"></i>
+                                            </button>
+                                            <!-- <button @click="openEdit(job)" class="btn btn-ghost btn-xs text-gray-400">
                                             <i class="fa-solid fa-pen-to-square"></i>
                                         </button> -->
-                                    </div>
-                                </div>
-                                <p class="text-xs text-gray-500 mb-1"><i class="fa-solid fa-wrench"></i> <span
-                                        x-text="job.service || 'Dịch vụ khác'"></span></p>
-
-                                <div
-                                    class="bg-blue-50 text-blue-700 px-2 py-1 rounded border border-blue-100 text-xs font-bold flex items-center gap-2 mb-1">
-                                    <i class="fa-regular fa-calendar-check"></i>
-                                    <span x-text="job.time"></span>
-                                </div>
-
-                                <div class="flex justify-end border-t border-gray-100 pt-1 mt-1">
-                                    <span class="text-[10px] text-gray-400" title="Thời gian khách đặt đơn">
-                                        Đặt lúc: <span class="font-mono"
-                                            x-text="new Date(job.created).toLocaleString('vi-VN', {hour:'2-digit', minute:'2-digit', day:'2-digit', month:'2-digit'})"></span>
-                                    </span>
-                                </div>
-
-                                <div class="mt-2 pt-2 border-t border-base-200 flex justify-end">
-                                    <label :for="'modal-assign-' + job.id" class="btn btn-xs btn-primary">Giao
-                                        việc</label>
-                                </div>
-                            </div>
-                        </div>
-                    </template>
-                </div>
-            </div>
-
-            <div class="flex-shrink-0 w-80 bg-base-200 rounded-lg flex flex-col max-h-full">
-                <div class="p-3 font-bold text-blue-500 border-b border-gray-300 flex justify-between">
-                    <span>ĐÃ GIAO (ASSIGNED)</span>
-                    <span class="badge badge-sm badge-info" x-text="columns.assigned.length"></span>
-                </div>
-                <div class="flex-1 overflow-y-auto p-2 space-y-3" @dragover.prevent @drop="drop($event, 'assigned')">
-                    <template x-for="job in columns.assigned" :key="job.id">
-                        <div class="card bg-base-100 shadow-sm border-l-4 border-info cursor-move" draggable="true"
-                            @dragstart="dragStart($event, job)">
-                            <div class="card-body p-3">
-                                <div class="flex justify-between items-start">
-                                    <h3 class="font-bold text-sm truncate" x-text="job.customer"></h3>
-                                    <button @click="viewJob(job)" class="btn btn-ghost btn-xs text-blue-500">
-                                        <i class="fa-solid fa-eye"></i>
-                                    </button>
-                                </div>
-
-                                <div class="text-xs font-bold text-blue-700 bg-blue-50 px-2 py-1 rounded mt-1 inline-block"
-                                    x-text="job.time"></div>
-
-                                <div class="flex items-center gap-2 mt-2">
-                                    <div class="avatar placeholder">
-                                        <div class="bg-neutral-focus text-neutral-content rounded-full w-6">
-                                            <span class="text-xs">T</span>
                                         </div>
                                     </div>
-                                    <span class="text-xs font-semibold" x-text="job.staff_id || 'Thợ'"></span>
+                                    <p class="text-xs text-gray-500 mb-1"><i class="fa-solid fa-wrench"></i> <span
+                                            x-text="job.service || 'Dịch vụ khác'"></span></p>
+
+                                    <div
+                                        class="bg-blue-50 text-blue-700 px-2 py-1 rounded border border-blue-100 text-xs font-bold flex items-center gap-2 mb-1">
+                                        <i class="fa-regular fa-calendar-check"></i>
+                                        <span x-text="job.time"></span>
+                                    </div>
+
+                                    <div class="flex justify-end border-t border-gray-100 pt-1 mt-1">
+                                        <span class="text-[10px] text-gray-400" title="Thời gian khách đặt đơn">
+                                            Đặt lúc: <span class="font-mono"
+                                                x-text="new Date(job.created).toLocaleString('vi-VN', {hour:'2-digit', minute:'2-digit', day:'2-digit', month:'2-digit'})"></span>
+                                        </span>
+                                    </div>
+
+                                    <div class="mt-2 pt-2 border-t border-base-200 flex justify-end">
+                                        <label :for="'modal-assign-' + job.id" class="btn btn-xs btn-primary">Giao
+                                            việc</label>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    </template>
+                        </template>
+                    </div>
                 </div>
-            </div>
 
-            <div class="flex-shrink-0 w-80 bg-base-200 rounded-lg flex flex-col max-h-full">
-                <div class="p-3 font-bold text-purple-500 border-b border-gray-300 flex justify-between">
-                    <span>ĐANG LÀM (WORKING)</span>
-                    <span class="badge badge-sm badge-secondary" x-text="columns.working.length"></span>
-                </div>
-                <div class="flex-1 overflow-y-auto p-2 space-y-3" @dragover.prevent @drop="drop($event, 'working')">
-                    <template x-for="job in columns.working" :key="job.id">
-                        <div class="card bg-base-100 shadow-sm border-l-4 border-purple-500 cursor-move relative overflow-hidden"
-                            draggable="true" @dragstart="dragStart($event, job)">
-                            <div class="absolute top-0 right-0 w-3 h-3 bg-red-500 rounded-full m-1 animate-ping"></div>
-                            <div class="card-body p-3">
-                                <div class="flex justify-between items-start">
-                                    <h3 class="font-bold text-sm truncate" x-text="job.customer"></h3>
-                                    <button @click="viewJob(job)" class="btn btn-ghost btn-xs text-blue-500">
-                                        <i class="fa-solid fa-eye"></i>
-                                    </button>
-                                </div>
-                                <div class="text-xs font-bold text-gray-500 mt-1" x-text="job.time"></div>
-                                <p class="text-xs text-purple-600 font-bold mt-1" x-text="job.status_label"></p>
-                                <div class="w-full bg-gray-200 rounded-full h-1.5 mt-2">
-                                    <div class="bg-purple-600 h-1.5 rounded-full" style="width: 70%"></div>
+                <div class="flex-shrink-0 w-80 bg-base-200 rounded-lg flex flex-col max-h-full">
+                    <div class="p-3 font-bold text-blue-500 border-b border-gray-300 flex justify-between">
+                        <span>ĐÃ GIAO (ASSIGNED)</span>
+                        <span class="badge badge-sm badge-info" x-text="columns.assigned.length"></span>
+                    </div>
+                    <div class="flex-1 overflow-y-auto p-2 space-y-3" @dragover.prevent
+                        @drop="drop($event, 'assigned')">
+                        <template x-for="job in columns.assigned" :key="job.id">
+                            <div class="card bg-base-100 shadow-sm border-l-4 border-info cursor-move" draggable="true"
+                                @dragstart="dragStart($event, job)">
+                                <div class="card-body p-3">
+                                    <div class="flex justify-between items-start">
+                                        <h3 class="font-bold text-sm truncate" x-text="job.customer"></h3>
+                                        <button @click="viewJob(job)" class="btn btn-ghost btn-xs text-blue-500">
+                                            <i class="fa-solid fa-eye"></i>
+                                        </button>
+                                    </div>
+
+                                    <div class="text-xs font-bold text-blue-700 bg-blue-50 px-2 py-1 rounded mt-1 inline-block"
+                                        x-text="job.time"></div>
+
+                                    <div class="flex items-center gap-2 mt-2">
+                                        <div class="avatar placeholder">
+                                            <div class="bg-neutral-focus text-neutral-content rounded-full w-6">
+                                                <span class="text-xs">T</span>
+                                            </div>
+                                        </div>
+                                        <span class="text-xs font-semibold" x-text="job.staff_id || 'Thợ'"></span>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    </template>
-                </div>
-            </div>
-
-        </div>
-    </div>
-
-    <div class="flex-shrink-0 w-80 bg-base-200 rounded-lg flex flex-col max-h-full">
-        <div class="p-3 font-bold text-red-500 border-b border-gray-300 flex justify-between">
-            <span>ĐÃ HỦY (CANCELLED)</span>
-            <span class="badge badge-sm badge-error" x-text="columns.cancelled.length"></span>
-        </div>
-        <div class="flex-1 overflow-y-auto p-2 space-y-3" @dragover.prevent @drop="drop($event, 'cancelled')">
-            <template x-for="job in columns.cancelled" :key="job.id">
-                <div
-                    class="card bg-red-50 shadow-sm border-l-4 border-error opacity-75 grayscale hover:grayscale-0 transition-all">
-                    <div class="card-body p-3">
-                        <div class="flex justify-between items-start">
-                            <h3 class="font-bold text-sm strike-through text-gray-500" x-text="job.customer"></h3>
-                            <button @click="viewJob(job)" class="btn btn-ghost btn-xs text-red-500">
-                                <i class="fa-solid fa-eye"></i>
-                            </button>
-                        </div>
-                        <div class="text-[10px] text-gray-400 mt-1" x-text="job.time"></div>
-                        <p class="text-xs text-red-600 mt-1 font-bold">
-                            <i class="fa-solid fa-ban"></i>
-                            <span x-text="job.cancel_reason || 'Đã hủy'"></span>
-                        </p>
+                        </template>
                     </div>
                 </div>
-            </template>
-        </div>
-    </div>
 
-    <div class="flex-shrink-0 w-80 bg-base-200 rounded-lg flex flex-col max-h-full">
-        <div class="p-3 font-bold text-green-500 border-b border-gray-300 flex justify-between">
-            <span>HOÀN THÀNH</span>
-            <span class="badge badge-sm badge-success" x-text="columns.completed.length"></span>
-        </div>
-        <div class="flex-1 overflow-y-auto p-2 space-y-3" @dragover.prevent @drop="drop($event, 'completed')">
-            <template x-for="job in columns.completed" :key="job.id">
-                <div class="card bg-base-100 shadow-sm border-l-4 border-success opacity-75">
-                    <div class="card-body p-3">
-                        <div class="flex justify-between items-start">
-                            <h3 class="font-bold text-sm strike-through" x-text="job.customer"></h3>
-                            <button @click="viewJob(job)" class="btn btn-ghost btn-xs text-blue-500">
-                                <i class="fa-solid fa-eye"></i>
-                            </button>
-                        </div>
-                        <div class="text-[10px] text-gray-400 mt-1" x-text="job.time"></div>
-                        <p class="text-xs text-green-600 mt-1"><i class="fa-solid fa-check"></i> Hoàn thành</p>
+                <div class="flex-shrink-0 w-80 bg-base-200 rounded-lg flex flex-col max-h-full">
+                    <div class="p-3 font-bold text-purple-500 border-b border-gray-300 flex justify-between">
+                        <span>ĐANG LÀM (WORKING)</span>
+                        <span class="badge badge-sm badge-secondary" x-text="columns.working.length"></span>
+                    </div>
+                    <div class="flex-1 overflow-y-auto p-2 space-y-3" @dragover.prevent @drop="drop($event, 'working')">
+                        <template x-for="job in columns.working" :key="job.id">
+                            <div class="card bg-base-100 shadow-sm border-l-4 border-purple-500 cursor-move relative overflow-hidden"
+                                draggable="true" @dragstart="dragStart($event, job)">
+                                <div class="absolute top-0 right-0 w-3 h-3 bg-red-500 rounded-full m-1 animate-ping">
+                                </div>
+                                <div class="card-body p-3">
+                                    <div class="flex justify-between items-start">
+                                        <h3 class="font-bold text-sm truncate" x-text="job.customer"></h3>
+                                        <button @click="viewJob(job)" class="btn btn-ghost btn-xs text-blue-500">
+                                            <i class="fa-solid fa-eye"></i>
+                                        </button>
+                                    </div>
+                                    <div class="text-xs font-bold text-gray-500 mt-1" x-text="job.time"></div>
+                                    <p class="text-xs text-purple-600 font-bold mt-1" x-text="job.status_label"></p>
+                                    <div class="w-full bg-gray-200 rounded-full h-1.5 mt-2">
+                                        <div class="bg-purple-600 h-1.5 rounded-full" style="width: 70%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
                     </div>
                 </div>
-            </template>
-        </div>
-    </div>
 
-</div>
-
-{{ range .Bookings }}
-<input type="checkbox" id="modal-assign-{{.Id}}" class="modal-toggle" />
-
-<div class="modal" role="dialog">
-    <div class="modal-box">
-        <h3 class="font-bold text-lg">Giao việc: {{.GetString "customer_name"}}</h3>
-
-        <div x-data="{ techId: '' }">
-            <div class="form-control w-full mb-4">
-                <label class="label">
-                    <span class="label-text">Chọn kỹ thuật viên:</span>
-                </label>
-                <select x-ref="techSelect" x-model="techId" class="select select-bordered w-full">
-                    <option value="" disabled selected>-- Chọn người --</option>
-                    {{ range $.Technicians }}
-                    <option value="{{.Id}}">{{.GetString "name"}}</option>
-                    {{ end }}
-                </select>
             </div>
+        </div>
 
-            <div class="modal-action">
-                <label for="modal-assign-{{.Id}}" class="btn">Hủy</label>
+        <div class="flex-shrink-0 w-80 bg-base-200 rounded-lg flex flex-col max-h-full">
+            <div class="p-3 font-bold text-red-500 border-b border-gray-300 flex justify-between">
+                <span>ĐÃ HỦY (CANCELLED)</span>
+                <span class="badge badge-sm badge-error" x-text="columns.cancelled.length"></span>
+            </div>
+            <div class="flex-1 overflow-y-auto p-2 space-y-3" @dragover.prevent @drop="drop($event, 'cancelled')">
+                <template x-for="job in columns.cancelled" :key="job.id">
+                    <div
+                        class="card bg-red-50 shadow-sm border-l-4 border-error opacity-75 grayscale hover:grayscale-0 transition-all">
+                        <div class="card-body p-3">
+                            <div class="flex justify-between items-start">
+                                <h3 class="font-bold text-sm strike-through text-gray-500" x-text="job.customer"></h3>
+                                <button @click="viewJob(job)" class="btn btn-ghost btn-xs text-red-500">
+                                    <i class="fa-solid fa-eye"></i>
+                                </button>
+                            </div>
+                            <div class="text-[10px] text-gray-400 mt-1" x-text="job.time"></div>
+                            <p class="text-xs text-red-600 mt-1 font-bold">
+                                <i class="fa-solid fa-ban"></i>
+                                <span x-text="job.cancel_reason || 'Đã hủy'"></span>
+                            </p>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </div>
 
-                <button type="button" class="btn btn-primary" :disabled="!techId" @click="
+        <div class="flex-shrink-0 w-80 bg-base-200 rounded-lg flex flex-col max-h-full">
+            <div class="p-3 font-bold text-green-500 border-b border-gray-300 flex justify-between">
+                <span>HOÀN THÀNH</span>
+                <span class="badge badge-sm badge-success" x-text="columns.completed.length"></span>
+            </div>
+            <div class="flex-1 overflow-y-auto p-2 space-y-3" @dragover.prevent @drop="drop($event, 'completed')">
+                <template x-for="job in columns.completed" :key="job.id">
+                    <div class="card bg-base-100 shadow-sm border-l-4 border-success opacity-75">
+                        <div class="card-body p-3">
+                            <div class="flex justify-between items-start">
+                                <h3 class="font-bold text-sm strike-through" x-text="job.customer"></h3>
+                                <button @click="viewJob(job)" class="btn btn-ghost btn-xs text-blue-500">
+                                    <i class="fa-solid fa-eye"></i>
+                                </button>
+                            </div>
+                            <div class="text-[10px] text-gray-400 mt-1" x-text="job.time"></div>
+                            <p class="text-xs text-green-600 mt-1"><i class="fa-solid fa-check"></i> Hoàn thành</p>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </div>
+
+        <!-- Grid continues to include Modals (hidden) and Map -->
+
+        {{ range .Bookings }}
+        <input type="checkbox" id="modal-assign-{{.Id}}" class="modal-toggle" />
+
+        <div class="modal" role="dialog">
+            <div class="modal-box">
+                <h3 class="font-bold text-lg">Giao việc: {{.GetString "customer_name"}}</h3>
+
+                <div x-data="{ techId: '' }">
+                    <div class="form-control w-full mb-4">
+                        <label class="label">
+                            <span class="label-text">Chọn kỹ thuật viên:</span>
+                        </label>
+                        <select x-ref="techSelect" x-model="techId" class="select select-bordered w-full">
+                            <option value="" disabled selected>-- Chọn người --</option>
+                            {{ range $.Technicians }}
+                            <option value="{{.Id}}">{{.GetString "name"}}</option>
+                            {{ end }}
+                        </select>
+                    </div>
+
+                    <div class="modal-action">
+                        <label for="modal-assign-{{.Id}}" class="btn">Hủy</label>
+
+                        <button type="button" class="btn btn-primary" :disabled="!techId" @click="
                 let jobId = '{{.Id}}';
                 
                 // [FIX] Dùng $refs để lấy thẻ select chính xác
@@ -242,231 +246,238 @@
                     }
                 });
             ">Xác nhận</button>
+                    </div>
+                </div>
             </div>
         </div>
-    </div>
-</div>
-{{ end }}
+        {{ end }}
 
-<input type="checkbox" id="modal-view-job" class="modal-toggle" />
-<div class="modal" role="dialog">
-    <div class="modal-box max-w-lg">
-        <div class="flex justify-between items-center mb-4">
-            <h3 class="font-bold text-xl text-blue-800"><i class="fa-solid fa-circle-info mr-2"></i>Chi Tiết Đơn
-                Hàng</h3>
-            <div class="badge badge-lg" :class="{
+        <input type="checkbox" id="modal-view-job" class="modal-toggle" />
+        <div class="modal" role="dialog">
+            <div class="modal-box max-w-lg">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="font-bold text-xl text-blue-800"><i class="fa-solid fa-circle-info mr-2"></i>Chi Tiết Đơn
+                        Hàng</h3>
+                    <div class="badge badge-lg" :class="{
                         'badge-warning': selectedJob?.status == 'pending',
                         'badge-info': selectedJob?.status == 'assigned',
                         'badge-secondary': selectedJob?.status == 'working' || selectedJob?.status == 'moving',
                         'badge-success': selectedJob?.status == 'completed'
                     }" x-text="selectedJob?.status_label"></div>
-        </div>
-
-        <div class="bg-blue-50 p-4 rounded-lg mb-4 border border-blue-100">
-            <div class="flex items-center gap-3 mb-2">
-                <div class="w-10 h-10 rounded-full bg-blue-200 flex items-center justify-center text-blue-700">
-                    <i class="fa-solid fa-user"></i>
                 </div>
-                <div>
-                    <p class="font-bold text-lg" x-text="selectedJob?.customer"></p>
-                    <a :href="'tel:' + selectedJob?.phone" class="btn btn-sm btn-success text-white mt-1 gap-2">
-                        <i class="fa-solid fa-phone-volume"></i> Gọi: <span x-text="selectedJob?.phone"></span>
-                    </a>
-                </div>
-            </div>
-            <div class="divider my-1"></div>
-            <p class="text-sm">
-                <i class="fa-solid fa-location-dot text-red-500 mr-2 w-4"></i>
 
-                <span x-text="selectedJob?.address_details || selectedJob?.address || 'Chưa có địa chỉ'"></span>
+                <div class="bg-blue-50 p-4 rounded-lg mb-4 border border-blue-100">
+                    <div class="flex items-center gap-3 mb-2">
+                        <div class="w-10 h-10 rounded-full bg-blue-200 flex items-center justify-center text-blue-700">
+                            <i class="fa-solid fa-user"></i>
+                        </div>
+                        <div>
+                            <p class="font-bold text-lg" x-text="selectedJob?.customer"></p>
+                            <a :href="'tel:' + selectedJob?.phone" class="btn btn-sm btn-success text-white mt-1 gap-2">
+                                <i class="fa-solid fa-phone-volume"></i> Gọi: <span x-text="selectedJob?.phone"></span>
+                            </a>
+                        </div>
+                    </div>
+                    <div class="divider my-1"></div>
+                    <p class="text-sm">
+                        <i class="fa-solid fa-location-dot text-red-500 mr-2 w-4"></i>
 
-                <a :href="(selectedJob?.lat && selectedJob?.long) 
+                        <span x-text="selectedJob?.address_details || selectedJob?.address || 'Chưa có địa chỉ'"></span>
+
+                        <a :href="(selectedJob?.lat && selectedJob?.long) 
               ? 'https://www.google.com/maps?q=' + selectedJob.lat + ',' + selectedJob.long + '&z=17' 
               : 'https://www.google.com/maps?q=' + encodeURIComponent(selectedJob?.address_details || selectedJob?.address || '')"
-                    target="_blank" class="text-xs text-blue-600 hover:underline ml-1 font-bold tooltip"
-                    data-tip="Mở bản đồ dẫn đường">
+                            target="_blank" class="text-xs text-blue-600 hover:underline ml-1 font-bold tooltip"
+                            data-tip="Mở bản đồ dẫn đường">
 
-                    (Mở Map <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>)
-                </a>
-            </p>
+                            (Mở Map <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>)
+                        </a>
+                    </p>
 
-            <div class="space-y-3">
-                <div class="flex justify-between border-b pb-2">
-                    <span class="text-gray-500 font-semibold">Dịch vụ:</span>
-                    <span class="font-bold" x-text="selectedJob?.service"></span>
-                </div>
-                <div class="flex justify-between border-b pb-2">
-                    <span class="text-gray-500 font-semibold">Thời gian:</span>
-                    <span x-text="selectedJob?.time"></span>
-                </div>
-                <div>
-                    <span class="text-gray-500 font-semibold block mb-1">Ghi chú / Sự cố:</span>
-                    <div class="bg-gray-100 p-3 rounded text-sm italic"
-                        x-text="selectedJob?.issue || 'Không có ghi chú'"></div>
-                </div>
+                    <div class="space-y-3">
+                        <div class="flex justify-between border-b pb-2">
+                            <span class="text-gray-500 font-semibold">Dịch vụ:</span>
+                            <span class="font-bold" x-text="selectedJob?.service"></span>
+                        </div>
+                        <div class="flex justify-between border-b pb-2">
+                            <span class="text-gray-500 font-semibold">Thời gian:</span>
+                            <span x-text="selectedJob?.time"></span>
+                        </div>
+                        <div>
+                            <span class="text-gray-500 font-semibold block mb-1">Ghi chú / Sự cố:</span>
+                            <div class="bg-gray-100 p-3 rounded text-sm italic"
+                                x-text="selectedJob?.issue || 'Không có ghi chú'"></div>
+                        </div>
 
-                <div x-show="selectedJob?.staff_id" class="flex justify-between items-center bg-gray-50 p-2 rounded">
-                    <span class="text-gray-500 font-semibold">Thợ phụ trách:</span>
-                    <span class="badge badge-ghost font-bold" x-text="selectedJob?.staff_id"></span>
-                </div>
-            </div>
+                        <div x-show="selectedJob?.staff_id"
+                            class="flex justify-between items-center bg-gray-50 p-2 rounded">
+                            <span class="text-gray-500 font-semibold">Thợ phụ trách:</span>
+                            <span class="badge badge-ghost font-bold" x-text="selectedJob?.staff_id"></span>
+                        </div>
+                    </div>
 
-            <div class="modal-action flex justify-between mt-6">
-                <div class="flex gap-2">
-                    <button class="btn btn-error btn-outline btn-sm" @click="cancelJob(selectedJob.id)">
-                        <i class="fa-solid fa-ban"></i> Hủy đơn
-                    </button>
+                    <div class="modal-action flex justify-between mt-6">
+                        <div class="flex gap-2">
+                            <button class="btn btn-error btn-outline btn-sm" @click="cancelJob(selectedJob.id)">
+                                <i class="fa-solid fa-ban"></i> Hủy đơn
+                            </button>
 
-                    <button x-show="selectedJob?.status == 'pending'" class="btn btn-primary btn-sm" @click="
+                            <button x-show="selectedJob?.status == 'pending'" class="btn btn-primary btn-sm" @click="
                                 document.getElementById('modal-view-job').checked = false;
                                 setTimeout(() => document.getElementById('modal-assign-' + selectedJob.id).checked = true, 100);
                             ">
-                        <i class="fa-solid fa-user-plus"></i> Giao việc
-                    </button>
+                                <i class="fa-solid fa-user-plus"></i> Giao việc
+                            </button>
 
-                    <button class="btn btn-ghost btn-sm" @click="openEdit(selectedJob)">
-                        <i class="fa-solid fa-pen"></i> Sửa
-                    </button>
-                </div>
-                <label for="modal-view-job" class="btn btn-neutral btn-sm">Đóng</label>
-            </div>
-        </div>
-        <label class="modal-backdrop" for="modal-view-job">Close</label>
-    </div>
-
-    <input type="checkbox" id="modal-edit-booking" class="modal-toggle" />
-    <div class="modal">
-        <div class="modal-box">
-            <h3 class="font-bold text-lg">Cập nhật đơn hàng</h3>
-            <form :action="'/admin/bookings/' + editingJob.id + '/update'" method="POST" class="mt-4 space-y-3">
-                <div class="form-control">
-                    <label class="label"><span class="label-text">Khách hàng</span></label>
-                    <input type="text" name="name" x-model="editingJob.customer" class="input input-bordered"
-                        required />
-                </div>
-                <div class="form-control">
-                    <label class="label"><span class="label-text">Điện thoại</span></label>
-                    <input type="text" name="phone" x-model="editingJob.phone" class="input input-bordered" required />
-                </div>
-                <div class="form-control">
-                    <label class="label"><span class="label-text">Địa chỉ</span></label>
-                    <textarea name="address" x-model="editingJob.address" class="textarea textarea-bordered"></textarea>
-                </div>
-                <div class="form-control">
-                    <label class="label"><span class="label-text">Ghi chú / Vấn đề</span></label>
-                    <textarea name="issue" x-model="editingJob.issue" class="textarea textarea-bordered"></textarea>
-                </div>
-
-                <div class="modal-action flex justify-between">
-                    <button type="button" class="btn btn-error btn-outline" @click="cancelJob(editingJob.id)">Hủy
-                        đơn</button>
-                    <div>
-                        <label for="modal-edit-booking" class="btn">Đóng</label>
-                        <button type="submit" class="btn btn-primary">Lưu thay đổi</button>
+                            <button class="btn btn-ghost btn-sm" @click="openEdit(selectedJob)">
+                                <i class="fa-solid fa-pen"></i> Sửa
+                            </button>
+                        </div>
+                        <label for="modal-view-job" class="btn btn-neutral btn-sm">Đóng</label>
                     </div>
                 </div>
-            </form>
+                <label class="modal-backdrop" for="modal-view-job">Close</label>
+            </div>
+
+            <input type="checkbox" id="modal-edit-booking" class="modal-toggle" />
+            <div class="modal">
+                <div class="modal-box">
+                    <h3 class="font-bold text-lg">Cập nhật đơn hàng</h3>
+                    <form :action="'/admin/bookings/' + editingJob.id + '/update'" method="POST" class="mt-4 space-y-3">
+                        <div class="form-control">
+                            <label class="label"><span class="label-text">Khách hàng</span></label>
+                            <input type="text" name="name" x-model="editingJob.customer" class="input input-bordered"
+                                required />
+                        </div>
+                        <div class="form-control">
+                            <label class="label"><span class="label-text">Điện thoại</span></label>
+                            <input type="text" name="phone" x-model="editingJob.phone" class="input input-bordered"
+                                required />
+                        </div>
+                        <div class="form-control">
+                            <label class="label"><span class="label-text">Địa chỉ</span></label>
+                            <textarea name="address" x-model="editingJob.address"
+                                class="textarea textarea-bordered"></textarea>
+                        </div>
+                        <div class="form-control">
+                            <label class="label"><span class="label-text">Ghi chú / Vấn đề</span></label>
+                            <textarea name="issue" x-model="editingJob.issue"
+                                class="textarea textarea-bordered"></textarea>
+                        </div>
+
+                        <div class="modal-action flex justify-between">
+                            <button type="button" class="btn btn-error btn-outline"
+                                @click="cancelJob(editingJob.id)">Hủy
+                                đơn</button>
+                            <div>
+                                <label for="modal-edit-booking" class="btn">Đóng</label>
+                                <button type="submit" class="btn btn-primary">Lưu thay đổi</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="lg:col-span-1 flex flex-col gap-4">
+
+            <div class="card bg-base-100 shadow p-4">
+                <h3 class="font-bold text-gray-500 mb-2">QUICK TOOLS</h3>
+                <ul class="menu bg-base-200 rounded-box">
+                    <li><a href="/admin/tools/slots"><i class="fa-solid fa-calendar-days"></i> Slot Manager</a></li>
+                    <li><a href="/admin/tools/inventory"><i class="fa-solid fa-boxes-stacked"></i> Inventory</a>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="card bg-base-100 shadow flex-1 min-h-[300px] relative">
+                <div id="fleet-map" class="absolute inset-0 w-full h-full z-0"></div>
+
+                <div class="absolute top-2 right-2 z-10">
+                    <button class="btn btn-xs btn-circle btn-ghost bg-white shadow" onclick="fitMapBounds()">
+                        <i class="fa-solid fa-expand"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div> <!-- Close Grid -->
+
+    <div class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="card bg-base-100 shadow p-4">
+            <h3 class="font-bold text-gray-500 mb-4">REVENUE (7 DAYS)</h3>
+            <div class="h-64">
+                <canvas id="revenueChart"></canvas>
+            </div>
+        </div>
+
+        <div class="card bg-base-100 shadow p-4">
+            <h3 class="font-bold text-gray-500 mb-4">TOP TECHNICIANS</h3>
+            <div class="overflow-x-auto">
+                <table class="table table-zebra w-full">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th class="text-center">Jobs</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {{ range .TopTechs }}
+                        <tr>
+                            <td>{{ .TechnicianName }}</td>
+                            <td class="font-bold text-center">{{ .CompletedJobs }}</td>
+                        </tr>
+                        {{ else }}
+                        <tr>
+                            <td colspan="2" class="text-center text-sm text-gray-400">No data</td>
+                        </tr>
+                        {{ end }}
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 
-</div>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const ctx = document.getElementById('revenueChart');
+            if (!ctx) return;
 
-<div class="lg:col-span-1 flex flex-col gap-4">
-
-    <div class="card bg-base-100 shadow p-4">
-        <h3 class="font-bold text-gray-500 mb-2">QUICK TOOLS</h3>
-        <ul class="menu bg-base-200 rounded-box">
-            <li><a href="/admin/tools/slots"><i class="fa-solid fa-calendar-days"></i> Slot Manager</a></li>
-            <li><a href="/admin/tools/inventory"><i class="fa-solid fa-boxes-stacked"></i> Inventory</a>
-            </li>
-        </ul>
-    </div>
-
-    <div class="card bg-base-100 shadow flex-1 min-h-[300px] relative">
-        <div id="fleet-map" class="absolute inset-0 w-full h-full z-0"></div>
-
-        <div class="absolute top-2 right-2 z-10">
-            <button class="btn btn-xs btn-circle btn-ghost bg-white shadow" onclick="fitMapBounds()">
-                <i class="fa-solid fa-expand"></i>
-            </button>
-        </div>
-    </div>
-</div>
-
-<div class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-    <div class="card bg-base-100 shadow p-4">
-        <h3 class="font-bold text-gray-500 mb-4">REVENUE (7 DAYS)</h3>
-        <div class="h-64">
-            <canvas id="revenueChart"></canvas>
-        </div>
-    </div>
-
-    <div class="card bg-base-100 shadow p-4">
-        <h3 class="font-bold text-gray-500 mb-4">TOP TECHNICIANS</h3>
-        <div class="overflow-x-auto">
-            <table class="table table-zebra w-full">
-                <thead>
-                    <tr>
-                        <th>Name</th>
-                        <th class="text-center">Jobs</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {{ range .TopTechs }}
-                    <tr>
-                        <td>{{ .TechnicianName }}</td>
-                        <td class="font-bold text-center">{{ .CompletedJobs }}</td>
-                    </tr>
-                    {{ else }}
-                    <tr>
-                        <td colspan="2" class="text-center text-sm text-gray-400">No data</td>
-                    </tr>
-                    {{ end }}
-                </tbody>
-            </table>
-        </div>
-    </div>
-</div>
-
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
-        const ctx = document.getElementById('revenueChart');
-        if (!ctx) return;
-
-        // Parse Go data
-        const revenueData = [
-            {{ range .RevenueStats }}
+            // Parse Go data
+            const revenueData = [
+                {{ range .RevenueStats }}
                     { date: "{{.Date}}", amount: {{.Amount }} },
-        {{ end }}
+            {{ end }}
                 ];
 
-    new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: revenueData.map(d => d.date),
-            datasets: [{
-                label: 'Revenue (VNĐ)',
-                data: revenueData.map(d => d.amount),
-                borderColor: '#3b82f6',
-                tension: 0.4,
-                fill: true,
-                backgroundColor: 'rgba(59, 130, 246, 0.1)'
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false }
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: revenueData.map(d => d.date),
+                datasets: [{
+                    label: 'Revenue (VNĐ)',
+                    data: revenueData.map(d => d.amount),
+                    borderColor: '#3b82f6',
+                    tension: 0.4,
+                    fill: true,
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)'
+                }]
             },
-            scales: {
-                y: { beginAtZero: true }
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: { beginAtZero: true }
+                }
             }
-        }
-    });
+        });
             });
-</script>
+    </script>
 
+</div> <!-- Close Wrapper -->
 </div>
 {{ end }}
