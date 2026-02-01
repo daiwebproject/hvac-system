@@ -1,8 +1,11 @@
 {{ define "content" }}
 <div x-data="JobDetailController({
         id: '{{.Job.Id}}',
-        lat: {{.Job.GetFloat " lat"}}, long: {{.Job.GetFloat "long" }}, address: {{printf "%q" (or
-    (.Job.GetString "address_details" ) (.Job.GetString "address" ))}}, status: '{{.Job.GetString "job_status"}}' })"
+        lat: {{.Job.GetFloat "lat"}}, 
+        long: {{.Job.GetFloat "long"}}, 
+        address: {{printf "%q" (or (.Job.GetString "address_details") (.Job.GetString "address"))}}, 
+        status: '{{.Job.GetString "job_status"}}' 
+    })"
     class="bg-gray-50 min-h-screen pb-32">
 
     <nav class="bg-white shadow-sm sticky top-0 z-50">
@@ -22,7 +25,6 @@
             }" x-text="getStatusLabel(status)"></span>
         </div>
 
-
         {{template "tech/status_stepper" .}}
     </nav>
 
@@ -37,8 +39,7 @@
                 <div class="space-y-3">
                     <div class="flex justify-between border-b border-dashed pb-2">
                         <span class="text-gray-600">Dịch vụ</span>
-                        <span class="font-bold text-blue-700">{{.Job.GetString "device_type"}} {{.Job.GetString
-                            "brand"}}</span>
+                        <span class="font-bold text-blue-700">{{.Job.GetString "device_type"}} {{.Job.GetString "brand"}}</span>
                     </div>
                     <div class="flex justify-between border-b border-dashed pb-2">
                         <span class="text-gray-600">Thời gian hẹn</span>
@@ -46,8 +47,7 @@
                     </div>
                     <div>
                         <span class="text-gray-600 block mb-1">Ghi chú / Sự cố:</span>
-                        <div
-                            class="bg-yellow-50 text-yellow-800 p-3 rounded-lg text-sm italic border border-yellow-100">
+                        <div class="bg-yellow-50 text-yellow-800 p-3 rounded-lg text-sm italic border border-yellow-100">
                             "{{.Job.GetString "issue_description"}}"
                         </div>
                     </div>
