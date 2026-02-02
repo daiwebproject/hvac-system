@@ -1,173 +1,204 @@
 {{ define "content" }}
-<!-- Hero Section -->
-<div class="hero min-h-screen relative"
-    style="background-image: url('https://images.unsplash.com/photo-1621905251189-08b45d6a269e?q=80&w=2069&auto=format&fit=crop');">
-    <div class="hero-overlay bg-gradient-to-r from-blue-900/90 to-blue-800/60"></div>
-    <div class="hero-content text-center text-neutral-content py-20">
-        <div class="max-w-3xl">
-            <h1 class="mb-5 text-5xl font-extrabold text-white leading-tight">
-                GIẢI PHÁP ĐIỆN LẠNH <br>
-                <span class="text-warning">CHUYÊN NGHIỆP & TẬN TÂM</span>
-            </h1>
-            <p class="mb-8 text-xl text-gray-200">
-                Chúng tôi cung cấp dịch vụ sửa chữa, bảo trì, vệ sinh máy lạnh, máy giặt và lắp đặt camera tại nhà.
-                <br>
-                Cam kết <span class="font-bold text-white">Có mặt trong 30 phút</span> - <span
-                    class="font-bold text-white">Bảo hành dài hạn</span>.
-            </p>
-            <div class="flex gap-4 justify-center flex-wrap">
-                <a href="/book"
-                    class="btn btn-warning btn-lg border-none hover:bg-yellow-500 font-bold px-8 shadow-xl hover:-translate-y-1 transition-transform">
-                    <i class="fa-solid fa-bolt"></i> GỌI THỢ NGAY
-                </a>
-                <a href="#services" class="btn btn-outline btn-lg text-white hover:bg-white hover:text-blue-900 px-8">
-                    XEM BẢNG GIÁ
-                </a>
-            </div>
+<div x-data="pageController()">
 
-            <div class="mt-12 grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-                <div class="p-2 backdrop-blur-sm bg-white/10 rounded-lg">
-                    <div class="text-3xl font-bold text-warning">5000+</div>
-                    <div class="text-xs text-gray-300">Khách hàng tin dùng</div>
-                </div>
-                <div class="p-2 backdrop-blur-sm bg-white/10 rounded-lg">
-                    <div class="text-3xl font-bold text-warning">30p</div>
-                    <div class="text-xs text-gray-300">Thời gian có mặt</div>
-                </div>
-                <div class="p-2 backdrop-blur-sm bg-white/10 rounded-lg">
-                    <div class="text-3xl font-bold text-warning">24/7</div>
-                    <div class="text-xs text-gray-300">Hỗ trợ kỹ thuật</div>
-                </div>
-                <div class="p-2 backdrop-blur-sm bg-white/10 rounded-lg">
-                    <div class="text-3xl font-bold text-warning">100%</div>
-                    <div class="text-xs text-gray-300">Hài lòng</div>
+    <div class="hero min-h-[85vh] relative"
+        style="background-image: url('{{ if .PageSettings }}{{ .PageSettings.GetString " banner_url" }}{{ else
+        }}https://images.unsplash.com/photo-1621905251189-08b45d6a269e?q=80&w=2069{{ end }}');">
+
+        <div class="hero-overlay bg-gradient-to-r from-blue-900/90 to-blue-800/60"></div>
+
+        <div class="hero-content text-center text-neutral-content py-20">
+            <div class="max-w-3xl animate-fade-in-up">
+                <h1 class="mb-5 text-4xl md:text-6xl font-extrabold text-white leading-tight drop-shadow-lg">
+                    {{ if .PageSettings }}{{ .PageSettings.GetString "hero_title" }}{{ else }}GIẢI PHÁP ĐIỆN LẠNH{{ end
+                    }} <br>
+                    <span class="text-warning">
+                        {{ if .PageSettings }}{{ .PageSettings.GetString "hero_subtitle" }}{{ else }}CHUYÊN NGHIỆP & TẬN
+                        TÂM{{ end }}
+                    </span>
+                </h1>
+
+                <p class="mb-8 text-xl text-gray-200 leading-relaxed">
+                    {{ if .PageSettings }}{{ .PageSettings.GetString "welcome_text" }}{{ else }}Chúng tôi cung cấp dịch
+                    vụ sửa
+                    chữa, bảo trì điện lạnh uy tín. Cam kết có mặt trong 30 phút.{{ end }}
+                </p>
+
+                <div class="flex gap-4 justify-center flex-wrap">
+                    <button @click="openModal()"
+                        class="btn btn-warning btn-lg border-none hover:bg-yellow-400 text-blue-900 font-bold px-8 shadow-xl hover:-translate-y-1 transition-all">
+                        <i class="fa-solid fa-calendar-check animate-bounce"></i> ĐẶT LỊCH NGAY
+                    </button>
+
+                    <a href="tel:{{if .Settings.Hotline}}{{ .Settings.Hotline }}{{end}}"
+                        class="btn btn-outline text-white hover:bg-white hover:text-blue-900 btn-lg px-8 backdrop-blur-sm">
+                        <i class="fa-solid fa-phone-volume"></i> {{if .Settings.Hotline}}{{ .Settings.Hotline
+                        }}{{else}}Hotline{{end}}
+                    </a>
                 </div>
             </div>
         </div>
     </div>
+
+    <section id="services" class="py-20 bg-gray-50">
+        <div class="container mx-auto px-4">
+            <div class="text-center mb-16">
+                <h2 class="text-4xl font-bold text-gray-900 mb-4">Dịch Vụ Nổi Bật</h2>
+                <div class="w-24 h-1 bg-blue-600 mx-auto"></div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {{ range .Services }}
+                <div
+                    class="card bg-white shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 border border-gray-100 group">
+                    <figure class="h-48 relative overflow-hidden">
+                        {{ if .GetString "image" }}
+                        <img src="/api/files/services/{{.Id}}/{{.GetString " image"}}" alt="{{.GetString " name"}}"
+                            class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">
+                        {{ else }}
+                        <div class="w-full h-full bg-blue-50 flex items-center justify-center">
+                            <i class="fa-solid fa-snowflake text-5xl text-blue-200"></i>
+                        </div>
+                        {{ end }}
+
+                        <div
+                            class="absolute top-4 right-4 bg-white/90 backdrop-blur px-3 py-1 rounded-full text-sm font-bold text-blue-600 shadow-sm">
+                            {{ if .GetFloat "price" }}{{ .GetFloat "price" | printf "%.0f" }}k{{ else }}Liên hệ{{ end }}
+                        </div>
+                    </figure>
+
+                    <div class="card-body p-6">
+                        <h3 class="card-title text-lg font-bold group-hover:text-primary transition-colors">
+                            {{ .GetString "name" }}
+                        </h3>
+                        <p class="text-sm text-gray-500 line-clamp-2">{{ .GetString "description" }}</p>
+
+                        <button @click="prefillService('{{.Id}}', '{{.GetString " name"}}')"
+                            class="btn btn-outline btn-primary btn-sm w-full mt-4">
+                            Chọn dịch vụ này
+                        </button>
+                    </div>
+                </div>
+                {{ end }}
+            </div>
+        </div>
+    </section>
+
+    <dialog class="modal modal-bottom sm:modal-middle" :class="{ 'modal-open': bookingModalOpen }">
+        <div class="modal-box w-11/12 max-w-4xl p-0 overflow-hidden bg-base-100" @click.outside="closeModal()">
+
+            <div class="bg-blue-600 text-white p-4 flex justify-between items-center">
+                <h3 class="font-bold text-lg"><i class="fa-solid fa-calendar-check mr-2"></i>Đặt Lịch Dịch Vụ</h3>
+                <button @click="closeModal()"
+                    class="btn btn-sm btn-circle btn-ghost text-white hover:bg-white/20">✕</button>
+            </div>
+
+            <div class="p-6">
+                <ul class="steps w-full mb-8">
+                    <li class="step" :class="step >= 1 ? 'step-primary' : ''">Dịch vụ</li>
+                    <li class="step" :class="step >= 2 ? 'step-primary' : ''">Thông tin</li>
+                    <li class="step" :class="step >= 3 ? 'step-primary' : ''">Xác nhận</li>
+                </ul>
+
+                <form @submit.prevent="submitBooking">
+
+                    <div x-show="step === 1" class="space-y-4">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[50vh] overflow-y-auto pr-2">
+                            {{ range .Services }}
+                            <div @click="selectService('{{.Id}}', '{{.GetString " name"}}')"
+                                class="cursor-pointer border rounded-xl p-4 hover:border-blue-500 hover:bg-blue-50 transition-all flex items-center gap-4"
+                                :class="formData.serviceId === '{{.Id}}' ? 'border-blue-600 bg-blue-50 ring-2 ring-blue-200' : 'border-gray-200'">
+                                <div
+                                    class="w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-xl shrink-0">
+                                    {{ if .GetString "image" }}
+                                    <img src="/api/files/services/{{.Id}}/{{.GetString " image"}}"
+                                        class="w-full h-full object-cover rounded-lg">
+                                    {{ else }}
+                                    <i class="fa-solid fa-wrench"></i>
+                                    {{ end }}
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-gray-800">{{ .GetString "name" }}</h4>
+                                    <p class="text-xs text-gray-500 line-clamp-1">{{ .GetString "description" }}</p>
+                                </div>
+                            </div>
+                            {{ end }}
+                        </div>
+                    </div>
+
+                    <div x-show="step === 2" class="space-y-4">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="form-control">
+                                <label class="label"><span class="label-text font-bold">Họ tên <span
+                                            class="text-red-500">*</span></span></label>
+                                <input type="text" x-model="formData.customerName" class="input input-bordered" required
+                                    placeholder="Nguyễn Văn A">
+                            </div>
+                            <div class="form-control">
+                                <label class="label"><span class="label-text font-bold">Số điện thoại <span
+                                            class="text-red-500">*</span></span></label>
+                                <input type="tel" x-model="formData.phone" class="input input-bordered" required
+                                    placeholder="09xxxx">
+                            </div>
+                        </div>
+                        <div class="form-control">
+                            <label class="label"><span class="label-text font-bold">Địa chỉ <span
+                                        class="text-red-500">*</span></span></label>
+                            <input type="text" x-model="formData.address" class="input input-bordered" required
+                                placeholder="Số nhà, Tên đường...">
+                            <button type="button" @click="getCurrentLocation()"
+                                class="btn btn-xs btn-ghost text-blue-600 justify-start mt-1 w-fit">
+                                <i class="fa-solid fa-location-crosshairs"></i> Lấy vị trí hiện tại của tôi
+                            </button>
+                        </div>
+
+                        <div class="form-control">
+                            <label class="label"><span class="label-text font-bold">Thời gian hẹn <span
+                                        class="text-red-500">*</span></span></label>
+                            <input type="datetime-local" x-model="formData.time" class="input input-bordered" required>
+                        </div>
+
+                        <div class="flex justify-between pt-4">
+                            <button type="button" @click="step = 1" class="btn btn-ghost">Quay lại</button>
+                            <button type="button" @click="validateStep2() && (step = 3)" class="btn btn-primary">Tiếp
+                                tục</button>
+                        </div>
+                    </div>
+
+                    <div x-show="step === 3" class="text-center space-y-6">
+                        <div class="bg-green-50 p-6 rounded-xl border border-green-100 text-left">
+                            <h3 class="text-xl font-bold text-green-700 mb-4 text-center">Xác Nhận Thông Tin</h3>
+
+                            <div class="grid grid-cols-[100px_1fr] gap-2 text-sm">
+                                <span class="text-gray-500">Dịch vụ:</span>
+                                <strong class="text-gray-800" x-text="formData.serviceName"></strong>
+
+                                <span class="text-gray-500">Khách hàng:</span>
+                                <strong class="text-gray-800" x-text="formData.customerName"></strong>
+
+                                <span class="text-gray-500">SĐT:</span>
+                                <strong class="text-gray-800" x-text="formData.phone"></strong>
+
+                                <span class="text-gray-500">Địa chỉ:</span>
+                                <strong class="text-gray-800" x-text="formData.address"></strong>
+
+                                <span class="text-gray-500">Thời gian:</span>
+                                <strong class="text-blue-600" x-text="formatDate(formData.time)"></strong>
+                            </div>
+                        </div>
+
+                        <div class="flex justify-between">
+                            <button type="button" @click="step = 2" class="btn btn-ghost">Sửa lại</button>
+                            <button type="submit" class="btn btn-success w-2/3 text-white shadow-lg font-bold">
+                                <i class="fa-solid fa-paper-plane mr-2"></i> GỬI YÊU CẦU
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </dialog>
+
 </div>
 
-<!-- Why Choose Us -->
-<section id="about" class="py-20 bg-base-100">
-    <div class="container mx-auto px-4">
-        <div class="text-center mb-16">
-            <span class="text-primary font-bold tracking-wider uppercase text-sm">Về chúng tôi</span>
-            <h2 class="text-4xl font-bold text-base-content mt-2">Tại Sao Chọn ĐẠI ĐIỆN LẠNH?</h2>
-            <div class="w-20 h-1 bg-primary mx-auto mt-4 rounded-full"></div>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <!-- Feature 1 -->
-            <div
-                class="card bg-base-100 shadow-xl border border-base-200 hover:shadow-2xl transition-all hover:-translate-y-2">
-                <div class="card-body items-center text-center">
-                    <div class="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center mb-4">
-                        <i class="fa-solid fa-clock text-3xl text-blue-600"></i>
-                    </div>
-                    <h3 class="card-title text-xl mb-2">Nhanh Chóng & Đúng Hẹn</h3>
-                    <p class="text-gray-500">Đội ngũ kỹ thuật viên phân bố khắp các quận, cam kết có mặt đúng giờ đã
-                        hẹn với khách hàng.</p>
-                </div>
-            </div>
-            <!-- Feature 2 -->
-            <div
-                class="card bg-base-100 shadow-xl border border-base-200 hover:shadow-2xl transition-all hover:-translate-y-2">
-                <div class="card-body items-center text-center">
-                    <div class="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mb-4">
-                        <i class="fa-solid fa-file-invoice-dollar text-3xl text-green-600"></i>
-                    </div>
-                    <h3 class="card-title text-xl mb-2">Giá Cả Minh Bạch</h3>
-                    <p class="text-gray-500">Bảng giá niêm yết rõ ràng. Kỹ thuật viên báo giá chi tiết trước khi
-                        thực hiện sửa chữa.</p>
-                </div>
-            </div>
-            <!-- Feature 3 -->
-            <div
-                class="card bg-base-100 shadow-xl border border-base-200 hover:shadow-2xl transition-all hover:-translate-y-2">
-                <div class="card-body items-center text-center">
-                    <div class="w-16 h-16 rounded-full bg-purple-100 flex items-center justify-center mb-4">
-                        <i class="fa-solid fa-shield-halved text-3xl text-purple-600"></i>
-                    </div>
-                    <h3 class="card-title text-xl mb-2">Bảo Hành Uy Tín</h3>
-                    <p class="text-gray-500">Chính sách bảo hành dài hạn từ 3-12 tháng cho linh kiện thay thế và
-                        dịch vụ sửa chữa.</p>
-                </div>
-            </div>
-        </div>
-    </div>
-</section>
-
-<!-- Services Section -->
-<section id="services" class="py-20 bg-base-200">
-    <div class="container mx-auto px-4">
-        <div class="flex justify-between items-end mb-12">
-            <div class="max-w-2xl">
-                <span class="text-primary font-bold tracking-wider uppercase text-sm">Dịch vụ của chúng tôi</span>
-                <h2 class="text-4xl font-bold text-base-content mt-2">Giải Pháp Toàn Diện Cho Ngôi Nhà Của Bạn</h2>
-            </div>
-            <a href="/book" class="btn btn-outline btn-primary hidden md:flex">Xem tất cả <i
-                    class="fa-solid fa-arrow-right"></i></a>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {{ range .Services }}
-            <div class="card bg-base-100 shadow-lg hover:shadow-xl transition-all group overflow-hidden h-full">
-                <figure class="h-48 relative overflow-hidden">
-                    {{ if .Image }}
-                    <img src="/api/files/services/{{ .Id }}/{{ .Image }}"
-                        class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                        alt="{{ .Name }}">
-                    {{ else }}
-                    <div class="w-full h-full bg-gray-200 flex items-center justify-center">
-                        <i class="fa-solid fa-screwdriver-wrench text-4xl text-gray-400"></i>
-                    </div>
-                    {{ end }}
-                    <div class="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors"></div>
-                </figure>
-                <div class="card-body p-6">
-                    <h3 class="card-title text-lg font-bold group-hover:text-primary transition-colors">{{ .Name }}
-                    </h3>
-                    <p class="text-sm text-gray-500 line-clamp-2">{{ .Description }}</p>
-                    <div class="card-actions justify-between items-center mt-4">
-                        <div class="text-lg font-bold text-blue-600">{{ formatMoney .Price }}đ</div>
-                        <a href="/book?service={{ .Id }}" class="btn btn-sm btn-primary btn-circle">
-                            <i class="fa-solid fa-plus"></i>
-                        </a>
-                    </div>
-                </div>
-            </div>
-            {{ end }}
-        </div>
-
-        <div class="mt-8 text-center md:hidden">
-            <a href="/book" class="btn btn-outline btn-primary w-full">Xem tất cả dịch vụ</a>
-        </div>
-    </div>
-</section>
-
-<!-- Call to Action / App Download -->
-<section class="py-20 bg-blue-900 relative overflow-hidden">
-    <!-- Decoration circles -->
-    <div
-        class="absolute top-0 left-0 w-64 h-64 bg-blue-800 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob">
-    </div>
-    <div
-        class="absolute bottom-0 right-0 w-64 h-64 bg-indigo-800 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-2000">
-    </div>
-
-    <div class="container mx-auto px-4 relative z-10 text-center">
-        <h2 class="text-3xl md:text-4xl font-bold text-white mb-6">Bạn Gặp Sự Cố Về Điện Lạnh?</h2>
-        <p class="text-blue-100 text-lg mb-8 max-w-2xl mx-auto">Đừng để sự cố làm gián đoạn cuộc sống của bạn. Gọi
-            ngay cho chúng tôi để được tư vấn và hỗ trợ nhanh nhất.</p>
-        <div class="flex flex-col md:flex-row gap-4 justify-center">
-            <a href="tel:{{if .Settings}}{{.Settings.Hotline}}{{else}}1900xxxx{{end}}"
-                class="btn btn-lg btn-white text-blue-900 border-none hover:bg-gray-100">
-                <i class="fa-solid fa-phone"></i> Hotline: {{if .Settings}}{{.Settings.Hotline}}{{else}}1900.XXXX{{end}}
-            </a>
-            <a href="/book" class="btn btn-lg btn-warning border-none text-blue-900 hover:bg-yellow-500">
-                <i class="fa-solid fa-calendar-check"></i> Đặt Lịch Online
-            </a>
-        </div>
-    </div>
-</section>
 {{ end }}

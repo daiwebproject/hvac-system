@@ -458,13 +458,9 @@ function initFleetMap() {
     if (!mapEl) return;
 
     // Kiểm tra thư viện Leaflet đã load chưa
-    if (typeof L === 'undefined') {
-        console.warn('Leaflet JS chưa được tải.');
-        return;
-    }
+    if (!mapEl || typeof L === 'undefined') return;
 
-    // [QUAN TRỌNG] Cleanup bản đồ cũ trước khi tạo mới
-    // Việc này cực kỳ quan trọng khi dùng HTMX để swap nội dung trang
+    // 1. Cleanup bản đồ cũ
     if (mapInstance) {
         mapInstance.remove();
         mapInstance = null;
@@ -472,50 +468,112 @@ function initFleetMap() {
     }
 
     try {
-        // 1. Tạo Map mới
+        // 2. Tạo Map
         mapInstance = L.map('fleet-map').setView([10.8231, 106.6297], 13);
-
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap contributors',
-            maxZoom: 19
+            attribution: '© OpenStreetMap'
         }).addTo(mapInstance);
 
-        // 2. Vẽ Marker từ dữ liệu global (window.initialBookings)
+        // 3. Xử lý Dữ liệu Đơn hàng
         const bookings = window.initialBookings || [];
-        bookings.forEach(job => {
-            if (job.lat && job.long) {
-                const iconColor = getJobColor(job.status);
-                const marker = L.marker([job.lat, job.long], {
-                    icon: createCustomIcon(iconColor)
-                })
-                    .addTo(mapInstance)
-                    .bindPopup(`
-                    <b>${job.customer}</b><br>
-                    <span class="text-xs text-gray-500">${job.service}</span><br>
-                    <span class="badge badge-xs ${getBadgeClass(job.status)}">${job.status_label || job.status}</span>
-                `);
 
-                mapMarkers.push(marker);
+        bookings.forEach((job, index) => {
+            // Trường hợp A: Đã có tọa độ trong DB
+            if (job.lat && job.long) {
+                addJobMarker(job, job.lat, job.long);
+            }
+            // Trường hợp B: Chưa có tọa độ -> Tự động Geocode từ địa chỉ
+            else if (job.address && job.address.length > 5) {
+                // Delay nhẹ để tránh spam API (OpenStreetMap giới hạn 1req/s)
+                setTimeout(() => {
+                    geocodeAndDraw(job);
+                }, index * 1200);
             }
         });
 
-        // 3. Tự động zoom
-        if (mapMarkers.length > 0) {
-            setTimeout(window.fitMapBounds, 500);
+        // 4. Xử lý Dữ liệu Thợ (Demo/Realtime)
+        // Nếu có biến window.initialTechs (cần inject từ backend)
+        if (window.initialTechs) {
+            window.initialTechs.forEach(tech => {
+                if (tech.active) {
+                    // Giả lập vị trí nếu chưa có (Demo)
+                    // Trong thực tế: dùng tech.last_lat, tech.last_long
+                    const lat = tech.lat || (10.8231 + (Math.random() - 0.5) * 0.05);
+                    const long = tech.long || (106.6297 + (Math.random() - 0.5) * 0.05);
+                    addTechMarker(tech, lat, long);
+                }
+            });
+        }
+
+        // Tự động zoom sau 2s (để chờ geocode xong 1 phần)
+        setTimeout(window.fitMapBounds, 2000);
+
+    } catch (e) { console.error("Map init error:", e); }
+}
+
+// --- Helpers ---
+
+// Hàm vẽ Marker Khách hàng
+function addJobMarker(job, lat, lng) {
+    if (!mapInstance) return;
+    const iconColor = getJobColor(job.status);
+    const marker = L.marker([lat, lng], {
+        icon: createCustomIcon(iconColor, 'fa-wrench')
+    })
+        .addTo(mapInstance)
+        .bindPopup(`
+        <div class="text-sm">
+            <b>${job.customer}</b><br>
+            <span class="text-gray-500">${job.address}</span><br>
+            <span class="badge badge-xs ${getBadgeClass(job.status)} mt-1">${job.status_label || job.status}</span>
+        </div>
+    `);
+    mapMarkers.push(marker);
+}
+
+// Hàm vẽ Marker Thợ
+function addTechMarker(tech, lat, lng) {
+    if (!mapInstance) return;
+    const marker = L.marker([lat, lng], {
+        icon: createCustomIcon('#3b82f6', 'fa-user-gear', true) // Màu xanh, icon user
+    })
+        .addTo(mapInstance)
+        .bindPopup(`<b>KTV: ${tech.name}</b><br><span class="text-green-600">● Đang hoạt động</span>`);
+    mapMarkers.push(marker);
+}
+
+// Hàm Geocode (Tìm tọa độ từ địa chỉ)
+async function geocodeAndDraw(job) {
+    try {
+        // Thêm "Vietnam" để tìm chính xác hơn
+        const query = `${job.address}, Vietnam`;
+        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`;
+
+        const res = await fetch(url);
+        const data = await res.json();
+
+        if (data && data.length > 0) {
+            const lat = data[0].lat;
+            const lon = data[0].lon;
+
+            // Vẽ marker ngay lập tức
+            addJobMarker(job, lat, lon);
+
+            // [TODO]: Gửi tọa độ này về Backend để lưu lại (đỡ phải tìm lần sau)
+            // saveCoordinatesToBackend(job.id, lat, lon);
+            console.log(`Đã tìm thấy vị trí cho đơn ${job.id}: ${lat}, ${lon}`);
         }
     } catch (err) {
-        console.error('Lỗi khởi tạo bản đồ:', err);
+        console.warn(`Không tìm thấy địa chỉ: ${job.address}`);
     }
 }
 
-// --- Map Helpers ---
-
 function getJobColor(status) {
-    if (status === 'completed') return '#22c55e'; // Green
-    if (status === 'working' || status === 'moving') return '#a855f7'; // Purple
-    if (status === 'assigned') return '#3b82f6'; // Blue
-    if (status === 'cancelled') return '#ef4444'; // Red
-    return '#eab308'; // Yellow (Pending)
+    if (status === 'completed') return '#22c55e';
+    if (status === 'working' || status === 'moving') return '#a855f7';
+    if (status === 'assigned') return '#3b82f6';
+    if (status === 'cancelled') return '#ef4444';
+    return '#eab308';
 }
 
 function getBadgeClass(status) {
@@ -525,27 +583,32 @@ function getBadgeClass(status) {
     return 'badge-warning';
 }
 
-function createCustomIcon(color) {
-    const svgIcon = `
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="${color}" stroke="white" stroke-width="2" class="w-8 h-8 drop-shadow-md">
-        <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
-        <circle cx="12" cy="9" r="2.5" fill="white"/>
-    </svg>`;
+// Tạo Icon đẹp hơn (Hỗ trợ FontAwesome class)
+function createCustomIcon(color, iconClass = 'fa-circle', isTech = false) {
+    const size = isTech ? 40 : 32;
+    const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="${size}" height="${size}" class="drop-shadow-md">
+        <path fill="${color}" d="M12 0C7.58 0 4 3.58 4 8c0 5.25 8 16 8 16s8-10.75 8-16c0-4.42-3.58-8-8-8z"/>
+        <circle cx="12" cy="8" r="3.5" fill="white"/>
+    </svg>
+    `;
 
+    // Dùng HTML Icon để lồng FontAwesome vào giữa
     return L.divIcon({
-        className: 'custom-map-marker',
-        html: svgIcon,
-        iconSize: [32, 32],
-        iconAnchor: [16, 32],
-        popupAnchor: [0, -32]
+        className: 'custom-map-marker-container',
+        html: `
+            <div style="position: relative; width: ${size}px; height: ${size}px;">
+                ${svg}
+                <i class="fa-solid ${iconClass}" style="position: absolute; top: ${isTech ? 8 : 6}px; left: 50%; transform: translateX(-50%); font-size: ${isTech ? 14 : 12}px; color: ${color};"></i>
+            </div>
+        `,
+        iconSize: [size, size],
+        iconAnchor: [size / 2, size], // Mũi nhọn icon chạm đúng vị trí
+        popupAnchor: [0, -size]
     });
 }
 
-// Khởi tạo Map khi load trang VÀ sau khi HTMX swap nội dung (Quan trọng)
 document.addEventListener('DOMContentLoaded', initFleetMap);
 document.addEventListener('htmx:afterSettle', (evt) => {
-    // Chỉ init lại nếu nội dung mới được swap có chứa map
-    if (document.getElementById('fleet-map')) {
-        initFleetMap();
-    }
+    if (document.getElementById('fleet-map')) initFleetMap();
 });

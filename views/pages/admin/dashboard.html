@@ -441,16 +441,18 @@
 <script>
     // [FIX] Khởi tạo dữ liệu JSON an toàn
     window.initialBookings = {{ .BookingsJSON }};
+    window.initialTechs = {{ .TechniciansJSON }};
 
     document.addEventListener('DOMContentLoaded', function () {
         const ctx = document.getElementById('revenueChart');
         if (!ctx) return;
 
-        // Dữ liệu mẫu (nếu backend chưa có) hoặc lấy từ Go
+        // Parse Go data
         const revenueData = [
-            {{ range .RevenueStats }}{ date: "{{.Date}}", amount: {{.Amount }} }, {{ end }}
+            {{ range .RevenueStats }}
+                { date: "{{.Date}}", amount: {{.Amount }} },
+        {{ end }}
         ];
-
     new Chart(ctx, {
         type: 'line',
         data: {

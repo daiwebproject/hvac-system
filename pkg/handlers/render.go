@@ -35,6 +35,12 @@ func RenderPage(t *template.Template, e *core.RequestEvent, layoutName string, p
 		dataMap["Settings"] = settings
 	}
 
+	// [NEW] Inject LogoUrl from Context
+	logoUrl := e.Get("LogoUrl")
+	if logoUrl != nil {
+		dataMap["LogoUrl"] = logoUrl
+	}
+
 	// Reassign data to be the updated map
 	data = dataMap
 

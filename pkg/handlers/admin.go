@@ -187,24 +187,47 @@ func (h *AdminHandler) Dashboard(e *core.RequestEvent) error {
 
 	bookingsJSONBytes, _ := json.Marshal(bookingsJSON)
 
+	// [NEW] Chuẩn bị dữ liệu Thợ cho Map
+	type TechMapJSON struct {
+		ID     string  `json:"id"`
+		Name   string  `json:"name"`
+		Lat    float64 `json:"lat"`
+		Long   float64 `json:"long"`
+		Active bool    `json:"active"`
+	}
+
+	var techsJSON []TechMapJSON
+	for _, t := range technicians {
+		techsJSON = append(techsJSON, TechMapJSON{
+			ID:     t.Id,
+			Name:   t.GetString("name"),
+			Active: t.GetBool("active"),
+			// Lat: t.GetFloat("last_lat"),
+			// Long: t.GetFloat("last_long"),
+		})
+	}
+
+	techsJSONBytes, _ := json.Marshal(techsJSON)
+
 	// Fetch Services for Dropdown
 	servicesList, _ := h.App.FindRecordsByFilter("services", "active=true", "-created", 100, 0, nil)
 
 	data := map[string]interface{}{
-		"Bookings":       bookings,
-		"BookingsJSON":   template.JS(string(bookingsJSONBytes)),
-		"Technicians":    technicians,
-		"Services":       servicesList,
-		"TotalRevenue":   stats.TotalRevenue,
-		"BookingsToday":  stats.BookingsToday,
-		"ActiveTechs":    stats.ActiveTechs,
-		"Pending":        stats.PendingCount,
-		"Completed":      stats.CompletedCount,
-		"CompletionRate": stats.CompletionRate,
-		"RevenueStats":   revenueStats,
-		"TopTechs":       topTechs,
-		"IsAdmin":        true,
-		"PageType":       "admin_dashboard",
+		"Bookings":        bookings,
+		"BookingsJSON":    template.JS(string(bookingsJSONBytes)),
+		"TechniciansJSON": template.JS(string(techsJSONBytes)), // [QUAN TRỌNG] Truyền cái này xuống View
+		"Technicians":     technicians,
+		"Services":        servicesList,
+		"TotalRevenue":    stats.TotalRevenue,
+		"BookingsToday":   stats.BookingsToday,
+		"ActiveTechs":     stats.ActiveTechs,
+		"Pending":         stats.PendingCount,
+		"Completed":       stats.CompletedCount,
+		"CompletionRate":  stats.CompletionRate,
+		"RevenueStats":    revenueStats,
+		"TopTechs":        topTechs,
+		"IsAdmin":         true,
+		"PageType":        "admin_dashboard",
 	}
 
 	return RenderPage(h.Templates, e, "layouts/admin.html", "admin/dashboard.html", data)

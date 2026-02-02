@@ -16,6 +16,24 @@ type PublicHandler struct {
 	InvoiceService *services.InvoiceService
 }
 
+// Index renders the homepage with dynamic data
+// GET /
+func (h *PublicHandler) Index(e *core.RequestEvent) error {
+	// 1. Get active Services
+	services, _ := h.App.FindRecordsByFilter("services", "active=true", "-created", 100, 0, nil)
+
+	// 2. Get System Settings (Logo, Banner, Company Name...)
+	settings, _ := h.App.FindFirstRecordByData("settings", "active", true)
+
+	// 3. Prepare Data
+	data := map[string]interface{}{
+		"Services":     services,
+		"PageSettings": settings,
+	}
+
+	return RenderPage(h.Templates, e, "layouts/base.html", "public/index.html", data)
+}
+
 // ShowInvoice renders the public invoice view
 // GET /invoice/{hash}
 func (h *PublicHandler) ShowInvoice(e *core.RequestEvent) error {
@@ -75,7 +93,7 @@ func (h *PublicHandler) ShowInvoice(e *core.RequestEvent) error {
 	// Use generic RenderPage or ExecuteTemplate directly.
 	// Since RenderPage is likely package-private or I need to import it if it's in handlers package (same package).
 	// If RenderPage is in same package 'handlers', I can call it directly.
-return RenderPage(h.Templates, e, "invoice_view", "public/invoice_view.html", data)
+	return RenderPage(h.Templates, e, "invoice_view", "public/invoice_view.html", data)
 }
 
 // SubmitFeedback handles customer signature and rating

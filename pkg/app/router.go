@@ -147,7 +147,7 @@ func RegisterRoutes(app *pocketbase.PocketBase, t *template.Template, eventBroke
 		// ---------------------------------------------------------
 		// 4. PUBLIC ROUTES
 		// ---------------------------------------------------------
-		se.Router.GET("/", web.Index)
+		se.Router.GET("/", public.Index)
 		se.Router.GET("/book", web.BookingPage)
 		se.Router.POST("/book", web.BookService)
 		se.Router.GET("/api/slots/available", slot.GetAvailableSlots)

@@ -121,3 +121,117 @@ window.bookingWizard = function () {
         }
     };
 };
+// File: assets/js/public.js
+
+console.log('✅ Public JS Loaded');
+
+// --- Page Controller cho Trang Chủ (Đặt lịch) ---
+window.pageController = function () {
+    return {
+        bookingModalOpen: false,
+        step: 1,
+        formData: {
+            serviceId: '',
+            serviceName: '',
+            customerName: '',
+            phone: '',
+            address: '',
+            time: '',
+            lat: '',
+            long: ''
+        },
+
+        // Mở modal (mặc định vào bước 1)
+        openModal() {
+            this.step = 1;
+            this.bookingModalOpen = true;
+        },
+
+        // Đóng modal
+        closeModal() {
+            this.bookingModalOpen = false;
+        },
+
+        // Khi user chọn "Chọn dịch vụ này" ở trang chủ
+        prefillService(id, name) {
+            this.formData.serviceId = id;
+            this.formData.serviceName = name;
+            this.step = 2; // Nhảy thẳng vào bước điền thông tin
+            this.bookingModalOpen = true;
+        },
+
+        // Khi user chọn dịch vụ trong Modal (Step 1)
+        selectService(id, name) {
+            this.formData.serviceId = id;
+            this.formData.serviceName = name;
+            this.step = 2;
+        },
+
+        validateStep2() {
+            if (!this.formData.customerName || !this.formData.phone || !this.formData.address || !this.formData.time) {
+                Swal.fire('Thiếu thông tin', 'Vui lòng điền đầy đủ các trường bắt buộc (*)', 'warning');
+                return false;
+            }
+            return true;
+        },
+
+        getCurrentLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(pos => {
+                    this.formData.lat = pos.coords.latitude;
+                    this.formData.long = pos.coords.longitude;
+                    Swal.fire({
+                        title: 'Đã lấy vị trí!',
+                        text: 'Tọa độ chính xác giúp thợ đến nhanh hơn.',
+                        icon: 'success',
+                        timer: 1500,
+                        showConfirmButton: false
+                    });
+                }, () => Swal.fire('Lỗi', 'Không thể lấy vị trí. Vui lòng nhập địa chỉ thủ công.', 'error'));
+            } else {
+                Swal.fire('Lỗi', 'Trình duyệt không hỗ trợ vị trí.', 'error');
+            }
+        },
+
+        formatDate(dateStr) {
+            if (!dateStr) return '';
+            const date = new Date(dateStr);
+            return date.toLocaleString('vi-VN', {
+                hour: '2-digit', minute: '2-digit',
+                day: '2-digit', month: '2-digit', year: 'numeric'
+            });
+        },
+
+        submitBooking() {
+            const data = new FormData();
+            for (const key in this.formData) {
+                data.append(key, this.formData[key]);
+            }
+
+            // Hiển thị loading
+            Swal.fire({ title: 'Đang xử lý...', didOpen: () => Swal.showLoading() });
+
+            fetch('/book', { method: 'POST', body: data })
+                .then(res => {
+                    if (res.ok) {
+                        this.closeModal();
+                        Swal.fire({
+                            title: 'Đặt Lịch Thành Công!',
+                            text: 'Cảm ơn bạn! Chúng tôi sẽ gọi lại xác nhận trong ít phút.',
+                            icon: 'success'
+                        });
+                        // Reset form sau khi gửi thành công
+                        this.formData = {
+                            serviceId: '', serviceName: '',
+                            customerName: '', phone: '', address: '', time: '',
+                            lat: '', long: ''
+                        };
+                        this.step = 1;
+                    } else {
+                        res.text().then(text => Swal.fire('Lỗi', text || 'Có lỗi xảy ra', 'error'));
+                    }
+                })
+                .catch(err => Swal.fire('Lỗi', 'Lỗi kết nối mạng', 'error'));
+        }
+    };
+};
