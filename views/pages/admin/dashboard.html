@@ -490,7 +490,68 @@
         });
             });
     </script>
+    <input type="checkbox" id="modal-create-job" class="modal-toggle" />
+    <div class="modal" role="dialog">
+        <div class="modal-box">
+            <h3 class="font-bold text-lg text-primary"><i class="fa-solid fa-cart-plus mr-2"></i>Tạo Đơn Hàng Mới</h3>
 
+            <form action="/admin/bookings/create" method="POST" @submit.prevent="createJob($event)"
+                class="mt-4 space-y-3">
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="form-control">
+                        <label class="label"><span class="label-text font-semibold">Khách hàng <span
+                                    class="text-red-500">*</span></span></label>
+                        <input type="text" name="customer_name" placeholder="Nguyễn Văn A"
+                            class="input input-bordered w-full" required />
+                    </div>
+                    <div class="form-control">
+                        <label class="label"><span class="label-text font-semibold">Số điện thoại <span
+                                    class="text-red-500">*</span></span></label>
+                        <input type="tel" name="customer_phone" placeholder="09xxx" class="input input-bordered w-full"
+                            required />
+                    </div>
+                </div>
+
+                <div class="form-control">
+                    <label class="label"><span class="label-text font-semibold">Địa chỉ</span></label>
+                    <input type="text" name="address" placeholder="Số nhà, Tên đường, Phường/Xã..."
+                        class="input input-bordered w-full" />
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="form-control">
+                        <label class="label"><span class="label-text font-semibold">Loại dịch vụ</span></label>
+                        <select name="service_id" class="select select-bordered w-full">
+                            <option value="" disabled selected>-- Chọn --</option>
+                            {{ range .Services }}
+                            <option value="{{.Id}}">{{.GetString "name"}} - {{.GetFloat "base_price" | printf "%.0f"}}k
+                            </option>
+                            {{ end }}
+                            <option value="">Khác / Kiểm tra</option>
+                        </select>
+                    </div>
+                    <div class="form-control">
+                        <label class="label"><span class="label-text font-semibold">Thời gian hẹn</span></label>
+                        <input type="datetime-local" name="booking_time" class="input input-bordered w-full" required />
+                    </div>
+                </div>
+
+                <div class="form-control">
+                    <label class="label"><span class="label-text font-semibold">Mô tả sự cố / Ghi chú</span></label>
+                    <textarea name="issue_description" class="textarea textarea-bordered h-24"
+                        placeholder="Máy không lạnh, kêu to..."></textarea>
+                </div>
+
+                <div class="modal-action">
+                    <label for="modal-create-job" class="btn">Hủy bỏ</label>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fa-regular fa-paper-plane mr-2"></i> Tạo đơn
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
 </div> <!-- Close Wrapper -->
 </div>
 {{ end }}

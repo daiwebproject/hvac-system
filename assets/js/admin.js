@@ -427,3 +427,67 @@ window.inventoryManager = function (initialItems) {
         }
     }
 };
+
+// --- [BỔ SUNG] Map Logic cho assets/js/admin.js ---
+
+let mapInstance = null;
+let techMarkers = [];
+
+// Hàm khởi tạo bản đồ
+function initAdminMap() {
+    const mapEl = document.getElementById('fleet-map');
+    if (!mapEl) return;
+
+    // 1. Khởi tạo Map (Leaflet) - Tọa độ mặc định (VD: TP.HCM)
+    // Đảm bảo bạn đã import Leaflet CSS/JS trong layout
+    if (typeof L === 'undefined') {
+        console.error("Leaflet chưa được load");
+        return;
+    }
+
+    mapInstance = L.map('fleet-map').setView([10.8231, 106.6297], 13);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(mapInstance);
+
+    // 2. Load vị trí thợ (Giả lập hoặc gọi API thực tế)
+    // Ở đây ta có thể lấy từ biến toàn cục nếu server render ra, hoặc fetch API
+    // Ví dụ giả lập marker:
+    /*
+    const dummyTechs = [
+        { lat: 10.8231, long: 106.6297, name: 'Thợ A' },
+        { lat: 10.8300, long: 106.6350, name: 'Thợ B' }
+    ];
+    dummyTechs.forEach(t => addTechMarker(t));
+    */
+
+    // Sau khi map load xong thì resize lại cho chuẩn
+    setTimeout(() => {
+        mapInstance.invalidateSize();
+    }, 500);
+}
+
+function addTechMarker(tech) {
+    if (!mapInstance) return;
+    const marker = L.marker([tech.lat, tech.long])
+        .addTo(mapInstance)
+        .bindPopup(`<b>${tech.name}</b><br>Đang di chuyển`);
+    techMarkers.push(marker);
+}
+
+// [FIX] Định nghĩa hàm Global để HTML gọi được onclick="fitMapBounds()"
+window.fitMapBounds = function () {
+    if (!mapInstance || techMarkers.length === 0) {
+        // Nếu không có marker, reset về view mặc định
+        if (mapInstance) mapInstance.setView([10.8231, 106.6297], 13);
+        return;
+    }
+
+    // Tạo group marker để tính toán bounds
+    const group = new L.featureGroup(techMarkers);
+    mapInstance.fitBounds(group.getBounds(), { padding: [50, 50] });
+};
+
+// Gọi khởi tạo khi trang load
+document.addEventListener('DOMContentLoaded', initAdminMap);

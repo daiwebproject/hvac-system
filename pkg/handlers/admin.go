@@ -238,12 +238,21 @@ func (h *AdminHandler) CreateBooking(e *core.RequestEvent) error {
 
 	// Format time
 	// UI sends "YYYY-MM-DDTHH:MM", DB expects "YYYY-MM-DD HH:MM:SS.000Z"
-	// Actually we are storing "YYYY-MM-DD HH:MM" string in SQLite roughly
-	formattedTime := bookingTime
-	if len(bookingTime) == 16 {
-		formattedTime = bookingTime[:10] + " " + bookingTime[11:]
+	// 1. Parse chuỗi thời gian từ UI
+	parsedTime, err := time.Parse("2006-01-02T15:04", bookingTime)
+	if err != nil {
+		// Thử format có giây nếu UI gửi lên
+		parsedTime, _ = time.Parse("2006-01-02T15:04:05", bookingTime)
 	}
-	record.Set("booking_time", formattedTime)
+
+	// 2. Lưu vào DB dưới dạng chuẩn (hoặc format bạn đang dùng)
+	if !parsedTime.IsZero() {
+		// Lưu thống nhất: "2006-01-02 15:04" để khớp với logic hiển thị dashboard
+		record.Set("booking_time", parsedTime.Format("2006-01-02 15:04"))
+	} else {
+		// Fallback nếu parse lỗi
+		record.Set("booking_time", bookingTime)
+	}
 
 	record.Set("issue_description", issue)
 	record.Set("job_status", "pending")
