@@ -166,9 +166,13 @@ func (h *PublicHandler) ServiceDetail(e *core.RequestEvent) error {
 	// or just active services
 	otherServices, _ := h.App.FindRecordsByFilter("services", "active=true && id != '"+id+"'", "-created", 4, 0, nil)
 
+	// Convert HTML content to template.HTML for safe rendering
+	detailContent := service.GetString("detail_content")
+
 	data := map[string]interface{}{
-		"Service":       service,
-		"OtherServices": otherServices,
+		"Service":           service,
+		"OtherServices":     otherServices,
+		"DetailContentHTML": template.HTML(detailContent),
 	}
 
 	return RenderPage(h.Templates, e, "layouts/base.html", "public/service_detail.html", data)

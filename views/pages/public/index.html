@@ -126,7 +126,7 @@
                     <figure class="h-48 relative overflow-hidden group">
                         <a href="/services/{{.Id}}" class="block w-full h-full">
                             {{ if .GetString "image" }}
-                            <img src="/api/files/services/{{.Id}}/{{.GetString " image"}}" alt="{{.GetString " name"}}"
+                            <img src="/api/files/services/{{.Id}}/{{.GetString "image"}}" alt="{{.GetString "name"}}"
                                 class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">
                             {{ else }}
                             <div class="w-full h-full bg-blue-50 flex items-center justify-center">
@@ -147,7 +147,7 @@
                         </h3>
                         <p class="text-sm text-gray-500 line-clamp-2">{{ .GetString "description" }}</p>
 
-                        <button @click="triggerBooking('{{.Id}}', '{{.GetString " name"}}', {{.GetFloat "price" }})"
+                        <button @click="triggerBooking('{{.Id}}', '{{.GetString "name"}}', {{.GetFloat "price" }})"
                             class="btn btn-outline btn-primary btn-sm w-full mt-4">
                             Chọn dịch vụ này
                         </button>
@@ -199,7 +199,7 @@
                             <div
                                 class="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[50vh] overflow-y-auto custom-scrollbar p-1">
                                 {{ range .Services }}
-                                <div @click="selectService('{{ .Id }}', '{{ .GetString " name" }}', {{ .GetFloat "price"
+                                <div @click="selectService('{{ .Id }}', '{{ .GetString "name" }}', {{ .GetFloat "price"
                                     }})"
                                     class="cursor-pointer group relative border rounded-2xl p-4 transition-all duration-200 hover:shadow-lg hover:-translate-y-1 flex items-start gap-4"
                                     :class="formData.serviceId === '{{ .Id }}' 
@@ -209,7 +209,7 @@
                                     <div
                                         class="w-16 h-16 rounded-xl bg-white shadow-sm border border-slate-100 flex items-center justify-center shrink-0 overflow-hidden">
                                         {{ if .GetString "image" }}
-                                        <img src="/api/files/services/{{ .Id }}/{{ .GetString " image" }}"
+                                        <img src="/api/files/services/{{ .Id }}/{{ .GetString "image" }}"
                                             class="w-full h-full object-cover">
                                         {{ else }}
                                         <i class="fa-solid fa-snowflake text-2xl text-blue-500"></i>

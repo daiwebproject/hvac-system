@@ -203,6 +203,11 @@ func RegisterRoutes(app *pocketbase.PocketBase, t *template.Template, eventBroke
 		adminGroup.POST("/services", admin.ServiceSave)
 		adminGroup.POST("/services/{id}/delete", admin.ServiceDelete)
 
+		// [NEW] Category Management
+		adminGroup.GET("/categories", admin.CategoriesList)
+		adminGroup.POST("/categories", admin.CategorySave)
+		adminGroup.POST("/categories/{id}/delete", admin.CategoryDelete)
+
 		// ---------------------------------------------------------
 		// 7. TECH ROUTES (Protected)
 		// ---------------------------------------------------------

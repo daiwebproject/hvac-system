@@ -65,7 +65,7 @@
 
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {{ range .Services }}
-                            <div @click="selectService('{{ .Id }}', '{{ .GetString " name" }}', {{ .GetFloat "price"
+                            <div @click="selectService('{{ .Id }}', '{{ .GetString "name" }}', {{ .GetFloat "price"
                                 }})"
                                 class="cursor-pointer group relative border rounded-xl p-4 transition-all duration-200 hover:shadow-lg active:scale-[0.98]"
                                 :class="formData.serviceId === '{{ .Id }}' 
@@ -76,7 +76,7 @@
                                     <div
                                         class="w-14 h-14 md:w-16 md:h-16 rounded-lg bg-white shadow-sm border border-slate-100 flex items-center justify-center shrink-0 overflow-hidden group-hover:scale-105 transition-transform">
                                         {{ if .GetString "image" }}
-                                        <img src="/api/files/services/{{ .Id }}/{{ .GetString " image" }}"
+                                        <img src="/api/files/services/{{ .Id }}/{{ .GetString "image" }}"
                                             class="w-full h-full object-cover">
                                         {{ else }}
                                         <i class="fa-solid fa-snowflake text-2xl md:text-3xl text-blue-500"></i>

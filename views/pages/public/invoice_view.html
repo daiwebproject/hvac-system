@@ -73,7 +73,7 @@
                         <p class="text-gray-600 mt-1">
                             <i class="fa-solid fa-location-dot text-red-500 mr-2 w-4"></i>
                             {{.Job.GetString "address"}}
-                            <a href="https://www.google.com/maps/search/?api=1&query={{.Job.GetString " address"}}"
+                            <a href="https://www.google.com/maps/search/?api=1&query={{.Job.GetString "address"}}"
                                 target="_blank" class="text-blue-500 text-xs ml-1 hover:underline no-print">(Xem bản
                                 đồ)</a>
                         </p>
@@ -223,7 +223,7 @@
                     <p class="text-xs text-gray-500 mb-8">(Ký và ghi rõ họ tên)</p>
 
                     {{ if .Job.GetString "signature_url" }}
-                    <img src="{{ .Job.GetString " signature_url" }}" class="h-16 object-contain"
+                    <img src="{{ .Job.GetString "signature_url" }}" class="h-16 object-contain"
                         alt="Chữ ký khách hàng">
                     {{ else }}
                     <div class="h-16"></div>

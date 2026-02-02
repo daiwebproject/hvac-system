@@ -4,7 +4,7 @@
     <!-- Hero Section -->
     <div class="relative h-[40vh] md:h-[50vh] bg-slate-900 overflow-hidden">
         {{ if .Service.GetString "image" }}
-        <img src="/api/files/services/{{.Service.Id}}/{{.Service.GetString " image"}}"
+        <img src="/api/files/services/{{.Service.Id}}/{{.Service.GetString "image"}}"
             class="absolute inset-0 w-full h-full object-cover opacity-60">
         {{ else }}
         <img src="https://images.unsplash.com/photo-1581094794329-cd0f64be875e?q=80&w=2069"
@@ -45,11 +45,9 @@
 
                 <!-- Video Section (if exists) -->
                 {{ if .Service.GetString "video_url" }}
-                <div class="bg-black rounded-2xl overflow-hidden shadow-lg aspect-video relative group"
-                    x-data="{ videoUrl: '{{ .Service.GetString " video_url" }}' }">
-                    <iframe class="w-full h-full"
-                        :src="videoUrl.includes('youtube.com/watch?v=') ? videoUrl.replace('watch?v=', 'embed/') : videoUrl"
-                        title="Video thực tế" frameborder="0"
+                <div class="bg-black rounded-2xl overflow-hidden shadow-lg aspect-video relative group">
+                    <iframe class="w-full h-full" src="{{ .Service.GetString "video_url" }}" title="Video thực tế"
+                        frameborder="0"
                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                         allowfullscreen></iframe>
 
@@ -61,14 +59,64 @@
                 </div>
                 {{ end }}
 
-                <!-- Detailed Content -->
-                <div class="bg-white rounded-2xl p-8 shadow-sm border border-gray-100 prose prose-blue max-w-none">
-                    <div x-html="`{{ .Service.GetString " detail_content" }}`"></div>
-                    <!-- Fallback if x-html fails due to quotes: simple text -->
-                    {{ if not (.Service.GetString "detail_content") }}
-                    <p class="text-gray-500 italic">Chưa có nội dung chi tiết.</p>
-                    {{ end }}
+                <!-- Gallery Section (if exists) -->
+                {{ if .Service.GetStringSlice "gallery" }}
+                {{ $gallery := .Service.GetStringSlice "gallery" }}
+                {{ if gt (len $gallery) 0 }}
+                <div class="bg-white rounded-2xl p-8 shadow-sm border border-gray-100" x-data="{ 
+                        lightboxOpen: false, 
+                        currentImage: '', 
+                        openLightbox(src) { 
+                            this.currentImage = src; 
+                            this.lightboxOpen = true; 
+                        } 
+                    }">
+                    <h2 class="text-xl font-bold text-gray-800 mb-6">
+                        <i class="fa-solid fa-images text-purple-500 mr-2"></i>Hình ảnh thực tế
+                    </h2>
+                    <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        {{ range $gallery }}
+                        <div class="aspect-square rounded-lg overflow-hidden group cursor-pointer hover:shadow-lg transition-shadow"
+                            @click="openLightbox('/api/files/services/{{$.Service.Id}}/{{.}}')">
+                            <img src="/api/files/services/{{$.Service.Id}}/{{.}}" alt="Gallery image"
+                                class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300">
+                        </div>
+                        {{ end }}
+                    </div>
+
+                    <!-- Lightbox Modal -->
+                    <div x-show="lightboxOpen" @click="lightboxOpen = false"
+                        class="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4"
+                        style="display: none;" x-transition:enter="transition ease-out duration-300"
+                        x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+                        x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100"
+                        x-transition:leave-end="opacity-0">
+                        <button @click="lightboxOpen = false"
+                            class="absolute top-4 right-4 text-white text-4xl hover:text-gray-300 z-10">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                        <img :src="currentImage" class="max-w-full max-h-full object-contain" @click.stop>
+                    </div>
                 </div>
+                {{ end }}
+                {{ end }}
+
+                <!-- Detailed Content -->
+                {{ if .Service.GetString "detail_content" }}
+                <div class="bg-white rounded-2xl p-8 shadow-sm border border-gray-100">
+                    <h2 class="text-xl font-bold text-gray-800 mb-6">
+                        <i class="fa-solid fa-circle-info text-blue-500 mr-2"></i>Chi tiết dịch vụ
+                    </h2>
+                    <div
+                        class="prose prose-blue max-w-none prose-headings:text-gray-800 prose-p:text-gray-600 prose-li:text-gray-600">
+                        {{ .DetailContentHTML }}
+                    </div>
+                </div>
+                {{ else }}
+                <div class="bg-white rounded-2xl p-8 shadow-sm border border-gray-100">
+                    <p class="text-gray-400 italic text-center">Chưa có nội dung chi tiết.</p>
+                </div>
+                {{ end }}
             </div>
 
             <!-- Sidebar -->
@@ -88,7 +136,7 @@
                             cao</li>
                     </ul>
 
-                    <button @click="triggerBooking('{{.Service.Id}}', '{{.Service.GetString " name"}}',
+                    <button @click="triggerBooking('{{.Service.Id}}', '{{.Service.GetString "name"}}',
                         {{.Service.GetFloat "price" }})"
                         class="btn btn-primary w-full text-white shadow-lg shadow-blue-500/30 group">
                         Đặt Lịch Ngay <i
@@ -113,7 +161,7 @@
                         <a href="/services/{{.Id}}" class="flex gap-3 group">
                             <div class="w-16 h-16 rounded-lg overflow-hidden shrink-0 bg-gray-100">
                                 {{ if .GetString "image" }}
-                                <img src="/api/files/services/{{.Id}}/{{.GetString " image"}}"
+                                <img src="/api/files/services/{{.Id}}/{{.GetString "image"}}"
                                     class="w-full h-full object-cover group-hover:scale-110 transition-transform">
                                 {{ else }}
                                 <div class="w-full h-full flex items-center justify-center text-gray-300"><i

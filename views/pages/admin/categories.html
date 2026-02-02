@@ -1,0 +1,152 @@
+{{ define "content" }}
+<div class="p-6 max-w-7xl mx-auto" x-data="{ 
+    editModalOpen: false, 
+    editingCategory: null,
+    resetForm() {
+        this.editingCategory = null;
+        this.$refs.categoryForm.reset();
+    },
+    editCategory(category) {
+        this.editingCategory = category;
+        this.editModalOpen = true;
+    }
+}">
+
+    <!-- Page Header -->
+    <div class="flex justify-between items-center mb-8">
+        <h1 class="text-2xl font-bold text-gray-800">
+            <i class="fa-solid fa-list-check text-blue-600 mr-2"></i>Quản Lý Danh Mục
+        </h1>
+        <button @click="resetForm(); editModalOpen = true" class="btn btn-primary text-white shadow-lg">
+            <i class="fa-solid fa-plus mr-2"></i>Thêm Danh Mục
+        </button>
+    </div>
+
+    <!-- Category Table -->
+    <div class="overflow-x-auto bg-white rounded-xl shadow-sm border border-gray-100">
+        <table class="table w-full">
+            <!-- head -->
+            <thead>
+                <tr class="bg-gray-50 text-gray-600 uppercase text-xs">
+                    <th class="w-16">#</th>
+                    <th>Tên Danh Mục</th>
+                    <th>Slug</th>
+                    <th>Mô Tả</th>
+                    <th class="w-24 text-center">Thứ Tự</th>
+                    <th class="w-24 text-center">Trạng Thái</th>
+                    <th class="w-32 text-center">Hành Động</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{ range .Categories }}
+                <tr class="hover:bg-gray-50 transition-colors">
+                    <td class="font-bold text-gray-400">
+                        {{ if .GetString "icon" }}
+                        <img src="/api/files/categories/{{.Id}}/{{.GetString "icon"}}"
+                            class="w-8 h-8 rounded object-cover">
+                        {{ else }}
+                        <div class="w-8 h-8 bg-gray-100 rounded flex items-center justify-center text-gray-400 text-xs">
+                            None</div>
+                        {{ end }}
+                    </td>
+                    <td>
+                        <div class="font-bold text-gray-800">{{ .GetString "name" }}</div>
+                    </td>
+                    <td class="text-gray-500 font-mono text-xs">{{ .GetString "slug" }}</td>
+                    <td class="text-gray-500 text-sm max-w-xs truncate">{{ .GetString "description" }}</td>
+                    <td class="text-center font-bold text-gray-600">{{ .GetInt "sort_order" }}</td>
+                    <td class="text-center">
+                        {{ if .GetBool "active" }}
+                        <div class="badge badge-success badge-sm text-white">Hiện</div>
+                        {{ else }}
+                        <div class="badge badge-ghost badge-sm">Ẩn</div>
+                        {{ end }}
+                    </td>
+                    <td>
+                        <div class="flex justify-center gap-2">
+                            <button @click="editCategory({
+                                id: '{{.Id}}', 
+                                name: '{{.GetString "name"}}', slug: '{{.GetString "slug"}}' ,
+                                description: '{{.GetString "description"}}' , sort_order: {{.GetInt "sort_order" }},
+                                active: {{.GetBool "active" }} })"
+                                class="btn btn-sm btn-square btn-ghost text-blue-600 hover:bg-blue-50 tooltip"
+                                data-tip="Sửa">
+                                <i class="fa-solid fa-pen"></i>
+                            </button>
+
+                            <form action="/admin/categories/{{.Id}}/delete" method="POST"
+                                onsubmit="return confirm('Xóa danh mục này có thể ảnh hưởng đến các dịch vụ liên quan. Bạn chắc chắn chứ?')">
+                                <button type="submit"
+                                    class="btn btn-sm btn-square btn-ghost text-red-500 hover:bg-red-50 tooltip"
+                                    data-tip="Xóa">
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {{ end }}
+            </tbody>
+        </table>
+
+        {{ if not .Categories }}
+        <div class="p-12 text-center text-gray-400">
+            <i class="fa-solid fa-folder-open text-4xl mb-4"></i>
+            <p>Chưa có danh mục nào.</p>
+        </div>
+        {{ end }}
+    </div>
+
+    <!-- Edit/Create Modal -->
+    <dialog class="modal modal-bottom sm:modal-middle" :class="{ 'modal-open': editModalOpen }">
+        <div class="modal-box bg-white p-0 rounded-2xl overflow-hidden">
+            <div class="px-6 py-4 border-b flex justify-between items-center bg-gray-50">
+                <h3 class="font-bold text-lg" x-text="editingCategory ? 'Sửa Danh Mục' : 'Thêm Danh Mục'"></h3>
+                <button @click="editModalOpen = false" class="btn btn-sm btn-circle btn-ghost">✕</button>
+            </div>
+
+            <form x-ref="categoryForm" action="/admin/categories" method="POST" class="p-6 space-y-4">
+                <input type="hidden" name="id" :value="editingCategory ? editingCategory.id : ''">
+
+                <div class="form-control">
+                    <label class="label font-bold">Tên Danh Mục</label>
+                    <input type="text" name="name" :value="editingCategory ? editingCategory.name : ''" required
+                        class="input input-bordered w-full" placeholder="VD: Sửa Máy Lạnh">
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="form-control">
+                        <label class="label font-bold">Slug (URL)</label>
+                        <input type="text" name="slug" :value="editingCategory ? editingCategory.slug : ''" required
+                            class="input input-bordered w-full" placeholder="sua-may-lanh">
+                    </div>
+                    <div class="form-control">
+                        <label class="label font-bold">Thứ tự hiển thị</label>
+                        <input type="number" name="sort_order" :value="editingCategory ? editingCategory.sort_order : 1"
+                            class="input input-bordered w-full">
+                    </div>
+                </div>
+
+                <div class="form-control">
+                    <label class="label font-bold">Mô tả</label>
+                    <textarea name="description" class="textarea textarea-bordered h-20" placeholder="Mô tả danh mục..."
+                        x-text="editingCategory ? editingCategory.description : ''"></textarea>
+                </div>
+
+                <div class="form-control">
+                    <label class="label cursor-pointer justify-start gap-3">
+                        <input type="checkbox" name="active" class="checkbox checkbox-primary"
+                            :checked="editingCategory ? editingCategory.active : true">
+                        <span class="label-text font-bold text-gray-700">Hiển thị danh mục này</span>
+                    </label>
+                </div>
+
+                <div class="modal-action">
+                    <button type="button" @click="editModalOpen = false" class="btn">Hủy</button>
+                    <button type="submit" class="btn btn-primary text-white">Lưu</button>
+                </div>
+            </form>
+        </div>
+    </dialog>
+</div>
+{{ end }}

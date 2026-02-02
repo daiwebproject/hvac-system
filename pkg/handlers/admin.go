@@ -658,6 +658,17 @@ func (h *AdminHandler) ServicesList(e *core.RequestEvent) error {
 		services = []*core.Record{}
 	}
 
+	// Expand category relations
+	for _, service := range services {
+		if categoryID := service.GetString("category_id"); categoryID != "" {
+			if category, err := h.App.FindRecordById("categories", categoryID); err == nil {
+				service.SetExpand(map[string]any{
+					"category_id": category,
+				})
+			}
+		}
+	}
+
 	// Fetch Categories for Dropdown
 	categories, _ := h.App.FindRecordsByFilter("categories", "active=true", "+sort_order", 100, 0, nil)
 
@@ -707,7 +718,19 @@ func (h *AdminHandler) ServiceSave(e *core.RequestEvent) error {
 	record.Set("description", description)
 	record.Set("intro_text", intro)
 	record.Set("detail_content", detailContent)
-	record.Set("video_url", video)
+
+	// Process YouTube URL - convert any format to embed URL
+	if video != "" {
+		embedURL := GetYouTubeEmbedURL(video)
+		if embedURL != "" {
+			record.Set("video_url", embedURL)
+		} else {
+			// If not a YouTube URL, save as is
+			record.Set("video_url", video)
+		}
+	} else {
+		record.Set("video_url", "")
+	}
 
 	// Category handling
 	categoryID := e.Request.FormValue("category_id")
@@ -715,32 +738,67 @@ func (h *AdminHandler) ServiceSave(e *core.RequestEvent) error {
 		record.Set("category_id", categoryID)
 	}
 
-	// Handle Main Image
+	// Handle Main Image Deletion
+	deleteImage := e.Request.FormValue("delete_image")
+	if deleteImage == "1" {
+		record.Set("image", "")
+	}
+
+	// Handle Main Image Upload
 	imgFile, _ := e.FindUploadedFiles("image")
 	if len(imgFile) > 0 {
 		record.Set("image", imgFile[0])
 	}
 
-	// Handle Gallery Images (Append or Replace? usually append in simple logic, but PB file upload replaces if not careful with names?)
-	// PB treats multiple file field as list.
+	// Handle Gallery Image Deletion
+	deleteGallery := e.Request.FormValue("delete_gallery")
+	if deleteGallery != "" {
+		// Get current gallery
+		currentGallery := record.GetStringSlice("gallery")
+
+		// Parse delete list (format: "id/file1.jpg,id/file2.jpg,")
+		deleteList := strings.Split(strings.TrimSuffix(deleteGallery, ","), ",")
+
+		// Extract just filenames from delete list
+		deleteFiles := make(map[string]bool)
+		for _, item := range deleteList {
+			if item != "" {
+				parts := strings.Split(item, "/")
+				if len(parts) == 2 {
+					deleteFiles[parts[1]] = true
+				}
+			}
+		}
+
+		// Filter out deleted images
+		updatedGallery := []string{}
+		for _, img := range currentGallery {
+			if !deleteFiles[img] {
+				updatedGallery = append(updatedGallery, img)
+			}
+		}
+
+		record.Set("gallery", updatedGallery)
+	}
+
+	// Handle New Gallery Images (Append to existing)
 	galleryFiles, _ := e.FindUploadedFiles("gallery")
 	if len(galleryFiles) > 0 {
-		// If we want to APPEND, we need to get existing files.
-		// core.NewRecord uses set/get.
-		// If we simply Set("gallery", galleryFiles), it might replace or append depending on PB logic for FileField?
-		// Usually Set() on FileField replaces if Multi-select?
-		// For simplicity in MVP, let's just Set logic.
-		// Ideally we should allow removing individual images too.
-		// For now, let's assume 'gallery' input adds new images.
-		// To append:
-		// existing := record.Get("gallery").([]string) ... no, it stores filenames.
-		// record.AddFiles("gallery", galleryFiles...) // if such helper exists.
-		// Instead: record.Set("gallery", galleryFiles) adds them in standard PB usage for new record.
-		// For update, we might need manual handling if we don't want to wipe old ones.
-		// Let's rely on standard PB behavior: normally upload adds to the list if '+=' supported or just replaces.
-		// Users might expect "Add more images".
-		// We'll use simple Set for now.
-		record.Set("gallery", galleryFiles)
+		// Get current gallery filenames
+		currentGalleryNames := record.GetStringSlice("gallery")
+
+		// Convert to interface slice to mix strings and file objects
+		var galleryData []interface{}
+		for _, name := range currentGalleryNames {
+			galleryData = append(galleryData, name)
+		}
+
+		// Append new file objects
+		for _, file := range galleryFiles {
+			galleryData = append(galleryData, file)
+		}
+
+		record.Set("gallery", galleryData)
 	}
 
 	if err := h.App.Save(record); err != nil {
@@ -763,7 +821,6 @@ func (h *AdminHandler) ServiceDelete(e *core.RequestEvent) error {
 		return e.String(500, "Error deleting service")
 	}
 
-	return e.Redirect(http.StatusSeeOther, "/admin/services")
 	return e.Redirect(http.StatusSeeOther, "/admin/services")
 }
 
