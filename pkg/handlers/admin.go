@@ -547,6 +547,9 @@ func (h *AdminHandler) UpdateSettings(e *core.RequestEvent) error {
 	record.Set("bank_owner", e.Request.FormValue("bank_owner"))
 	record.Set("qr_template", e.Request.FormValue("qr_template"))
 
+	// [SECURITY] Do NOT update license_key or license_expiry here.
+	// These fields must only be updated by Super Admin via direct DB access or dedicated handler.
+
 	// 3. Handle Logo Upload
 	files, _ := e.FindUploadedFiles("logo")
 	if len(files) > 0 {

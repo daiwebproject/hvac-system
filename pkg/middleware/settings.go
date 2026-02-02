@@ -25,6 +25,13 @@ func SettingsMiddleware(settingsRepo *repository.SettingsRepo) func(e *core.Requ
 		// 2. Store in Context for RenderPage
 		e.Set("Settings", settings)
 
+		// [OPTIMIZATION] Pre-calculate Logo URL with thumbnail to reduce load
+		if settings.Logo != "" {
+			// Use 'settings' collection name as ID (PocketBase supports name or ID)
+			logoUrl := fmt.Sprintf("/api/files/settings/%s/%s?thumb=200x0", settings.Id, settings.Logo)
+			e.Set("LogoUrl", logoUrl)
+		}
+
 		// 3. License Gatekeeper Logic
 		// Skip check for static assets, login pages, and admin pages (to allow fixing license)
 		path := e.Request.URL.Path

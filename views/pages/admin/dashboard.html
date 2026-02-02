@@ -1,6 +1,19 @@
 {{ define "content" }}
 {{template "admin/stats_cards" .}}
 
+<!-- [UX] First Run Warning -->
+{{ if or (not .Settings.CompanyName) (eq .Settings.CompanyName "HVAC SaaS System") }}
+<div class="alert alert-error shadow-lg mb-6">
+    <i class="fa-solid fa-triangle-exclamation text-2xl"></i>
+    <div>
+        <h3 class="font-bold">Cấu hình chưa hoàn tất!</h3>
+        <div class="text-xs">Vui lòng cập nhật thông tin doanh nghiệp (Tên, Logo, Ngân hàng) để hệ thống hoạt động chính
+            xác.</div>
+    </div>
+    <a href="/admin/settings" class="btn btn-sm">Cấu hình ngay</a>
+</div>
+{{ end }}
+
 <div x-data="kanbanBoard({{ .BookingsJSON }})">
     <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
 

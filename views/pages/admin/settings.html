@@ -118,13 +118,19 @@
             <div class="card bg-base-100 shadow-xl border border-warning">
                 <div class="card-body">
                     <h2 class="card-title text-warning"><i class="fa-solid fa-crown"></i> Bản quyền</h2>
-                    <div class="text-sm">
-                        <p class="font-bold text-gray-500">License Key:</p>
-                        <code class="bg-gray-100 p-2 rounded block mb-2 break-all">{{.Settings.LicenseKey}}</code>
+                    <div class="form-control w-full mb-2">
+                        <label class="label"><span class="label-text font-bold text-gray-500">License
+                                Key:</span></label>
+                        <input type="text" value="{{.Settings.LicenseKey}}"
+                            class="input input-bordered w-full bg-gray-100" disabled readonly />
+                    </div>
 
-                        <p class="font-bold text-gray-500">Ngày hết hạn:</p>
-                        <p class="font-bold text-lg {{if .Settings.ExpiryDate}}text-red-600{{end}}">
-                            {{.Settings.ExpiryDate}}</p>
+                    <div class="form-control w-full">
+                        <label class="label"><span class="label-text font-bold text-gray-500">Ngày hết
+                                hạn:</span></label>
+                        <input type="text" value="{{.Settings.ExpiryDate}}"
+                            class="input input-bordered w-full bg-gray-100 {{if .Settings.ExpiryDate}}text-red-600{{end}}"
+                            disabled readonly />
                     </div>
                     <div class="card-actions mt-4">
                         <button class="btn btn-sm btn-outline w-full">Gia hạn</button>
