@@ -1,42 +1,59 @@
 {{ define "content" }}
-<div x-data="techManager()" class="p-4" @techListUpdated.window="refreshList()">
-    <div class="flex justify-between items-center mb-6">
-        <h2 class="text-2xl font-bold text-gray-800"><i class="fa-solid fa-users-gear mr-2"></i>Quản Lý Thợ</h2>
-        <button onclick="modal_add_tech.showModal()" class="btn btn-primary gap-2">
-            <i class="fa-solid fa-plus"></i> Thêm Thợ
+<div x-data="techManager()" class="p-4 space-y-6">
+
+    <div
+        class="flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+        <div>
+            <h2 class="text-2xl font-bold text-gray-800"><i class="fa-solid fa-users-gear text-blue-600 mr-2"></i>Quản
+                Lý Kỹ Thuật Viên</h2>
+            <p class="text-sm text-gray-500">Danh sách nhân viên và trạng thái hoạt động</p>
+        </div>
+        <button onclick="document.getElementById('modal_add_tech').showModal()"
+            class="btn btn-primary gap-2 shadow-lg shadow-blue-500/30">
+            <i class="fa-solid fa-user-plus"></i> Thêm Thợ Mới
         </button>
     </div>
 
-    <div id="tech-list-container" hx-get="/admin/techs" hx-trigger="load, techListUpdated from:body"
-        hx-swap="innerHTML">
-        <!-- Render from partial -->
-        <div class="flex justify-center p-8">
-            <span class="loading loading-spinner loading-lg"></span>
+    <div id="tech-list-container" hx-get="/admin/techs" hx-trigger="load, techListUpdated from:body" hx-target="this"
+        class="min-h-[200px] relative">
+
+        <div class="flex justify-center items-center h-40">
+            <span class="loading loading-spinner loading-lg text-primary"></span>
         </div>
     </div>
 
-    <!-- Modal Add Tech -->
     <dialog id="modal_add_tech" class="modal">
         <div class="modal-box">
-            <h3 class="font-bold text-lg mb-4">Thêm Nhân Viên Kỹ Thuật</h3>
+            <h3 class="font-bold text-lg mb-4 text-primary"><i class="fa-solid fa-user-plus mr-2"></i>Thêm Kỹ Thuật Viên
+            </h3>
+
             <form hx-post="/admin/techs/create" hx-swap="none"
-                hx-on::after-request="if(event.detail.successful) { modal_add_tech.close(); this.reset(); Swal.fire('Thành công', 'Đã tạo tài khoản thợ', 'success'); } else { Swal.fire('Lỗi', event.detail.xhr.responseText, 'error'); }">
-                <div class="form-control mb-3">
-                    <label class="label"><span class="label-text">Họ và Tên</span></label>
-                    <input type="text" name="name" required class="input input-bordered" placeholder="Nguyễn Văn A" />
+                hx-on::after-request="if(event.detail.successful) { document.getElementById('modal_add_tech').close(); this.reset(); Swal.fire('Thành công', 'Đã thêm nhân viên mới', 'success'); } else { Swal.fire('Lỗi', 'Không thể tạo nhân viên', 'error'); }">
+
+                <div class="form-control w-full mb-3">
+                    <label class="label"><span class="label-text font-semibold">Họ và Tên</span></label>
+                    <input type="text" name="name" placeholder="Nguyễn Văn A" class="input input-bordered w-full"
+                        required />
                 </div>
-                <div class="form-control mb-3">
-                    <label class="label"><span class="label-text">Email (Tên đăng nhập)</span></label>
-                    <input type="email" name="email" required class="input input-bordered"
-                        placeholder="tech@example.com" />
+
+                <div class="form-control w-full mb-3">
+                    <label class="label"><span class="label-text font-semibold">Email Đăng Nhập</span></label>
+                    <input type="email" name="email" placeholder="tech@example.com" class="input input-bordered w-full"
+                        required />
                 </div>
-                <div class="form-control mb-4">
-                    <label class="label"><span class="label-text">Mật khẩu</span></label>
-                    <input type="password" name="password" required class="input input-bordered" minlength="8" />
+
+                <div class="form-control w-full mb-6">
+                    <label class="label"><span class="label-text font-semibold">Mật Khẩu</span></label>
+                    <input type="password" name="password" placeholder="******" class="input input-bordered w-full"
+                        required minlength="8" />
                 </div>
+
                 <div class="modal-action">
-                    <button type="button" class="btn" onclick="modal_add_tech.close()">Hủy</button>
-                    <button type="submit" class="btn btn-primary">Tạo tài khoản</button>
+                    <button type="button" class="btn"
+                        onclick="document.getElementById('modal_add_tech').close()">Hủy</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fa-regular fa-paper-plane mr-2"></i> Tạo Tài Khoản
+                    </button>
                 </div>
             </form>
         </div>

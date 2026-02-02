@@ -15,10 +15,14 @@ func (h *AdminHandler) TechsList(e *core.RequestEvent) error {
 		"Techs": techs,
 	}
 
-	if e.Request.Header.Get("HX-Request") == "true" {
+	// [FIX] Quan trọng: Chỉ trả về Partial khi request nhắm cụ thể vào container danh sách
+	// (Ví dụ: khi tìm kiếm hoặc khi tạo thợ xong tự refresh danh sách)
+	// Nếu bấm từ Navbar (hx-target="main-content"), nó sẽ bỏ qua dòng này và render trang đầy đủ ở dưới.
+	if e.Request.Header.Get("HX-Target") == "tech-list-container" {
 		return RenderPartial(h.Templates, e, "admin/partials/tech_list", data)
 	}
 
+	// Mặc định render trang đầy đủ (Full Layout)
 	return RenderPage(h.Templates, e, "layouts/admin.html", "admin/tech_management.html", data)
 }
 
@@ -32,6 +36,7 @@ func (h *AdminHandler) CreateTech(e *core.RequestEvent) error {
 		return e.String(400, "Error creating tech: "+err.Error())
 	}
 
+	// Trigger sự kiện để HTMX tự động load lại danh sách
 	e.Response.Header().Set("HX-Trigger", "techListUpdated")
 	return e.String(200, "Technician created successfully")
 }
@@ -54,6 +59,7 @@ func (h *AdminHandler) ToggleTechStatus(e *core.RequestEvent) error {
 	if err := h.TechService.ToggleActiveStatus(id); err != nil {
 		return e.String(500, err.Error())
 	}
+
 	e.Response.Header().Set("HX-Trigger", "techListUpdated")
 	return e.String(200, "Status updated")
 }

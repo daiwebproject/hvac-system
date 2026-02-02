@@ -30,32 +30,35 @@ window.kanbanBoard = function (initialData) {
             });
 
             // 2. Lắng nghe SSE (Realtime)
+            this.setupSSE();
+        },
+
+        setupSSE() {
             const eventSource = new EventSource('/admin/stream');
             eventSource.addEventListener('message', (e) => {
                 try {
                     const event = JSON.parse(e.data);
                     console.log('Admin SSE:', event);
 
-                    // Handle Job Status Change (Real-time Move)
+                    // Handle Job Status Change
                     if (event.type === 'job.status_changed') {
                         const { booking_id, status } = event.data;
                         this.moveJobLocally(booking_id, status);
                     }
-                    // Handle Job Assign (Real-time Move)
+                    // Handle Job Assign
                     else if (event.type === 'job.assigned') {
                         const { booking_id, tech_id } = event.data;
                         this.moveJobLocally(booking_id, 'assigned', { staff_id: tech_id });
-                        // Optional: Reload if we need full data
-                        // setTimeout(() => window.location.reload(), 2000); 
                     }
                     // Handle Cancellations
                     else if (event.type === 'booking.cancelled' || event.type === 'job.cancelled') {
                         const { id, booking_id } = event.data;
                         this.removeJobLocally(id || booking_id);
                     }
-                    // Fallback for creation (New jobs)
+                    // Handle New Bookings
                     else if (event.type === 'booking.created') {
                         if (!this._reloadTimeout) {
+                            // Reload nhẹ sau 1.5s để cập nhật danh sách đầy đủ
                             this._reloadTimeout = setTimeout(() => window.location.reload(), 1500);
                         }
                     }
@@ -92,8 +95,7 @@ window.kanbanBoard = function (initialData) {
                     this.columns.pending.unshift(job); // Fallback
                 }
             } else {
-                // If job not found (maybe new?), reload to be safe
-                console.warn('Job not found locally, reloading...');
+                // If job not found locally, reload to be safe
                 window.location.reload();
             }
         },
@@ -134,8 +136,11 @@ window.kanbanBoard = function (initialData) {
 
             // 2. Kéo vào Assigned (Giao việc) -> Mở Modal
             if (targetCol === 'assigned') {
-                const modalCheckbox = document.getElementById('modal-assign-' + jobId);
-                if (modalCheckbox) modalCheckbox.checked = true;
+                // Hack nhẹ để mở modal sau khi drop
+                setTimeout(() => {
+                    const modalCheckbox = document.getElementById('modal-assign-' + jobId);
+                    if (modalCheckbox) modalCheckbox.checked = true;
+                }, 50);
                 return; // Dừng tại đây, Modal sẽ lo việc submit
             }
 
@@ -165,14 +170,12 @@ window.kanbanBoard = function (initialData) {
         // --- Modal Logic ---
         viewJob(job) {
             this.selectedJob = job;
-            console.log(this.selectedJob);
             document.getElementById('modal-view-job').checked = true;
         },
 
         openEdit(job) {
             document.getElementById('modal-view-job').checked = false;
-            // Use JSON parse/stringify to deep clone and strip Alpine proxies 
-            // This prevents reactivity loops causing browser freeze
+            // Deep clone để tránh lỗi Alpine reactivity cycle
             this.editingJob = JSON.parse(JSON.stringify(job));
             document.getElementById('modal-edit-booking').checked = true;
         },
@@ -205,7 +208,7 @@ window.kanbanBoard = function (initialData) {
                     });
                     document.getElementById('modal-create-job').checked = false;
                     form.reset();
-                    // Reload to fetch new data (or we could manually add to pending)
+                    // Reload to fetch new data
                     setTimeout(() => window.location.reload(), 1500);
                 } else {
                     res.text().then(text => Swal.fire('Lỗi', text, 'error'));
@@ -241,13 +244,11 @@ window.slotManager = function () {
         async fetchSlots() {
             this.loadingList = true;
             try {
-                // Giả lập hoặc gọi API thật
                 const res = await fetch('/admin/api/slots?days=7');
                 if (res.ok) {
                     this.slots = await res.json();
                 } else {
-                    console.warn('API slots chưa có, hiển thị dữ liệu mẫu hoặc rỗng');
-                    // this.slots = []; 
+                    console.warn('API slots chưa có, hiển thị rỗng');
                 }
             } catch (e) {
                 console.error(e);
@@ -282,7 +283,6 @@ window.slotManager = function () {
                         true
                     );
                     setTimeout(() => this.fetchSlots(), 1000);
-                    // Không cần reload trang, chỉ cần fetch lại list
                 } else {
                     this.showMessage('❌ Lỗi: ' + (result.error || 'Không xác định'), false);
                 }
@@ -326,7 +326,7 @@ window.slotManager = function () {
 
 window.inventoryManager = function (initialItems) {
     return {
-        // Nhận dữ liệu từ tham số truyền vào, nếu null thì gán mảng rỗng
+        // Nhận dữ liệu từ tham số truyền vào
         items: initialItems || [],
 
         newItem: {
@@ -356,9 +356,8 @@ window.inventoryManager = function (initialItems) {
                 const response = await fetch('/admin/tools/inventory/create', { method: 'POST', body: formData });
                 if (response.ok) {
                     this.showMessage('✅ Đã thêm linh kiện thành công!', true);
-                    // Reset form
                     this.newItem = { name: '', sku: '', category: 'capacitors', price: '', stock_quantity: 0, unit: 'cái', description: '' };
-                    // Reload trang để cập nhật danh sách
+                    // Reload trang
                     setTimeout(() => location.reload(), 1500);
                 } else {
                     this.showMessage('❌ Lỗi khi thêm linh kiện', false);
@@ -428,66 +427,125 @@ window.inventoryManager = function (initialItems) {
     }
 };
 
-// --- [BỔ SUNG] Map Logic cho assets/js/admin.js ---
+// ==========================================
+// [FIX] MAP LOGIC (AN TOÀN & GLOBAL)
+// ==========================================
 
 let mapInstance = null;
-let techMarkers = [];
+let mapMarkers = [];
 
-// Hàm khởi tạo bản đồ
-function initAdminMap() {
-    const mapEl = document.getElementById('fleet-map');
-    if (!mapEl) return;
-
-    // 1. Khởi tạo Map (Leaflet) - Tọa độ mặc định (VD: TP.HCM)
-    // Đảm bảo bạn đã import Leaflet CSS/JS trong layout
-    if (typeof L === 'undefined') {
-        console.error("Leaflet chưa được load");
-        return;
-    }
-
-    mapInstance = L.map('fleet-map').setView([10.8231, 106.6297], 13);
-
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenStreetMap contributors'
-    }).addTo(mapInstance);
-
-    // 2. Load vị trí thợ (Giả lập hoặc gọi API thực tế)
-    // Ở đây ta có thể lấy từ biến toàn cục nếu server render ra, hoặc fetch API
-    // Ví dụ giả lập marker:
-    /*
-    const dummyTechs = [
-        { lat: 10.8231, long: 106.6297, name: 'Thợ A' },
-        { lat: 10.8300, long: 106.6350, name: 'Thợ B' }
-    ];
-    dummyTechs.forEach(t => addTechMarker(t));
-    */
-
-    // Sau khi map load xong thì resize lại cho chuẩn
-    setTimeout(() => {
-        mapInstance.invalidateSize();
-    }, 500);
-}
-
-function addTechMarker(tech) {
-    if (!mapInstance) return;
-    const marker = L.marker([tech.lat, tech.long])
-        .addTo(mapInstance)
-        .bindPopup(`<b>${tech.name}</b><br>Đang di chuyển`);
-    techMarkers.push(marker);
-}
-
-// [FIX] Định nghĩa hàm Global để HTML gọi được onclick="fitMapBounds()"
+// Định nghĩa hàm Global NGAY LẬP TỨC để HTML có thể gọi
 window.fitMapBounds = function () {
-    if (!mapInstance || techMarkers.length === 0) {
-        // Nếu không có marker, reset về view mặc định
-        if (mapInstance) mapInstance.setView([10.8231, 106.6297], 13);
-        return;
-    }
+    if (!mapInstance) return; // Nếu chưa có map thì thôi
 
-    // Tạo group marker để tính toán bounds
-    const group = new L.featureGroup(techMarkers);
-    mapInstance.fitBounds(group.getBounds(), { padding: [50, 50] });
+    try {
+        if (mapMarkers.length > 0) {
+            const group = new L.featureGroup(mapMarkers);
+            mapInstance.fitBounds(group.getBounds(), { padding: [50, 50] });
+        } else {
+            // Vị trí mặc định nếu không có marker (TP.HCM)
+            mapInstance.setView([10.8231, 106.6297], 13);
+        }
+    } catch (e) {
+        console.warn("Map bounds error:", e);
+    }
 };
 
-// Gọi khởi tạo khi trang load
-document.addEventListener('DOMContentLoaded', initAdminMap);
+function initFleetMap() {
+    const mapEl = document.getElementById('fleet-map');
+
+    // Nếu trang hiện tại không có div #fleet-map -> Thoát ngay (tránh lỗi trên các trang khác)
+    if (!mapEl) return;
+
+    // Kiểm tra thư viện Leaflet đã load chưa
+    if (typeof L === 'undefined') {
+        console.warn('Leaflet JS chưa được tải.');
+        return;
+    }
+
+    // [QUAN TRỌNG] Cleanup bản đồ cũ trước khi tạo mới
+    // Việc này cực kỳ quan trọng khi dùng HTMX để swap nội dung trang
+    if (mapInstance) {
+        mapInstance.remove();
+        mapInstance = null;
+        mapMarkers = [];
+    }
+
+    try {
+        // 1. Tạo Map mới
+        mapInstance = L.map('fleet-map').setView([10.8231, 106.6297], 13);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors',
+            maxZoom: 19
+        }).addTo(mapInstance);
+
+        // 2. Vẽ Marker từ dữ liệu global (window.initialBookings)
+        const bookings = window.initialBookings || [];
+        bookings.forEach(job => {
+            if (job.lat && job.long) {
+                const iconColor = getJobColor(job.status);
+                const marker = L.marker([job.lat, job.long], {
+                    icon: createCustomIcon(iconColor)
+                })
+                    .addTo(mapInstance)
+                    .bindPopup(`
+                    <b>${job.customer}</b><br>
+                    <span class="text-xs text-gray-500">${job.service}</span><br>
+                    <span class="badge badge-xs ${getBadgeClass(job.status)}">${job.status_label || job.status}</span>
+                `);
+
+                mapMarkers.push(marker);
+            }
+        });
+
+        // 3. Tự động zoom
+        if (mapMarkers.length > 0) {
+            setTimeout(window.fitMapBounds, 500);
+        }
+    } catch (err) {
+        console.error('Lỗi khởi tạo bản đồ:', err);
+    }
+}
+
+// --- Map Helpers ---
+
+function getJobColor(status) {
+    if (status === 'completed') return '#22c55e'; // Green
+    if (status === 'working' || status === 'moving') return '#a855f7'; // Purple
+    if (status === 'assigned') return '#3b82f6'; // Blue
+    if (status === 'cancelled') return '#ef4444'; // Red
+    return '#eab308'; // Yellow (Pending)
+}
+
+function getBadgeClass(status) {
+    if (status === 'completed') return 'badge-success';
+    if (status === 'working') return 'badge-secondary';
+    if (status === 'assigned') return 'badge-info';
+    return 'badge-warning';
+}
+
+function createCustomIcon(color) {
+    const svgIcon = `
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="${color}" stroke="white" stroke-width="2" class="w-8 h-8 drop-shadow-md">
+        <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
+        <circle cx="12" cy="9" r="2.5" fill="white"/>
+    </svg>`;
+
+    return L.divIcon({
+        className: 'custom-map-marker',
+        html: svgIcon,
+        iconSize: [32, 32],
+        iconAnchor: [16, 32],
+        popupAnchor: [0, -32]
+    });
+}
+
+// Khởi tạo Map khi load trang VÀ sau khi HTMX swap nội dung (Quan trọng)
+document.addEventListener('DOMContentLoaded', initFleetMap);
+document.addEventListener('htmx:afterSettle', (evt) => {
+    // Chỉ init lại nếu nội dung mới được swap có chứa map
+    if (document.getElementById('fleet-map')) {
+        initFleetMap();
+    }
+});
