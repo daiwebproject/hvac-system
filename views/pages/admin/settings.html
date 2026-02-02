@@ -19,6 +19,7 @@
         <div class="md:col-span-2 space-y-6">
             <form action="/admin/settings" method="POST" enctype="multipart/form-data"
                 class="card bg-base-100 shadow-xl">
+                <input type="hidden" name="action" value="update_general">
                 <div class="card-body">
                     <h2 class="card-title text-blue-800 border-b pb-2 mb-4">Thông tin chung</h2>
 
@@ -117,6 +118,7 @@
         <div class="space-y-6">
             <div class="card bg-base-100 shadow-xl border border-warning">
                 <form action="/admin/settings" method="POST" class="card-body">
+                    <input type="hidden" name="action" value="update_license">
                     <h2 class="card-title text-warning"><i class="fa-solid fa-crown"></i> Bản quyền</h2>
                     <div class="form-control w-full mb-2">
                         <label class="label"><span class="label-text font-bold text-gray-500">License

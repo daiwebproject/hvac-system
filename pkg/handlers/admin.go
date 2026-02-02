@@ -534,31 +534,36 @@ func (h *AdminHandler) ShowSettings(e *core.RequestEvent) error {
 
 // UpdateSettings processes the settings form
 func (h *AdminHandler) UpdateSettings(e *core.RequestEvent) error {
+	// Debug: Print all form values
+	fmt.Println("👉 UpdateSettings Handler Triggered")
+	for key, values := range e.Request.Form {
+		fmt.Printf("   Form[%s]: %v\n", key, values)
+	}
+
 	// 1. Get the Record to update
 	record, err := h.SettingsRepo.GetSettingsRecord()
 	if err != nil {
+		fmt.Println("❌ Error finding settings record:", err)
 		return e.String(500, "Không tìm thấy cấu hình hệ thống (Settings Record Missing)")
 	}
+	fmt.Printf("   Found Record ID: %s (Current Key: %s)\n", record.Id, record.GetString("license_key"))
 
 	action := e.Request.FormValue("action")
+	fmt.Printf("   Action detected: '%s'\n", action)
 
 	if action == "update_license" {
 		// [SECURITY] License Management
 		rawKey := e.Request.FormValue("license_key")
 		newLicenseKey := strings.TrimSpace(rawKey)
 
-		fmt.Printf("Updating License Key. Raw Len: %d, Trimmed Len: %d\n", len(rawKey), len(newLicenseKey))
+		fmt.Printf("   Updating License Key. Raw Len: %d, Trimmed Len: %d\n", len(rawKey), len(newLicenseKey))
+		fmt.Printf("   New Key content: %q\n", newLicenseKey)
 
 		if newLicenseKey != "" {
 			record.Set("license_key", newLicenseKey)
-			// Ensure we don't accidentally wipe other fields if they were somehow part of this record update context
-			// (PocketBase record update only changes fields we Set, checks against old data? No, it updates what we Set)
-			// Since we only Set license_key, others remain untouched in the DB record?
-			// Yes, PocketBase Record.Set only updates the in-memory map. Save() persists changes.
 		}
 	} else {
-		// Default or "update_general"
-		// 2. Update Text Fields
+		// ... existing logic ...
 		record.Set("company_name", e.Request.FormValue("company_name"))
 		record.Set("hotline", e.Request.FormValue("hotline"))
 		record.Set("bank_bin", e.Request.FormValue("bank_bin"))
@@ -566,7 +571,6 @@ func (h *AdminHandler) UpdateSettings(e *core.RequestEvent) error {
 		record.Set("bank_owner", e.Request.FormValue("bank_owner"))
 		record.Set("qr_template", e.Request.FormValue("qr_template"))
 
-		// 3. Handle Logo Upload
 		files, _ := e.FindUploadedFiles("logo")
 		if len(files) > 0 {
 			record.Set("logo", files[0])
@@ -575,8 +579,10 @@ func (h *AdminHandler) UpdateSettings(e *core.RequestEvent) error {
 
 	// 4. Save
 	if err := h.App.Save(record); err != nil {
+		fmt.Println("❌ Error saving record:", err)
 		return e.String(500, "Lỗi lưu cấu hình: "+err.Error())
 	}
+	fmt.Println("✅ Record Saved Successfully")
 
 	// 5. Redirect back with success
 	return e.Redirect(http.StatusSeeOther, "/admin/settings?success=true")
