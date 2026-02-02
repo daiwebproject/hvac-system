@@ -108,7 +108,7 @@ func SettingsMiddleware(settingsRepo *repository.SettingsRepo) func(e *core.Requ
 					<div class="card">
 						<div class="icon">🛡️</div>
 						<h1>Digital Seal Alert</h1>
-						<p>Giấy phép sử dụng phần mềm của bạn <strong>không hợp lệ</strong> hoặc <strong>đã hết hạn</strong>.<br>Hệ thống đã tự động kích hoạt chế độ "Niêm phong chì" để bảo vệ bản quyền.</p>
+						<p>Giấy phép sử dụng phần mềm của bạn <strong>không hợp lệ</strong> hoặc <strong>đã hết hạn</strong>.<br>Vui lòng liên hệ PHẠM ĐẠI 0335942538 để kích hoạt giấy phép.</p>
 						<a href="/admin/settings" class="btn">Nhập Mã Kích Hoạt Mới</a>
 						<div class="meta">Server ID: HVAC-REQ-NONCE • Contact Support</div>
 					</div>
