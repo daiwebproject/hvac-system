@@ -75,7 +75,7 @@ func (h *PublicHandler) ShowInvoice(e *core.RequestEvent) error {
 	// Use generic RenderPage or ExecuteTemplate directly.
 	// Since RenderPage is likely package-private or I need to import it if it's in handlers package (same package).
 	// If RenderPage is in same package 'handlers', I can call it directly.
-	return RenderPage(h.Templates, e, "public/invoice_view.html", "public/invoice_view.html", data)
+return RenderPage(h.Templates, e, "invoice_view", "public/invoice_view.html", data)
 }
 
 // SubmitFeedback handles customer signature and rating

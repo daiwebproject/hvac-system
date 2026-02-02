@@ -1,138 +1,276 @@
-{{ define "content" }}
-<div class="min-h-screen bg-gray-50 py-8 px-4">
-    <div class="max-w-2xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100"
-        id="invoice-card">
+{{ define "invoice_view" }}
+<!DOCTYPE html>
+<html lang="vi" data-theme="winter">
 
-        <div class="bg-blue-600 text-white p-6">
-            <div class="flex justify-between items-start">
-                <div>
-                    <h1 class="font-bold text-2xl uppercase">{{.Settings.CompanyName}}</h1>
-                    <p class="text-blue-100 text-sm mt-1"><i class="fa-solid fa-phone mr-1"></i> {{.Settings.Hotline}}
-                    </p>
-                    <p class="text-blue-100 text-sm"><i class="fa-solid fa-globe mr-1"></i> hvac-system.vn</p>
-                </div>
-                <div class="text-right">
-                    <div class="bg-white/20 p-2 rounded text-center backdrop-blur-sm">
-                        <span class="block text-xs uppercase opacity-75">Mã Hóa Đơn</span>
-                        <span class="font-mono font-bold text-lg">#{{.Invoice.GetString "invoice_code"}}</span>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hóa Đơn Dịch Vụ - #{{.Invoice.GetString "invoice_code"}}</title>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.4.19/dist/full.min.css" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* CSS in ấn & hiển thị */
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+
+            body {
+                background: white;
+            }
+
+            .shadow-lg {
+                box-shadow: none !important;
+            }
+
+            .border {
+                border: 1px solid #ddd !important;
+            }
+        }
+    </style>
+</head>
+
+<body class="bg-gray-100 min-h-screen font-sans">
+    <div class="min-h-screen bg-gray-50 py-8 px-4 print:bg-white print:p-0">
+        <div class="max-w-3xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100 print:shadow-none print:border-none"
+            id="invoice-card">
+
+            <div
+                class="bg-blue-600 text-white p-6 print:bg-white print:text-black print:border-b-2 print:border-blue-600">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <h1 class="font-bold text-2xl uppercase">{{.Settings.CompanyName}}</h1>
+                        <p class="text-blue-100 text-sm mt-1 print:text-gray-600">
+                            <i class="fa-solid fa-phone mr-1"></i> {{.Settings.Hotline}}
+                        </p>
+                        <p class="text-blue-100 text-sm print:text-gray-600">
+                            <i class="fa-solid fa-globe mr-1"></i> hvac-system.vn
+                        </p>
+                    </div>
+                    <div class="text-right">
+                        <div
+                            class="bg-white/20 p-2 rounded text-center backdrop-blur-sm print:bg-transparent print:border print:border-gray-300">
+                            <span class="block text-xs uppercase opacity-75">Mã Hồ Sơ</span>
+                            <span class="font-mono font-bold text-lg">#{{.Invoice.GetString "invoice_code"}}</span>
+                        </div>
+                        <div class="mt-2 text-xs opacity-75 print:text-gray-500">
+                            Ngày tạo: {{ .Invoice.GetString "created" | printf "%.10s" }}
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
 
-        <div class="p-6 border-b border-gray-100">
-            <div class="flex flex-col md:flex-row justify-between gap-4">
-                <div>
-                    <h3 class="text-gray-500 text-xs uppercase font-bold mb-1">Khách hàng</h3>
-                    <p class="font-bold text-gray-800 text-lg">{{.Job.GetString "customer_name"}}</p>
-                    <p class="text-gray-600"><i class="fa-solid fa-location-dot text-red-500 mr-1"></i> {{.Job.GetString
-                        "address"}}</p>
-                    <p class="text-gray-600"><i class="fa-solid fa-phone mr-1"></i> {{.Job.GetString "customer_phone"}}
-                    </p>
-                </div>
-                <div class="text-right">
-                    <h3 class="text-gray-500 text-xs uppercase font-bold mb-1">Trạng thái</h3>
-                    {{ if eq (.Invoice.GetString "status") "paid" }}
-                    <span class="badge badge-success gap-2 p-3">
-                        <i class="fa-solid fa-check-circle"></i> ĐÃ THANH TOÁN
-                    </span>
-                    <p class="text-xs text-gray-400 mt-1">Lúc: {{.Invoice.GetString "updated" | slice 0 16}}</p>
-                    {{ else }}
-                    <span class="badge badge-warning gap-2 p-3">CHƯA THANH TOÁN</span>
+            <div class="p-6 border-b border-gray-100">
+                <div class="flex flex-col md:flex-row justify-between gap-6">
+                    <div class="flex-1">
+                        <h3 class="text-gray-500 text-xs uppercase font-bold mb-2 border-l-4 border-blue-500 pl-2">Thông
+                            tin Khách hàng</h3>
+                        <p class="font-bold text-gray-800 text-lg">{{.Job.GetString "customer_name"}}</p>
+                        <p class="text-gray-600 mt-1">
+                            <i class="fa-solid fa-phone mr-2 w-4"></i> {{.Job.GetString "customer_phone"}}
+                        </p>
+                        <p class="text-gray-600 mt-1">
+                            <i class="fa-solid fa-location-dot text-red-500 mr-2 w-4"></i>
+                            {{.Job.GetString "address"}}
+                            <a href="https://www.google.com/maps/search/?api=1&query={{.Job.GetString " address"}}"
+                                target="_blank" class="text-blue-500 text-xs ml-1 hover:underline no-print">(Xem bản
+                                đồ)</a>
+                        </p>
+                    </div>
+
+                    {{ if .Tech }}
+                    <div class="flex-1 md:text-right">
+                        <h3
+                            class="text-gray-500 text-xs uppercase font-bold mb-2 md:border-r-4 md:border-green-500 md:pr-2 md:border-l-0 border-l-4 border-green-500 pl-2">
+                            Kỹ thuật viên thực hiện</h3>
+                        <p class="font-bold text-gray-800">{{ .Tech.GetString "name" }}</p>
+                        <p class="text-gray-600 text-sm">Mã NV: {{ .Tech.GetString "username" }}</p>
+                        <span class="badge badge-success badge-outline badge-sm mt-1">Đã xác thực tay nghề</span>
+                    </div>
                     {{ end }}
                 </div>
             </div>
-        </div>
 
-        <div class="p-6">
-            <h3 class="font-bold text-gray-800 border-b pb-2 mb-4">Chi Tiết Dịch Vụ & Linh Kiện</h3>
+            <div class="p-6 bg-gray-50 border-b border-gray-100">
+                <h3 class="text-gray-800 font-bold mb-4 flex items-center">
+                    <i class="fa-solid fa-clock-rotate-left text-blue-600 mr-2"></i> Tiến độ thực hiện
+                </h3>
+                <ul class="steps steps-vertical lg:steps-horizontal w-full text-sm">
+                    {{ range .Timeline }}
+                    <li class="step {{ if .active }}step-primary{{ end }}"
+                        data-content="{{ if .active }}✓{{ else }}●{{ end }}">
+                        <div class="flex flex-col items-start lg:items-center">
+                            <span class="font-bold">{{ .label }}</span>
+                            <span class="text-[10px] text-gray-500 font-mono">{{ .time }}</span>
+                        </div>
+                    </li>
+                    {{ end }}
+                </ul>
+            </div>
 
-            <div class="overflow-x-auto">
-                <table class="table table-sm w-full">
-                    <thead>
-                        <tr class="bg-gray-50 text-gray-500">
-                            <th>Hạng mục</th>
-                            <th class="text-center">SL</th>
-                            <th class="text-right">Đơn giá</th>
-                            <th class="text-right">Thành tiền</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>
-                                <span class="font-semibold">{{.Job.GetString "device_type"}}</span>
-                                <br><span class="text-xs text-gray-500">Phí dịch vụ cơ bản</span>
-                            </td>
-                            <td class="text-center">1</td>
-                            <td class="text-right font-mono">{{.Job.GetFloat "estimated_cost" | printf "%.0f"}}</td>
-                            <td class="text-right font-bold font-mono">{{.Job.GetFloat "estimated_cost" | printf
-                                "%.0f"}}</td>
-                        </tr>
+            {{ if .Report }}
+            <div class="p-6 border-b border-gray-100">
+                <h3 class="text-gray-800 font-bold mb-4 flex items-center">
+                    <i class="fa-solid fa-camera text-orange-500 mr-2"></i> Báo cáo hiện trường
+                </h3>
 
-                        {{ range .Items }}
-                        <tr>
-                            <td>
-                                <span>{{.GetString "item_name"}}</span>
-                            </td>
-                            <td class="text-center">{{.GetInt "quantity"}}</td>
-                            <td class="text-right font-mono">{{.GetFloat "price" | printf "%.0f"}}</td>
-                            <td class="text-right font-bold font-mono">{{.GetFloat "total" | printf "%.0f"}}</td>
-                        </tr>
-                        {{ end }}
-                    </tbody>
+                <div class="bg-yellow-50 p-3 rounded-lg border border-yellow-100 mb-4 text-sm">
+                    <span class="font-bold text-yellow-800">Ghi chú của thợ:</span>
+                    <p class="italic text-gray-700 mt-1">"{{ .Report.GetString "tech_notes" }}"</p>
+                </div>
 
-                    <tfoot>
-                        <tr>
-                            <td colspan="3" class="text-right font-bold text-gray-600 pt-4">TỔNG CỘNG:</td>
-                            <td class="text-right pt-4">
-                                <span class="text-2xl font-black text-blue-600">
-                                    {{.Invoice.GetFloat "total_amount" | printf "%.0f"}}
-                                </span>
-                                <span class="text-xs font-bold text-gray-500">VNĐ</span>
-                            </td>
-                        </tr>
-                    </tfoot>
-                </table>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {{ range .Report.GetStringSlice "after_images" }}
+                    <div class="relative group">
+                        <img src="/api/files/job_reports/{{$.Report.Id}}/{{.}}"
+                            class="w-full h-24 object-cover rounded-lg border border-gray-200 shadow-sm"
+                            alt="Ảnh nghiệm thu">
+                        <div
+                            class="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-[10px] p-1 text-center rounded-b-lg">
+                            Nghiệm thu
+                        </div>
+                    </div>
+                    {{ else }}
+                    <div class="col-span-4 text-center text-gray-400 text-sm italic py-4">Không có hình ảnh nghiệm thu
+                    </div>
+                    {{ end }}
+                </div>
+            </div>
+            {{ end }}
+
+            <div class="p-6">
+                <h3 class="text-gray-800 font-bold mb-4 flex items-center">
+                    <i class="fa-solid fa-file-invoice-dollar text-green-600 mr-2"></i> Chi tiết chi phí
+                </h3>
+
+                <div class="overflow-x-auto">
+                    <table class="table table-sm w-full border border-gray-100">
+                        <thead>
+                            <tr class="bg-gray-100 text-gray-600">
+                                <th>Hạng mục</th>
+                                <th class="text-center">SL</th>
+                                <th class="text-right">Đơn giá</th>
+                                <th class="text-right">Thành tiền</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="border-b">
+                                <td>
+                                    <span class="font-semibold text-gray-800">{{.Job.GetString "device_type"}}</span>
+                                    <div class="badge badge-ghost badge-xs ml-2">Phí dịch vụ</div>
+                                </td>
+                                <td class="text-center">1</td>
+                                <td class="text-right font-mono">{{.Job.GetFloat "estimated_cost" | printf "%.0f"}}</td>
+                                <td class="text-right font-bold font-mono">{{.Job.GetFloat "estimated_cost" | printf
+                                    "%.0f"}}</td>
+                            </tr>
+
+                            {{ range .Items }}
+                            <tr class="border-b hover:bg-gray-50">
+                                <td>
+                                    <span class="text-gray-700">{{.GetString "item_name"}}</span>
+                                </td>
+                                <td class="text-center">{{.GetInt "quantity"}}</td>
+                                <td class="text-right font-mono">{{.GetFloat "price" | printf "%.0f"}}</td>
+                                <td class="text-right font-bold font-mono">{{.GetFloat "total" | printf "%.0f"}}</td>
+                            </tr>
+                            {{ end }}
+                        </tbody>
+
+                        <tfoot>
+                            <tr class="bg-blue-50">
+                                <td colspan="3" class="text-right font-bold text-gray-700 pt-3 text-lg">TỔNG CỘNG:</td>
+                                <td class="text-right pt-3">
+                                    <span class="text-2xl font-black text-blue-600">
+                                        {{.Invoice.GetFloat "total_amount" | printf "%.0f"}}
+                                    </span>
+                                    <span class="text-xs font-bold text-gray-500">VNĐ</span>
+                                </td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+
+                <div class="mt-4 flex justify-end">
+                    {{ if eq (.Invoice.GetString "status") "paid" }}
+                    <div
+                        class="flex items-center gap-2 text-green-600 font-bold border border-green-200 bg-green-50 px-4 py-2 rounded-lg">
+                        <i class="fa-solid fa-circle-check text-xl"></i>
+                        <div>
+                            <div class="uppercase text-xs">Trạng thái</div>
+                            <div>ĐÃ THANH TOÁN</div>
+                            <div class="text-[10px] font-normal">Lúc: {{ .Invoice.GetString "updated" | printf "%.16s"
+                                }}</div>
+                        </div>
+                    </div>
+                    {{ else }}
+                    <div
+                        class="flex items-center gap-2 text-orange-600 font-bold border border-orange-200 bg-orange-50 px-4 py-2 rounded-lg">
+                        <i class="fa-solid fa-clock text-xl"></i>
+                        <div>
+                            <div class="uppercase text-xs">Trạng thái</div>
+                            <div>CHỜ THANH TOÁN</div>
+                        </div>
+                    </div>
+                    {{ end }}
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-0 border-t border-gray-200">
+                <div class="p-6 border-r border-gray-200">
+                    <h4 class="font-bold text-gray-800 text-sm mb-2">Đại diện Khách hàng</h4>
+                    <p class="text-xs text-gray-500 mb-8">(Ký và ghi rõ họ tên)</p>
+
+                    {{ if .Job.GetString "signature_url" }}
+                    <img src="{{ .Job.GetString " signature_url" }}" class="h-16 object-contain"
+                        alt="Chữ ký khách hàng">
+                    {{ else }}
+                    <div class="h-16"></div>
+                    {{ end }}
+
+                    <p class="font-bold text-sm uppercase mt-2">{{.Job.GetString "customer_name"}}</p>
+                </div>
+                <div class="p-6">
+                    <h4 class="font-bold text-gray-800 text-sm mb-2">Đại diện {{.Settings.CompanyName}}</h4>
+                    <p class="text-xs text-gray-500 mb-8">(Xác nhận hoàn thành)</p>
+                    <div class="h-16 flex items-end">
+                        <span class="text-blue-600 font-bold font-mono">e-Signed by System</span>
+                    </div>
+                    <p class="font-bold text-sm uppercase mt-2">{{ if .Tech }}{{ .Tech.GetString "name" }}{{ else
+                        }}Admin{{ end }}</p>
+                </div>
+            </div>
+
+            <div class="bg-gray-100 p-4 text-center text-xs text-gray-500 border-t border-gray-200 print:bg-white">
+                <p class="font-bold mb-1">CHÍNH SÁCH BẢO HÀNH</p>
+                <p>Bảo hành 03 tháng đối với linh kiện thay thế. Vui lòng giữ biên bản này để được hỗ trợ.</p>
+                <p class="mt-2">STK: <span class="font-mono font-bold">{{.Settings.BankAccount}}</span>
+                    ({{.Settings.BankBin}}) - Chủ TK: {{.Settings.BankOwner}}</p>
+                <div class="mt-2">Generated by HVAC SaaS System</div>
             </div>
         </div>
 
-        <div class="bg-gray-50 p-6 text-sm text-gray-600 border-t border-gray-100">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                    <h4 class="font-bold text-gray-800 mb-2"><i class="fa-solid fa-shield-halved text-blue-500"></i>
-                        Chính sách bảo hành</h4>
-                    <p>Bảo hành <strong>03 tháng</strong> cho linh kiện thay thế.</p>
-                    <p>Vui lòng giữ lại hóa đơn này (hoặc ảnh chụp) để được hỗ trợ bảo hành.</p>
-                </div>
-                <div>
-                    <h4 class="font-bold text-gray-800 mb-2"><i class="fa-solid fa-comments text-green-500"></i> Hỗ trợ
-                    </h4>
-                    <p>Mọi thắc mắc xin liên hệ Hotline: <span class="font-bold">{{.Settings.Hotline}}</span></p>
-                    <p>STK: <span class="font-mono font-bold">{{.Settings.BankAccount}}</span> ({{.Settings.BankBin}})
-                    </p>
-                </div>
-            </div>
-        </div>
-
-        <div class="bg-gray-100 p-4 text-center text-xs text-gray-400">
-            Cảm ơn quý khách đã sử dụng dịch vụ! | Generated by {{.Settings.CompanyName}} System
+        <div class="max-w-3xl mx-auto mt-6 flex justify-center gap-4 no-print">
+            <button onclick="window.print()" class="btn btn-primary btn-outline gap-2">
+                <i class="fa-solid fa-print"></i> In Biên Bản
+            </button>
+            <button onclick="copyLink()" class="btn btn-ghost gap-2">
+                <i class="fa-regular fa-copy"></i> Sao chép Link
+            </button>
         </div>
     </div>
 
-    <div class="max-w-2xl mx-auto mt-6 flex justify-center gap-4 print:hidden">
-        <button onclick="window.print()" class="btn btn-outline">
-            <i class="fa-solid fa-print"></i> In Hóa Đơn
-        </button>
-        <button onclick="copyLink()" class="btn btn-primary">
-            <i class="fa-regular fa-copy"></i> Sao chép Link
-        </button>
-    </div>
-</div>
+    <script>
+        function copyLink() {
+            navigator.clipboard.writeText(window.location.href);
+            const btn = document.activeElement;
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-check"></i> Đã sao chép';
+            setTimeout(() => btn.innerHTML = originalText, 2000);
+        }
+    </script>
+</body>
 
-<script>
-    function copyLink() {
-        navigator.clipboard.writeText(window.location.href);
-        alert('Đã sao chép đường dẫn hóa đơn!');
-    }
-</script>
+</html>
 {{ end }}
