@@ -23,6 +23,17 @@ import (
 func RegisterRoutes(app *pocketbase.PocketBase, t *template.Template, eventBroker *broker.SegmentedBroker, analytics domain.AnalyticsService, bookingServiceInternal domain.BookingService) {
 	app.OnServe().BindFunc(func(se *core.ServeEvent) error {
 
+		// [SECURITY] Protect PocketBase Admin UI (/_/)
+		// Only allow access if special header is present
+		se.Router.BindFunc(func(e *core.RequestEvent) error {
+			if len(e.Request.URL.Path) >= 3 && e.Request.URL.Path[:3] == "/_/" {
+				if e.Request.Header.Get("X-Super-Admin") != "mat-khau-cua-toi" {
+					return e.String(http.StatusForbidden, "⛔ Super Admin Access Required")
+				}
+			}
+			return e.Next()
+		})
+
 		// ---------------------------------------------------------
 		// 1. STATIC FILES & SERVICE WORKERS
 		// ---------------------------------------------------------

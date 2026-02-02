@@ -116,13 +116,13 @@
         <!-- License Info Sidebar -->
         <div class="space-y-6">
             <div class="card bg-base-100 shadow-xl border border-warning">
-                <div class="card-body">
+                <form action="/admin/settings" method="POST" class="card-body">
                     <h2 class="card-title text-warning"><i class="fa-solid fa-crown"></i> Bản quyền</h2>
                     <div class="form-control w-full mb-2">
                         <label class="label"><span class="label-text font-bold text-gray-500">License
                                 Key:</span></label>
-                        <input type="text" value="{{.Settings.LicenseKey}}"
-                            class="input input-bordered w-full bg-gray-100" disabled readonly />
+                        <input type="text" name="license_key" value="{{.Settings.LicenseKey}}"
+                            class="input input-bordered w-full font-mono text-sm" placeholder="Paste key here..." />
                     </div>
 
                     <div class="form-control w-full">
@@ -133,9 +133,9 @@
                             disabled readonly />
                     </div>
                     <div class="card-actions mt-4">
-                        <button class="btn btn-sm btn-outline w-full">Gia hạn</button>
+                        <button type="submit" class="btn btn-sm btn-warning w-full">Cập nhật License</button>
                     </div>
-                </div>
+                </form>
             </div>
 
             <div class="card bg-base-100 shadow-xl">

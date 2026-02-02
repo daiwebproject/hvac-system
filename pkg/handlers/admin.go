@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"strings"
 	"time"
 
 	"hvac-system/internal/adapter/repository"
@@ -539,21 +540,37 @@ func (h *AdminHandler) UpdateSettings(e *core.RequestEvent) error {
 		return e.String(500, "Không tìm thấy cấu hình hệ thống (Settings Record Missing)")
 	}
 
-	// 2. Update Text Fields
-	record.Set("company_name", e.Request.FormValue("company_name"))
-	record.Set("hotline", e.Request.FormValue("hotline"))
-	record.Set("bank_bin", e.Request.FormValue("bank_bin"))
-	record.Set("bank_account", e.Request.FormValue("bank_account"))
-	record.Set("bank_owner", e.Request.FormValue("bank_owner"))
-	record.Set("qr_template", e.Request.FormValue("qr_template"))
+	action := e.Request.FormValue("action")
 
-	// [SECURITY] Do NOT update license_key or license_expiry here.
-	// These fields must only be updated by Super Admin via direct DB access or dedicated handler.
+	if action == "update_license" {
+		// [SECURITY] License Management
+		rawKey := e.Request.FormValue("license_key")
+		newLicenseKey := strings.TrimSpace(rawKey)
 
-	// 3. Handle Logo Upload
-	files, _ := e.FindUploadedFiles("logo")
-	if len(files) > 0 {
-		record.Set("logo", files[0])
+		fmt.Printf("Updating License Key. Raw Len: %d, Trimmed Len: %d\n", len(rawKey), len(newLicenseKey))
+
+		if newLicenseKey != "" {
+			record.Set("license_key", newLicenseKey)
+			// Ensure we don't accidentally wipe other fields if they were somehow part of this record update context
+			// (PocketBase record update only changes fields we Set, checks against old data? No, it updates what we Set)
+			// Since we only Set license_key, others remain untouched in the DB record?
+			// Yes, PocketBase Record.Set only updates the in-memory map. Save() persists changes.
+		}
+	} else {
+		// Default or "update_general"
+		// 2. Update Text Fields
+		record.Set("company_name", e.Request.FormValue("company_name"))
+		record.Set("hotline", e.Request.FormValue("hotline"))
+		record.Set("bank_bin", e.Request.FormValue("bank_bin"))
+		record.Set("bank_account", e.Request.FormValue("bank_account"))
+		record.Set("bank_owner", e.Request.FormValue("bank_owner"))
+		record.Set("qr_template", e.Request.FormValue("qr_template"))
+
+		// 3. Handle Logo Upload
+		files, _ := e.FindUploadedFiles("logo")
+		if len(files) > 0 {
+			record.Set("logo", files[0])
+		}
 	}
 
 	// 4. Save
@@ -561,6 +578,6 @@ func (h *AdminHandler) UpdateSettings(e *core.RequestEvent) error {
 		return e.String(500, "Lỗi lưu cấu hình: "+err.Error())
 	}
 
-	// 5. Redirect back with success (or use Toast via URL param?)
+	// 5. Redirect back with success
 	return e.Redirect(http.StatusSeeOther, "/admin/settings?success=true")
 }
