@@ -153,3 +153,23 @@ func (h *PublicHandler) SubmitFeedback(e *core.RequestEvent) error {
 
 	return e.JSON(200, map[string]string{"success": "true"})
 }
+
+// GET /services/{id}
+func (h *PublicHandler) ServiceDetail(e *core.RequestEvent) error {
+	id := e.Request.PathValue("id")
+	service, err := h.App.FindRecordById("services", id)
+	if err != nil {
+		return e.String(404, "Dịch vụ không tồn tại")
+	}
+
+	// Fetch unrelated services for "Other Services" section?
+	// or just active services
+	otherServices, _ := h.App.FindRecordsByFilter("services", "active=true && id != '"+id+"'", "-created", 4, 0, nil)
+
+	data := map[string]interface{}{
+		"Service":       service,
+		"OtherServices": otherServices,
+	}
+
+	return RenderPage(h.Templates, e, "layouts/base.html", "public/service_detail.html", data)
+}

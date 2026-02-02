@@ -4,8 +4,8 @@
     <div class="relative min-h-[85vh] flex items-center justify-center overflow-hidden">
 
         <div class="absolute inset-0 z-0">
-            {{ if and .PageSettings (.PageSettings.GetString "hero_image") }}
-            <img src="/api/files/settings/{{.PageSettings.Id}}/{{.PageSettings.GetString " hero_image"}}"
+            {{ if and .Settings .Settings.HeroImage }}
+            <img src="/api/files/settings/{{.Settings.Id}}/{{.Settings.HeroImage}}"
                 class="w-full h-full object-cover object-center" alt="Background">
             {{ else }}
             <img src="https://images.unsplash.com/photo-1621905251189-08b45d6a269e?q=80&w=2069"
@@ -21,34 +21,44 @@
                 <div class="text-white space-y-6 animate-fade-in-up text-center md:text-left">
                     <div
                         class="inline-block px-4 py-1.5 rounded-full bg-blue-600/30 border border-blue-400/30 backdrop-blur-sm text-blue-100 text-sm font-semibold tracking-wide uppercase mb-2">
-                        <i class="fa-solid fa-star text-yellow-400 mr-2"></i> Dịch vụ số 1 tại {{ if .PageSettings }}{{
-                        .PageSettings.CompanyName }}{{ else }}Khu vực{{ end }}
+                        <i class="fa-solid fa-star text-yellow-400 mr-2"></i> Dịch vụ số 1 tại {{ if .Settings }}{{
+                        .Settings.CompanyName }}{{ else }}Khu vực{{ end }}
                     </div>
 
                     <h1 class="text-4xl md:text-6xl lg:text-7xl font-extrabold leading-tight tracking-tight">
-                        {{ if .PageSettings }}{{ .PageSettings.GetString "hero_title" }}{{ else }}GIẢI PHÁP<br>ĐIỆN
+                        {{ if and .Settings .Settings.HeroTitle }}{{ .Settings.HeroTitle }}{{ else }}GIẢI PHÁP<br>ĐIỆN
                         LẠNH{{ end }}
                         <br>
                         <span class="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300">
-                            {{ if .PageSettings }}{{ .PageSettings.GetString "hero_subtitle" }}{{ else }}CHUYÊN NGHIỆP{{
+                            {{ if and .Settings .Settings.HeroSubtitle }}{{ .Settings.HeroSubtitle }}{{ else }}CHUYÊN
+                            NGHIỆP{{
                             end }}
                         </span>
                     </h1>
 
                     <p class="text-lg md:text-xl text-gray-300 max-w-lg mx-auto md:mx-0 leading-relaxed font-light">
-                        {{ if .PageSettings }}{{ .PageSettings.GetString "welcome_text" }}{{ else }}
+                        {{ if and .Settings .Settings.WelcomeText }}{{ .Settings.WelcomeText }}{{ else }}
                         Đội ngũ kỹ thuật viên tay nghề cao, cam kết khắc phục triệt để mọi sự cố. Phục vụ 24/7 kể cả
                         ngày lễ.
                         {{ end }}
                     </p>
 
                     <div class="flex flex-col sm:flex-row gap-4 pt-4 justify-center md:justify-start">
+                        {{ if and .Settings .Settings.HeroCtaLink (ne .Settings.HeroCtaLink "#") }}
+                        <a href="{{ .Settings.HeroCtaLink }}"
+                            class="group btn btn-primary border-none bg-blue-600 hover:bg-blue-700 text-white btn-lg px-8 shadow-lg shadow-blue-600/30 hover:-translate-y-1 transition-all duration-300">
+                            <span class="mr-2">{{ if .Settings.HeroCtaText }}{{ .Settings.HeroCtaText }}{{ else }}ĐẶT
+                                LỊCH NGAY{{ end }}</span>
+                            <i class="fa-solid fa-arrow-right group-hover:translate-x-1 transition-transform"></i>
+                        </a>
+                        {{ else }}
                         <button @click="openModal()"
                             class="group btn btn-primary border-none bg-blue-600 hover:bg-blue-700 text-white btn-lg px-8 shadow-lg shadow-blue-600/30 hover:-translate-y-1 transition-all duration-300">
-                            <span class="mr-2">{{ if .PageSettings }}{{ .PageSettings.GetString "hero_cta_text" }}{{
+                            <span class="mr-2">{{ if and .Settings .Settings.HeroCtaText }}{{ .Settings.HeroCtaText }}{{
                                 else }}ĐẶT LỊCH NGAY{{ end }}</span>
                             <i class="fa-solid fa-arrow-right group-hover:translate-x-1 transition-transform"></i>
                         </button>
+                        {{ end }}
 
                         <a href="tel:{{if .Settings.Hotline}}{{ .Settings.Hotline }}{{end}}"
                             class="btn btn-outline text-white hover:bg-white hover:text-slate-900 btn-lg px-8 backdrop-blur-sm border-white/40 hover:border-white">
@@ -113,29 +123,31 @@
                 {{ range .Services }}
                 <div
                     class="card bg-white shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 border border-gray-100 group">
-                    <figure class="h-48 relative overflow-hidden">
-                        {{ if .GetString "image" }}
-                        <img src="/api/files/services/{{.Id}}/{{.GetString " image"}}" alt="{{.GetString " name"}}"
-                            class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">
-                        {{ else }}
-                        <div class="w-full h-full bg-blue-50 flex items-center justify-center">
-                            <i class="fa-solid fa-snowflake text-5xl text-blue-200"></i>
-                        </div>
-                        {{ end }}
+                    <figure class="h-48 relative overflow-hidden group">
+                        <a href="/services/{{.Id}}" class="block w-full h-full">
+                            {{ if .GetString "image" }}
+                            <img src="/api/files/services/{{.Id}}/{{.GetString " image"}}" alt="{{.GetString " name"}}"
+                                class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">
+                            {{ else }}
+                            <div class="w-full h-full bg-blue-50 flex items-center justify-center">
+                                <i class="fa-solid fa-snowflake text-5xl text-blue-200"></i>
+                            </div>
+                            {{ end }}
+                        </a>
 
                         <div
-                            class="absolute top-4 right-4 bg-white/90 backdrop-blur px-3 py-1 rounded-full text-sm font-bold text-blue-600 shadow-sm">
+                            class="absolute top-4 right-4 bg-white/90 backdrop-blur px-3 py-1 rounded-full text-sm font-bold text-blue-600 shadow-sm pointer-events-none">
                             {{ if .GetFloat "price" }}{{ .GetFloat "price" | printf "%.0f" }}k{{ else }}Liên hệ{{ end }}
                         </div>
                     </figure>
 
                     <div class="card-body p-6">
                         <h3 class="card-title text-lg font-bold group-hover:text-primary transition-colors">
-                            {{ .GetString "name" }}
+                            <a href="/services/{{.Id}}">{{ .GetString "name" }}</a>
                         </h3>
                         <p class="text-sm text-gray-500 line-clamp-2">{{ .GetString "description" }}</p>
 
-                        <button @click="prefillService('{{.Id}}', '{{.GetString " name"}}')"
+                        <button @click="triggerBooking('{{.Id}}', '{{.GetString " name"}}', {{.GetFloat "price" }})"
                             class="btn btn-outline btn-primary btn-sm w-full mt-4">
                             Chọn dịch vụ này
                         </button>
@@ -146,117 +158,268 @@
         </div>
     </section>
 
+    <!-- NEW MODAL STRUCTURE -->
     <dialog class="modal modal-bottom sm:modal-middle" :class="{ 'modal-open': bookingModalOpen }">
-        <div class="modal-box w-11/12 max-w-4xl p-0 overflow-hidden bg-base-100" @click.outside="closeModal()">
+        <div class="modal-box w-11/12 max-w-5xl p-0 overflow-hidden bg-slate-50 rounded-2xl"
+            @click.outside="closeModal()">
 
-            <div class="bg-blue-600 text-white p-4 flex justify-between items-center">
-                <h3 class="font-bold text-lg"><i class="fa-solid fa-calendar-check mr-2"></i>Đặt Lịch Dịch Vụ</h3>
-                <button @click="closeModal()"
-                    class="btn btn-sm btn-circle btn-ghost text-white hover:bg-white/20">✕</button>
-            </div>
+            <!-- Close Button (Absolute) -->
+            <button @click="closeModal()"
+                class="absolute top-4 right-4 btn btn-sm btn-circle btn-ghost z-50 text-slate-400 hover:bg-slate-200">✕</button>
 
-            <div class="p-6">
-                <ul class="steps w-full mb-8">
-                    <li class="step" :class="step >= 1 ? 'step-primary' : ''">Dịch vụ</li>
-                    <li class="step" :class="step >= 2 ? 'step-primary' : ''">Thông tin</li>
-                    <li class="step" :class="step >= 3 ? 'step-primary' : ''">Xác nhận</li>
-                </ul>
+            <!-- Booking Wizard Container -->
+            <!-- CRITICAL: Initializes bookingWizard() scope so 'step' and 'formData' are available -->
+            <div class="w-full h-full" x-data="bookingWizard()">
 
-                <form @submit.prevent="submitBooking">
+                <div class="p-6 md:p-10">
+                    <!-- Header -->
+                    <div class="text-center mb-8">
+                        <h3 class="text-3xl font-extrabold text-slate-900">Đặt Lịch Dịch Vụ</h3>
+                        <p class="text-slate-500">Chuyên nghiệp - Nhanh chóng - Tận tâm</p>
+                    </div>
 
-                    <div x-show="step === 1" class="space-y-4">
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[50vh] overflow-y-auto pr-2">
-                            {{ range .Services }}
-                            <div @click="selectService('{{.Id}}', '{{.GetString " name"}}')"
-                                class="cursor-pointer border rounded-xl p-4 hover:border-blue-500 hover:bg-blue-50 transition-all flex items-center gap-4"
-                                :class="formData.serviceId === '{{.Id}}' ? 'border-blue-600 bg-blue-50 ring-2 ring-blue-200' : 'border-gray-200'">
-                                <div
-                                    class="w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-xl shrink-0">
-                                    {{ if .GetString "image" }}
-                                    <img src="/api/files/services/{{.Id}}/{{.GetString " image"}}"
-                                        class="w-full h-full object-cover rounded-lg">
-                                    {{ else }}
-                                    <i class="fa-solid fa-wrench"></i>
-                                    {{ end }}
+                    <!-- Steps Indicators -->
+                    <ul class="steps w-full mb-8">
+                        <li class="step transition-all duration-300"
+                            :class="step >= 1 ? 'step-primary font-bold text-blue-600' : 'text-gray-400'">Dịch vụ</li>
+                        <li class="step transition-all duration-300"
+                            :class="step >= 2 ? 'step-primary font-bold text-blue-600' : 'text-gray-400'">Thông tin</li>
+                        <li class="step transition-all duration-300"
+                            :class="step >= 3 ? 'step-primary font-bold text-blue-600' : 'text-gray-400'">Thời gian</li>
+                        <li class="step transition-all duration-300"
+                            :class="step >= 4 ? 'step-primary font-bold text-blue-600' : 'text-gray-400'">Xác nhận</li>
+                    </ul>
+
+                    <div class="w-full">
+                        <!-- STEP 1: CHỌN DỊCH VỤ -->
+                        <div x-show="step === 1" x-transition:enter="transition ease-out duration-300"
+                            x-transition:enter-start="opacity-0 translate-x-4"
+                            x-transition:enter-end="opacity-100 translate-x-0">
+
+                            <div
+                                class="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[50vh] overflow-y-auto custom-scrollbar p-1">
+                                {{ range .Services }}
+                                <div @click="selectService('{{ .Id }}', '{{ .GetString " name" }}', {{ .GetFloat "price"
+                                    }})"
+                                    class="cursor-pointer group relative border rounded-2xl p-4 transition-all duration-200 hover:shadow-lg hover:-translate-y-1 flex items-start gap-4"
+                                    :class="formData.serviceId === '{{ .Id }}' 
+                                        ? 'border-blue-600 bg-blue-50/60 shadow-md ring-1 ring-blue-600' 
+                                        : 'border-slate-200 bg-white hover:border-blue-400'">
+
+                                    <div
+                                        class="w-16 h-16 rounded-xl bg-white shadow-sm border border-slate-100 flex items-center justify-center shrink-0 overflow-hidden">
+                                        {{ if .GetString "image" }}
+                                        <img src="/api/files/services/{{ .Id }}/{{ .GetString " image" }}"
+                                            class="w-full h-full object-cover">
+                                        {{ else }}
+                                        <i class="fa-solid fa-snowflake text-2xl text-blue-500"></i>
+                                        {{ end }}
+                                    </div>
+
+                                    <div class="flex-1 min-w-0">
+                                        <h4 class="font-bold text-slate-800 group-hover:text-blue-700 truncate">{{
+                                            .GetString "name" }}</h4>
+                                        <p class="text-xs text-slate-500 line-clamp-2 mt-1">{{ .GetString "description"
+                                            }}</p>
+                                        <div class="mt-2 text-sm font-bold text-blue-600">
+                                            {{ if .GetFloat "price" }}{{ .GetFloat "price" | printf "%.0f" }} đ{{ else
+                                            }}Liên hệ{{ end }}
+                                        </div>
+                                    </div>
+
+                                    <div x-show="formData.serviceId === '{{ .Id }}'"
+                                        class="absolute top-3 right-3 text-blue-600 animate-scale-in">
+                                        <i class="fa-solid fa-circle-check text-xl bg-white rounded-full"></i>
+                                    </div>
                                 </div>
-                                <div>
-                                    <h4 class="font-bold text-gray-800">{{ .GetString "name" }}</h4>
-                                    <p class="text-xs text-gray-500 line-clamp-1">{{ .GetString "description" }}</p>
+                                {{ end }}
+                            </div>
+
+                            <div class="mt-6 flex justify-end">
+                                <button type="button" @click="nextStep()" :disabled="!formData.serviceId"
+                                    class="btn btn-primary px-8 text-white shadow-lg shadow-blue-600/20 font-bold">
+                                    Tiếp theo <i class="fa-solid fa-arrow-right ml-2"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- STEP 2: USER INFO -->
+                        <div x-show="step === 2" style="display: none;"
+                            x-transition:enter="transition ease-out duration-300"
+                            x-transition:enter-start="opacity-0 translate-x-4"
+                            x-transition:enter-end="opacity-100 translate-x-0">
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div class="space-y-4">
+                                    <div class="form-control">
+                                        <label class="label font-bold text-slate-700">Họ và Tên <span
+                                                class="text-red-500">*</span></label>
+                                        <input type="text" x-model="formData.name"
+                                            class="input input-bordered w-full bg-slate-50 focus:bg-white"
+                                            placeholder="VD: Nguyễn Văn A">
+                                    </div>
+                                    <div class="form-control">
+                                        <label class="label font-bold text-slate-700">Số điện thoại <span
+                                                class="text-red-500">*</span></label>
+                                        <input type="tel" x-model="formData.phone"
+                                            class="input input-bordered w-full bg-slate-50 focus:bg-white"
+                                            placeholder="VD: 0912 345 678">
+                                    </div>
+                                    <div class="form-control">
+                                        <label class="label font-bold text-slate-700">Địa chỉ <span
+                                                class="text-red-500">*</span></label>
+                                        <div class="join w-full">
+                                            <input type="text" x-model="formData.address"
+                                                class="input input-bordered join-item w-full bg-slate-50 focus:bg-white"
+                                                placeholder="Địa chỉ chi tiết...">
+                                            <button type="button" @click="getLocation()"
+                                                class="btn btn-square join-item border-slate-300 hover:bg-white"
+                                                title="Lấy vị trí"><i
+                                                    class="fa-solid fa-location-crosshairs text-blue-500"></i></button>
+                                        </div>
+                                        <div x-show="locationStatus" class="mt-1 text-xs"
+                                            :class="locationStatus.includes('thành công') ? 'text-green-600' : 'text-orange-500'"
+                                            x-text="locationStatus"></div>
+                                    </div>
+                                </div>
+
+                                <div class="bg-blue-50/50 p-5 rounded-xl border border-blue-100/50">
+                                    <h3 class="font-bold text-blue-900 mb-3 text-sm flex items-center"><i
+                                            class="fa-solid fa-circle-info mr-2"></i> Chi tiết (Không bắt buộc)</h3>
+                                    <div class="space-y-3">
+                                        <select x-model="formData.deviceType"
+                                            class="select select-bordered select-sm w-full bg-white">
+                                            <option value="ac_split">Máy lạnh treo tường</option>
+                                            <option value="washer">Máy giặt</option>
+                                            <option value="fridge">Tủ lạnh</option>
+                                            <option value="other">Khác</option>
+                                        </select>
+                                        <input type="text" x-model="formData.brand"
+                                            class="input input-bordered input-sm w-full bg-white"
+                                            placeholder="Thương hiệu (Panasonic, LG...)">
+                                        <textarea x-model="formData.issue"
+                                            class="textarea textarea-bordered h-20 bg-white w-full text-sm"
+                                            placeholder="Mô tả sự cố..."></textarea>
+                                    </div>
                                 </div>
                             </div>
-                            {{ end }}
-                        </div>
-                    </div>
 
-                    <div x-show="step === 2" class="space-y-4">
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div class="form-control">
-                                <label class="label"><span class="label-text font-bold">Họ tên <span
-                                            class="text-red-500">*</span></span></label>
-                                <input type="text" x-model="formData.customerName" class="input input-bordered" required
-                                    placeholder="Nguyễn Văn A">
-                            </div>
-                            <div class="form-control">
-                                <label class="label"><span class="label-text font-bold">Số điện thoại <span
-                                            class="text-red-500">*</span></span></label>
-                                <input type="tel" x-model="formData.phone" class="input input-bordered" required
-                                    placeholder="09xxxx">
-                            </div>
-                        </div>
-                        <div class="form-control">
-                            <label class="label"><span class="label-text font-bold">Địa chỉ <span
-                                        class="text-red-500">*</span></span></label>
-                            <input type="text" x-model="formData.address" class="input input-bordered" required
-                                placeholder="Số nhà, Tên đường...">
-                            <button type="button" @click="getCurrentLocation()"
-                                class="btn btn-xs btn-ghost text-blue-600 justify-start mt-1 w-fit">
-                                <i class="fa-solid fa-location-crosshairs"></i> Lấy vị trí hiện tại của tôi
-                            </button>
-                        </div>
-
-                        <div class="form-control">
-                            <label class="label"><span class="label-text font-bold">Thời gian hẹn <span
-                                        class="text-red-500">*</span></span></label>
-                            <input type="datetime-local" x-model="formData.time" class="input input-bordered" required>
-                        </div>
-
-                        <div class="flex justify-between pt-4">
-                            <button type="button" @click="step = 1" class="btn btn-ghost">Quay lại</button>
-                            <button type="button" @click="validateStep2() && (step = 3)" class="btn btn-primary">Tiếp
-                                tục</button>
-                        </div>
-                    </div>
-
-                    <div x-show="step === 3" class="text-center space-y-6">
-                        <div class="bg-green-50 p-6 rounded-xl border border-green-100 text-left">
-                            <h3 class="text-xl font-bold text-green-700 mb-4 text-center">Xác Nhận Thông Tin</h3>
-
-                            <div class="grid grid-cols-[100px_1fr] gap-2 text-sm">
-                                <span class="text-gray-500">Dịch vụ:</span>
-                                <strong class="text-gray-800" x-text="formData.serviceName"></strong>
-
-                                <span class="text-gray-500">Khách hàng:</span>
-                                <strong class="text-gray-800" x-text="formData.customerName"></strong>
-
-                                <span class="text-gray-500">SĐT:</span>
-                                <strong class="text-gray-800" x-text="formData.phone"></strong>
-
-                                <span class="text-gray-500">Địa chỉ:</span>
-                                <strong class="text-gray-800" x-text="formData.address"></strong>
-
-                                <span class="text-gray-500">Thời gian:</span>
-                                <strong class="text-blue-600" x-text="formatDate(formData.time)"></strong>
+                            <div class="mt-6 flex justify-between">
+                                <button type="button" @click="prevStep()" class="btn btn-ghost text-slate-600">Quay
+                                    lại</button>
+                                <button type="button" @click="nextStep()"
+                                    class="btn btn-primary px-8 text-white font-bold">Tiếp theo</button>
                             </div>
                         </div>
 
-                        <div class="flex justify-between">
-                            <button type="button" @click="step = 2" class="btn btn-ghost">Sửa lại</button>
-                            <button type="submit" class="btn btn-success w-2/3 text-white shadow-lg font-bold">
-                                <i class="fa-solid fa-paper-plane mr-2"></i> GỬI YÊU CẦU
-                            </button>
+                        <!-- STEP 3: TIME SLOT -->
+                        <div x-show="step === 3" style="display: none;"
+                            x-transition:enter="transition ease-out duration-300"
+                            x-transition:enter-start="opacity-0 translate-x-4"
+                            x-transition:enter-end="opacity-100 translate-x-0">
+
+                            <div class="flex flex-col md:flex-row gap-6">
+                                <div class="w-full md:w-1/3">
+                                    <label class="label font-bold text-slate-700">Ngày mong muốn</label>
+                                    <input type="date" x-model="selectedDate" :min="minDate" @change="fetchSlots()"
+                                        class="input input-bordered w-full font-bold text-blue-900 text-center">
+                                    <div
+                                        class="mt-4 bg-blue-50 p-3 rounded-lg text-xs text-blue-800 text-center border border-blue-100">
+                                        Làm việc 8:00 - 18:00 (T2-CN)
+                                    </div>
+                                </div>
+
+                                <div class="w-full md:w-2/3">
+                                    <div x-show="loadingSlots"
+                                        class="h-48 flex items-center justify-center text-slate-400"><span
+                                            class="loading loading-spinner text-blue-500 mr-2"></span> Đang tải lịch...
+                                    </div>
+
+                                    <div x-show="!loadingSlots && availableSlots.length > 0"
+                                        class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                        <template x-for="slot in availableSlots" :key="slot.ID">
+                                            <label class="cursor-pointer relative group">
+                                                <input type="radio" name="slot" :value="slot.ID"
+                                                    x-model="formData.slotId" class="peer sr-only">
+                                                <div
+                                                    class="p-3 rounded-lg border text-center transition-all bg-white hover:border-blue-400 peer-checked:bg-blue-600 peer-checked:text-white peer-checked:shadow-md">
+                                                    <div class="font-bold text-sm"
+                                                        x-text="slot.StartTime.substring(0,5)"></div>
+                                                    <div class="text-[10px] opacity-80">Đến <span
+                                                            x-text="slot.EndTime.substring(0,5)"></span></div>
+                                                </div>
+                                            </label>
+                                        </template>
+                                    </div>
+
+                                    <div x-show="!loadingSlots && availableSlots.length === 0"
+                                        class="h-48 flex flex-col items-center justify-center text-red-500 bg-red-50 rounded-xl border border-dashed border-red-200">
+                                        <i class="fa-regular fa-calendar-xmark text-2xl mb-2"></i>
+                                        <span class="font-bold text-sm">Hết lịch ngày này</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mt-6 flex justify-between">
+                                <button type="button" @click="prevStep()" class="btn btn-ghost text-slate-600">Quay
+                                    lại</button>
+                                <button type="button" @click="nextStep()" :disabled="!formData.slotId"
+                                    class="btn btn-primary px-8 text-white font-bold">Tiếp theo</button>
+                            </div>
+                        </div>
+
+                        <!-- STEP 4: CONFIRMATION -->
+                        <div x-show="step === 4" style="display: none;"
+                            x-transition:enter="transition ease-out duration-300"
+                            x-transition:enter-start="opacity-0 translate-x-4"
+                            x-transition:enter-end="opacity-100 translate-x-0">
+
+                            <div
+                                class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm max-w-xl mx-auto mb-6">
+                                <div class="h-1 bg-gradient-to-r from-blue-500 to-cyan-400 w-full"></div>
+                                <div class="p-6">
+                                    <div class="flex justify-between border-b pb-4 mb-4 border-dashed border-slate-200">
+                                        <div>
+                                            <p class="text-[10px] uppercase text-slate-400 font-bold">Dịch vụ</p>
+                                            <h4 class="font-bold text-slate-800" x-text="formData.serviceName"></h4>
+                                        </div>
+                                        <div class="text-right">
+                                            <p class="text-[10px] uppercase text-slate-400 font-bold">Giá dự kiến</p>
+                                            <p class="font-bold text-blue-600 text-lg"
+                                                x-text="formatMoney(formData.servicePrice)"></p>
+                                        </div>
+                                    </div>
+                                    <div class="space-y-3 text-sm">
+                                        <div class="flex justify-between"><span class="text-slate-500">Khách
+                                                hàng:</span> <span class="font-bold text-slate-800"
+                                                x-text="formData.name"></span></div>
+                                        <div class="flex justify-between"><span class="text-slate-500">SĐT:</span> <span
+                                                class="font-bold text-slate-800" x-text="formData.phone"></span></div>
+                                        <div class="flex justify-between"><span class="text-slate-500">Thời gian:</span>
+                                            <span class="font-bold text-blue-600"
+                                                x-text="getSelectedSlotDisplay()"></span>
+                                        </div>
+                                        <div class="pt-3 border-t border-dashed border-slate-200">
+                                            <p class="text-slate-500 mb-1">Địa chỉ:</p>
+                                            <p class="font-medium text-slate-800" x-text="formData.address"></p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="flex gap-4 max-w-xl mx-auto">
+                                <button type="button" @click="prevStep()" class="btn btn-ghost text-slate-500">Sửa
+                                    lại</button>
+                                <button type="button" @click="submitBooking()"
+                                    class="btn btn-success flex-1 text-white shadow-lg font-bold"
+                                    :disabled="submitting">
+                                    <span x-show="submitting" class="loading loading-spinner"></span>
+                                    <span x-show="!submitting">XÁC NHẬN ĐẶT LỊCH</span>
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </form>
+                </div>
             </div>
         </div>
     </dialog>

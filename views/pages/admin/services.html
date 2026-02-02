@@ -1,0 +1,166 @@
+{{ define "content" }}
+<div class="p-6 max-w-7xl mx-auto" x-data="{ 
+    editModalOpen: false, 
+    editingService: null,
+    resetForm() {
+        this.editingService = null;
+        this.$refs.serviceForm.reset();
+    },
+    editService(service) {
+        this.editingService = service;
+        this.editModalOpen = true;
+    }
+}">
+
+    <!-- Page Header -->
+    <div class="flex justify-between items-center mb-8">
+        <h1 class="text-2xl font-bold text-gray-800">
+            <i class="fa-solid fa-screwdriver-wrench text-blue-600 mr-2"></i>Quản Lý Dịch Vụ
+        </h1>
+        <button @click="resetForm(); editModalOpen = true" class="btn btn-primary text-white shadow-lg">
+            <i class="fa-solid fa-plus mr-2"></i>Thêm Dịch Vụ Mới
+        </button>
+    </div>
+
+    <!-- Services Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {{ range .Services }}
+        <div class="card bg-white shadow-md border border-gray-100 group hover:shadow-xl transition-all duration-300">
+            <figure class="h-48 relative overflow-hidden bg-gray-100">
+                {{ if .GetString "image" }}
+                <img src="/api/files/services/{{.Id}}/{{.GetString " image"}}"
+                    class="w-full h-full object-cover group-hover:scale-110 transition-transform">
+                {{ else }}
+                <div class="flex items-center justify-center h-full text-gray-300">
+                    <i class="fa-solid fa-image text-4xl"></i>
+                </div>
+                {{ end }}
+                <div class="absolute top-2 right-2 flex gap-2">
+                    <button @click="editService({
+                        id: '{{.Id}}', 
+                        name: '{{.GetString " name"}}', price: {{.GetFloat "price" }}, duration:
+                        {{.GetInt "duration_minutes" }}, description: '{{.GetString "description"}}' ,
+                        intro: '{{.GetString "intro_text"}}' , video: '{{.GetString "video_url"}}' ,
+                        content: '{{.GetString "detail_content" | js}}' })"
+                        class="btn btn-sm btn-circle btn-white shadow text-blue-600 hover:bg-blue-50 border-none">
+                        <i class="fa-solid fa-pen"></i>
+                    </button>
+                    <!-- Delete Form -->
+                    <form action="/admin/services/{{.Id}}/delete" method="POST"
+                        onsubmit="return confirm('Bạn có chắc muốn xóa dịch vụ này?')">
+                        <button type="submit"
+                            class="btn btn-sm btn-circle btn-white shadow text-red-500 hover:bg-red-50 border-none">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </form>
+                </div>
+            </figure>
+            <div class="card-body p-5">
+                <h2 class="card-title text-base font-bold text-gray-800">
+                    {{ .GetString "name" }}
+                    {{ if .GetBool "active" }}
+                    <div class="badge badge-success badge-xs"></div>
+                    {{ else }}
+                    <div class="badge badge-ghost badge-xs"></div>
+                    {{ end }}
+                </h2>
+                <div class="flex justify-between items-center text-sm mt-2 text-gray-500">
+                    <span><i class="fa-regular fa-clock mr-1"></i> {{ .GetInt "duration_minutes" }}p</span>
+                    <span class="font-bold text-blue-600">{{ .GetFloat "price" | printf "%.0f" }}k</span>
+                </div>
+                <p class="text-xs text-gray-400 mt-2 line-clamp-2">{{ .GetString "description" }}</p>
+
+                {{ if .GetString "video_url" }}
+                <div class="mt-2 text-xs text-red-500 flex items-center">
+                    <i class="fa-brands fa-youtube mr-1"></i> Có video giới thiệu
+                </div>
+                {{ end }}
+            </div>
+        </div>
+        {{ end }}
+    </div>
+
+    <!-- Edit/Create Modal -->
+    <dialog class="modal modal-bottom sm:modal-middle" :class="{ 'modal-open': editModalOpen }">
+        <div class="modal-box w-11/12 max-w-4xl bg-white p-0 rounded-2xl overflow-hidden">
+            <div class="px-6 py-4 border-b flex justify-between items-center bg-gray-50">
+                <h3 class="font-bold text-lg" x-text="editingService ? 'Chỉnh Sửa Dịch Vụ' : 'Thêm Dịch Vụ Mới'"></h3>
+                <button @click="editModalOpen = false" class="btn btn-sm btn-circle btn-ghost">✕</button>
+            </div>
+
+            <form x-ref="serviceForm" action="/admin/services" method="POST" enctype="multipart/form-data"
+                class="p-6 space-y-6 max-h-[80vh] overflow-y-auto">
+                <input type="hidden" name="id" :value="editingService ? editingService.id : ''">
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="form-control">
+                        <label class="label font-bold">Tên dịch vụ</label>
+                        <input type="text" name="name" :value="editingService ? editingService.name : ''" required
+                            class="input input-bordered w-full">
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="form-control">
+                            <label class="label font-bold">Giá (VND)</label>
+                            <input type="number" name="price" :value="editingService ? editingService.price : ''"
+                                required class="input input-bordered w-full">
+                        </div>
+                        <div class="form-control">
+                            <label class="label font-bold">Thời gian (phút)</label>
+                            <input type="number" name="duration_minutes"
+                                :value="editingService ? editingService.duration : 60" required
+                                class="input input-bordered w-full">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-control">
+                    <label class="label font-bold">Mô tả ngắn (Description)</label>
+                    <textarea name="description" class="textarea textarea-bordered h-20"
+                        placeholder="Hiển thị ở danh sách..."
+                        x-text="editingService ? editingService.description : ''"></textarea>
+                </div>
+
+                <div class="form-control">
+                    <label class="label font-bold">Giới thiệu (Intro Text - Hiển thị đầu trang chi tiết)</label>
+                    <textarea name="intro_text" class="textarea textarea-bordered h-20"
+                        placeholder="Giới thiệu tóm tắt..."
+                        x-text="editingService ? editingService.intro : ''"></textarea>
+                </div>
+
+                <!-- Rich Content (Simple Textarea for now or HTML) -->
+                <div class="form-control">
+                    <label class="label font-bold">Nội dung chi tiết (HTML/Text)</label>
+                    <textarea name="detail_content" class="textarea textarea-bordered h-40 font-mono text-sm"
+                        placeholder="<p>Chi tiết quy trình...</p>"
+                        x-text="editingService ? editingService.content : ''"></textarea>
+                    <label class="label"><span class="label-text-alt">Hỗ trợ mã HTML cơ bản.</span></label>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="form-control">
+                        <label class="label font-bold">Video URL (Youtube/TikTok)</label>
+                        <input type="text" name="video_url" :value="editingService ? editingService.video : ''"
+                            class="input input-bordered w-full" placeholder="https://youtube.com/...">
+                    </div>
+                    <div class="form-control">
+                        <label class="label font-bold">Ảnh đại diện (Main Image)</label>
+                        <input type="file" name="image" class="file-input file-input-bordered w-full" accept="image/*">
+                    </div>
+                </div>
+
+                <div class="form-control">
+                    <label class="label font-bold">Thư viện ảnh (Gallery - Chọn nhiều)</label>
+                    <input type="file" name="gallery" class="file-input file-input-bordered w-full" accept="image/*"
+                        multiple>
+                    <label class="label"><span class="label-text-alt">Giữ Ctrl để chọn nhiều ảnh.</span></label>
+                </div>
+
+                <div class="modal-action">
+                    <button type="button" @click="editModalOpen = false" class="btn">Hủy</button>
+                    <button type="submit" class="btn btn-primary text-white">Lưu Dịch Vụ</button>
+                </div>
+            </form>
+        </div>
+    </dialog>
+</div>
+{{ end }}

@@ -1,0 +1,140 @@
+{{ define "content" }}
+<div class="bg-gray-50 min-h-screen">
+
+    <!-- Hero Section -->
+    <div class="relative h-[40vh] md:h-[50vh] bg-slate-900 overflow-hidden">
+        {{ if .Service.GetString "image" }}
+        <img src="/api/files/services/{{.Service.Id}}/{{.Service.GetString " image"}}"
+            class="absolute inset-0 w-full h-full object-cover opacity-60">
+        {{ else }}
+        <img src="https://images.unsplash.com/photo-1581094794329-cd0f64be875e?q=80&w=2069"
+            class="absolute inset-0 w-full h-full object-cover opacity-60">
+        {{ end }}
+        <div class="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent"></div>
+        <div class="container mx-auto px-4 relative h-full flex flex-col justify-end pb-16">
+            <div class="animate-fade-in-up">
+                <a href="/" class="btn btn-ghost btn-sm text-gray-300 mb-4 hover:text-white"><i
+                        class="fa-solid fa-arrow-left mr-2"></i> Quay lại</a>
+                <h1 class="text-3xl md:text-5xl font-bold text-white mb-4">{{ .Service.GetString "name" }}</h1>
+                <div class="flex items-center gap-6 text-gray-200 text-sm md:text-base">
+                    <span><i class="fa-regular fa-clock text-blue-400 mr-2"></i> {{ .Service.GetInt "duration_minutes"
+                        }} phút</span>
+                    <span><i class="fa-solid fa-tag text-green-400 mr-2"></i> {{ .Service.GetFloat "price" | printf
+                        "%.0f" }}k VNĐ</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container mx-auto px-4 py-12 -mt-10 relative z-10">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+            <!-- Main Content -->
+            <div class="lg:col-span-2 space-y-8">
+                <!-- Intro Card -->
+                <div class="bg-white rounded-2xl p-8 shadow-sm border border-gray-100 animate-fade-in">
+                    <h2 class="text-xl font-bold text-gray-800 mb-4">Giới thiệu dịch vụ</h2>
+                    <p class="text-gray-600 leading-relaxed text-lg">
+                        {{ if .Service.GetString "intro_text" }}
+                        {{ .Service.GetString "intro_text" }}
+                        {{ else }}
+                        {{ .Service.GetString "description" }}
+                        {{ end }}
+                    </p>
+                </div>
+
+                <!-- Video Section (if exists) -->
+                {{ if .Service.GetString "video_url" }}
+                <div class="bg-black rounded-2xl overflow-hidden shadow-lg aspect-video relative group"
+                    x-data="{ videoUrl: '{{ .Service.GetString " video_url" }}' }">
+                    <iframe class="w-full h-full"
+                        :src="videoUrl.includes('youtube.com/watch?v=') ? videoUrl.replace('watch?v=', 'embed/') : videoUrl"
+                        title="Video thực tế" frameborder="0"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowfullscreen></iframe>
+
+                    <div
+                        class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4 md:p-6 pointer-events-none">
+                        <span class="text-white font-bold"><i class="fa-brands fa-youtube text-red-600 mr-2"></i> Video
+                            thực tế</span>
+                    </div>
+                </div>
+                {{ end }}
+
+                <!-- Detailed Content -->
+                <div class="bg-white rounded-2xl p-8 shadow-sm border border-gray-100 prose prose-blue max-w-none">
+                    <div x-html="`{{ .Service.GetString " detail_content" }}`"></div>
+                    <!-- Fallback if x-html fails due to quotes: simple text -->
+                    {{ if not (.Service.GetString "detail_content") }}
+                    <p class="text-gray-500 italic">Chưa có nội dung chi tiết.</p>
+                    {{ end }}
+                </div>
+            </div>
+
+            <!-- Sidebar -->
+            <div class="lg:col-span-1 space-y-6">
+                <!-- Booking Card -->
+                <div class="bg-white rounded-2xl p-6 shadow-lg border border-blue-100 sticky top-24">
+                    <h3 class="font-bold text-gray-800 text-lg mb-2">Đặt dịch vụ này</h3>
+                    <div class="text-3xl font-extrabold text-blue-600 mb-4">{{ .Service.GetFloat "price" | printf "%.0f"
+                        }}k <span class="text-sm font-normal text-gray-400">/lần</span></div>
+
+                    <ul class="space-y-3 mb-6 text-sm text-gray-600">
+                        <li class="flex items-center"><i class="fa-solid fa-check text-green-500 mr-2"></i> Tư vấn miễn
+                            phí</li>
+                        <li class="flex items-center"><i class="fa-solid fa-check text-green-500 mr-2"></i> Bảo hành dài
+                            hạn</li>
+                        <li class="flex items-center"><i class="fa-solid fa-check text-green-500 mr-2"></i> Thợ tay nghề
+                            cao</li>
+                    </ul>
+
+                    <button @click="triggerBooking('{{.Service.Id}}', '{{.Service.GetString " name"}}',
+                        {{.Service.GetFloat "price" }})"
+                        class="btn btn-primary w-full text-white shadow-lg shadow-blue-500/30 group">
+                        Đặt Lịch Ngay <i
+                            class="fa-solid fa-arrow-right ml-2 group-hover:translate-x-1 transition-transform"></i>
+                    </button>
+
+                    <div class="divider text-xs text-gray-400">HOẶC GỌI HOTLINE</div>
+
+                    <a href="tel:{{if .Settings.Hotline}}{{ .Settings.Hotline }}{{end}}"
+                        class="btn btn-outline w-full hover:bg-gray-50">
+                        <i class="fa-solid fa-phone text-red-500 animate-tada"></i> {{if .Settings.Hotline}}{{
+                        .Settings.Hotline }}{{else}}Hotline{{end}}
+                    </a>
+                </div>
+
+                <!-- Other Services -->
+                {{ if .OtherServices }}
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+                    <h3 class="font-bold text-gray-800 mb-4">Dịch vụ khác</h3>
+                    <div class="space-y-4">
+                        {{ range .OtherServices }}
+                        <a href="/services/{{.Id}}" class="flex gap-3 group">
+                            <div class="w-16 h-16 rounded-lg overflow-hidden shrink-0 bg-gray-100">
+                                {{ if .GetString "image" }}
+                                <img src="/api/files/services/{{.Id}}/{{.GetString " image"}}"
+                                    class="w-full h-full object-cover group-hover:scale-110 transition-transform">
+                                {{ else }}
+                                <div class="w-full h-full flex items-center justify-center text-gray-300"><i
+                                        class="fa-solid fa-image"></i></div>
+                                {{ end }}
+                            </div>
+                            <div>
+                                <h4
+                                    class="font-medium text-gray-800 group-hover:text-blue-600 transition-colors line-clamp-2">
+                                    {{ .GetString "name" }}</h4>
+                                <div class="text-sm text-blue-500 font-bold mt-1">{{ .GetFloat "price" | printf "%.0f"
+                                    }}k</div>
+                            </div>
+                        </a>
+                        {{ end }}
+                    </div>
+                </div>
+                {{ end }}
+
+            </div>
+        </div>
+    </div>
+</div>
+{{ end }}

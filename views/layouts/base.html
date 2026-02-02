@@ -4,55 +4,48 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
 
-    <title>
-        {{ if .Settings }}{{ if .Settings.SeoTitle }}{{ .Settings.SeoTitle }}{{ else }}{{ .Settings.CompanyName }} -
-        Dịch Vụ Uy Tín{{ end }}{{ else }}Đại Điện Lạnh - Dịch Vụ Uy Tín{{ end }}
-    </title>
-
+    <title>{{ if .Settings.SeoTitle }}{{ .Settings.SeoTitle }}{{ else }}{{ if .Settings.CompanyName }}{{
+        .Settings.CompanyName }}{{ else }}Đại Điện Lạnh{{ end }} - Dịch Vụ Uy Tín{{ end }}</title>
     <meta name="description"
-        content="{{ if .Settings }}{{ if .Settings.SeoDescription }}{{ .Settings.SeoDescription }}{{ else }}Dịch vụ sửa chữa, bảo trì điện lạnh chuyên nghiệp tại nhà. Uy tín - Nhanh chóng - Giá tốt.{{ end }}{{ else }}Dịch vụ sửa chữa, bảo trì điện lạnh chuyên nghiệp tại nhà.{{ end }}">
+        content="{{ if .Settings.SeoDescription }}{{ .Settings.SeoDescription }}{{ else }}Dịch vụ sửa chữa điện lạnh chuyên nghiệp, nhanh chóng, giá tốt.{{ end }}">
     <meta name="keywords"
-        content="{{ if .Settings }}{{ if .Settings.SeoKeywords }}{{ .Settings.SeoKeywords }}{{ else }}điện lạnh, sửa điều hòa, máy giặt, tủ lạnh{{ end }}{{ else }}điện lạnh, sửa điều hòa{{ end }}">
-    <meta name="author" content="{{ if .Settings }}{{ .Settings.CompanyName }}{{ end }}">
+        content="{{ if .Settings.SeoKeywords }}{{ .Settings.SeoKeywords }}{{ else }}dien lanh, sua chua, bao duong{{ end }}">
 
-    <meta property="og:type" content="business.business">
-    <meta property="og:title" content="{{ if .Settings }}{{ .Settings.SeoTitle }}{{ end }}">
-    <meta property="og:description" content="{{ if .Settings }}{{ .Settings.SeoDescription }}{{ end }}">
-    {{ if .Settings }}{{ if .Settings.HeroImage }}
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="{{ if .Settings.SeoTitle }}{{ .Settings.SeoTitle }}{{ end }}">
+    <meta property="og:description" content="{{ if .Settings.SeoDescription }}{{ .Settings.SeoDescription }}{{ end }}">
+    {{ if .Settings.HeroImage }}
     <meta property="og:image" content="/api/files/settings/{{.Settings.Id}}/{{.Settings.HeroImage}}">
-    {{ end }}{{ end }}
+    {{ end }}
+    <meta property="og:url" content="{{ .CurrentUrl }}">
+
+    <link rel="canonical" href="{{ .CurrentUrl }}">
+    <meta name="robots" content="index, follow">
+
+    {{ if .Settings.Logo }}
+    <link rel="icon" type="image/png" href="/api/files/settings/{{.Settings.Id}}/{{.Settings.Logo}}">
+    {{ end }}
 
     <link href="https://cdn.jsdelivr.net/npm/daisyui@4.4.19/dist/full.min.css" rel="stylesheet" />
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="/assets/js/utils.js"></script>
     <script src="/assets/js/public.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
 </head>
 
-<body class="bg-base-100 font-sans text-base-content flex flex-col min-h-screen" hx-boost="true"
-    x-data="{ scrolled: false }" @scroll.window="scrolled = (window.pageYOffset > 20)">
-
+<body class="bg-base-100 font-sans text-base-content flex flex-col min-h-screen" hx-boost="true">
     {{ template "navbar" . }}
-
-    <main class="flex-grow">
+    <main class="flex-grow w-full">
         {{ block "content" . }}{{ end }}
     </main>
-
     {{ template "footer" . }}
-
 </body>
-<script>
-    if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-            navigator.serviceWorker.register('/assets/service-worker.js').catch(() => { });
-        });
-    }
-</script>
 
 </html>
 {{ end }}

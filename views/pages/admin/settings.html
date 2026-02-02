@@ -1,175 +1,215 @@
 {{ define "content" }}
-<div class="max-w-4xl mx-auto py-8">
+<div class="p-6 max-w-7xl mx-auto" x-data="{ activeTab: 'general' }">
+
     <div class="flex justify-between items-center mb-8">
-        <div>
-            <h1 class="text-3xl font-bold text-gray-800">Cài đặt Doanh nghiệp</h1>
-            <p class="text-gray-500">Tùy chỉnh thông tin hệ thống, logo và tài khoản nhận tiền.</p>
-        </div>
-        <div>
-            <!-- Actions if needed -->
-        </div>
+        <h1 class="text-2xl font-bold text-gray-800">
+            <i class="fa-solid fa-sliders text-blue-600 mr-2"></i>Cài Đặt Hệ Thống
+        </h1>
     </div>
 
-    {{ if eq (index . "Success") "true" }} <!-- URL param checking done in template if passed, or js -->
-    <!-- Ideally handler passes this or we check URL param via JS -->
-    {{ end }}
+    <form hx-post="/admin/settings" hx-encoding="multipart/form-data" hx-swap="none"
+        class="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
 
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-        <!-- Main Settings Form -->
-        <div class="md:col-span-2 space-y-6">
-            <form action="/admin/settings" method="POST" enctype="multipart/form-data"
-                class="card bg-base-100 shadow-xl">
-                <input type="hidden" name="action" value="update_general">
-                <div class="card-body">
-                    <h2 class="card-title text-blue-800 border-b pb-2 mb-4">Thông tin chung</h2>
+        <div class="flex border-b bg-gray-50/50">
+            <button type="button" @click="activeTab = 'general'"
+                class="px-6 py-4 font-medium text-sm transition-colors relative"
+                :class="activeTab === 'general' ? 'text-blue-600 bg-white border-t-2 border-t-blue-600' : 'text-gray-500 hover:text-gray-700'">
+                <i class="fa-solid fa-building mr-2"></i>Thông tin chung
+            </button>
+            <button type="button" @click="activeTab = 'seo'"
+                class="px-6 py-4 font-medium text-sm transition-colors relative"
+                :class="activeTab === 'seo' ? 'text-purple-600 bg-white border-t-2 border-t-purple-600' : 'text-gray-500 hover:text-gray-700'">
+                <i class="fa-solid fa-magnifying-glass mr-2"></i>Cấu hình SEO
+            </button>
+            <button type="button" @click="activeTab = 'interface'"
+                class="px-6 py-4 font-medium text-sm transition-colors relative"
+                :class="activeTab === 'interface' ? 'text-orange-600 bg-white border-t-2 border-t-orange-600' : 'text-gray-500 hover:text-gray-700'">
+                <i class="fa-solid fa-image mr-2"></i>Giao diện (Hero)
+            </button>
+            <button type="button" @click="activeTab = 'payment'"
+                class="px-6 py-4 font-medium text-sm transition-colors relative"
+                :class="activeTab === 'payment' ? 'text-green-600 bg-white border-t-2 border-t-green-600' : 'text-gray-500 hover:text-gray-700'">
+                <i class="fa-solid fa-credit-card mr-2"></i>Thanh toán
+            </button>
+            <button type="button" @click="activeTab = 'license'"
+                class="px-6 py-4 font-medium text-sm transition-colors relative"
+                :class="activeTab === 'license' ? 'text-red-600 bg-white border-t-2 border-t-red-600' : 'text-gray-500 hover:text-gray-700'">
+                <i class="fa-solid fa-shield-halved mr-2"></i>Giấy phép
+            </button>
+        </div>
 
-                    <!-- Company Name -->
-                    <div class="form-control w-full">
-                        <label class="label"><span class="label-text font-bold">Tên công ty / Cửa hàng</span></label>
+        <div class="p-8">
+            <div x-show="activeTab === 'general'" class="space-y-6 animate-fade-in">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="form-control">
+                        <label class="label font-bold text-gray-700">Tên Công Ty / Thương Hiệu</label>
                         <input type="text" name="company_name" value="{{.Settings.CompanyName}}"
-                            class="input input-bordered w-full" placeholder="Ví dụ: ĐIỆN LẠNH ABC" required />
+                            class="input input-bordered w-full focus:input-primary" placeholder="VD: Đại Điện Lạnh">
                     </div>
-
-                    <!-- Hotline -->
-                    <div class="form-control w-full">
-                        <label class="label"><span class="label-text font-bold">Hotline</span></label>
+                    <div class="form-control">
+                        <label class="label font-bold text-gray-700">Hotline</label>
                         <input type="text" name="hotline" value="{{.Settings.Hotline}}"
-                            class="input input-bordered w-full" placeholder="0909.xxx.xxx" />
+                            class="input input-bordered w-full focus:input-primary">
                     </div>
+                </div>
 
-                    <!-- Logo -->
-                    <div class="form-control w-full">
-                        <label class="label"><span class="label-text font-bold">Logo (Ảnh vuông tốt nhất)</span></label>
-                        <div class="flex items-center gap-4">
-                            {{ if .Settings.Logo }}
-                            <div class="avatar">
-                                <div class="w-16 rounded shadow border">
-                                    <img src="/api/files/settings/{{$.Settings.Id}}/{{.Settings.Logo}}" />
-                                    <!-- Note: We need Settings Record ID for file URL, but Settings struct doesn't have ID field currently mapped? 
-                                    Ah, SettingsRepo returns domain.Settings which DOESN'T have ID. 
-                                    We might need access to raw ID or just rely on 'settings' collection name if single record? 
-                                    PocketBase needs ID.
-                                    Let's handle this in JS or assume hardcoded record ID if predictable? 
-                                    Actually, the middleware injects 'Settings' which IS the struct. 
-                                    We need the Record ID for the image URL.
-                                    Solution: Add ID to Settings struct! 
-                                    -->
-                                </div>
+                <div class="form-control">
+                    <label class="label font-bold text-gray-700">Logo (Vuông/Tròn)</label>
+                    <div class="flex items-center gap-4">
+                        {{ if .Settings.Logo }}
+                        <div class="avatar">
+                            <div class="w-16 rounded-xl ring ring-primary ring-offset-base-100 ring-offset-2">
+                                <img src="/api/files/settings/{{.Settings.Id}}/{{.Settings.Logo}}" />
                             </div>
-                            {{ end }}
-                            <input type="file" name="logo" class="file-input file-input-bordered w-full"
-                                accept="image/*" />
+                        </div>
+                        {{ end }}
+                        <input type="file" name="logo" class="file-input file-input-bordered w-full max-w-xs"
+                            accept="image/*">
+                    </div>
+                </div>
+            </div>
+
+            <div x-show="activeTab === 'seo'" class="space-y-6 animate-fade-in" style="display: none;">
+                <div class="alert bg-purple-50 border-purple-100 text-purple-900 text-sm">
+                    <i class="fa-solid fa-info-circle"></i> Cấu hình này giúp website hiển thị tốt hơn trên Google và
+                    khi chia sẻ lên Facebook/Zalo.
+                </div>
+
+                <div class="form-control">
+                    <label class="label font-bold text-gray-700">Tiêu đề trang (SEO Title)</label>
+                    <input type="text" name="seo_title" value="{{.Settings.SeoTitle}}"
+                        class="input input-bordered w-full" placeholder="VD: Sửa chữa điện lạnh uy tín tại Nam Định">
+                    <label class="label"><span class="label-text-alt text-gray-400">Nên chứa từ khóa chính, dưới 60 ký
+                            tự.</span></label>
+                </div>
+
+                <div class="form-control">
+                    <label class="label font-bold text-gray-700">Mô tả tìm kiếm (Meta Description)</label>
+                    <textarea name="seo_description" class="textarea textarea-bordered h-24"
+                        placeholder="Mô tả ngắn gọn dịch vụ...">{{.Settings.SeoDescription}}</textarea>
+                    <label class="label"><span class="label-text-alt text-gray-400">Hiển thị dưới tiêu đề trên Google.
+                            Dưới 160 ký tự.</span></label>
+                </div>
+
+                <div class="form-control">
+                    <label class="label font-bold text-gray-700">Từ khóa (Keywords)</label>
+                    <input type="text" name="seo_keywords" value="{{.Settings.SeoKeywords}}"
+                        class="input input-bordered w-full" placeholder="sua dieu hoa, bao duong may giat...">
+                </div>
+            </div>
+
+            <div x-show="activeTab === 'interface'" class="space-y-6 animate-fade-in" style="display: none;">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div class="space-y-4">
+                        <div class="form-control">
+                            <label class="label font-bold text-gray-700">Tiêu đề lớn (Hero Title)</label>
+                            <input type="text" name="hero_title" value="{{.Settings.HeroTitle}}"
+                                class="input input-bordered font-bold text-lg" placeholder="GIẢI PHÁP ĐIỆN LẠNH">
+                        </div>
+                        <div class="form-control">
+                            <label class="label font-bold text-gray-700">Tiêu đề phụ (Subtitle)</label>
+                            <input type="text" name="hero_subtitle" value="{{.Settings.HeroSubtitle}}"
+                                class="input input-bordered text-blue-600" placeholder="CHUYÊN NGHIỆP & TẬN TÂM">
+                        </div>
+                        <div class="form-control">
+                            <label class="label font-bold text-gray-700">Lời chào (Welcome Text)</label>
+                            <textarea name="welcome_text" class="textarea textarea-bordered h-24"
+                                placeholder="Đội ngũ kỹ thuật viên tay nghề cao...">{{.Settings.WelcomeText}}</textarea>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="form-control">
+                                <label class="label font-bold text-gray-700">Chữ nút bấm</label>
+                                <input type="text" name="hero_cta_text" value="{{.Settings.HeroCtaText}}"
+                                    class="input input-bordered" placeholder="ĐẶT LỊCH NGAY">
+                            </div>
+                            <div class="form-control">
+                                <label class="label font-bold text-gray-700">Link nút bấm</label>
+                                <input type="text" name="hero_cta_link" value="{{.Settings.HeroCtaLink}}"
+                                    class="input input-bordered" placeholder="#services">
+                            </div>
                         </div>
                     </div>
 
-                    <h2 class="card-title text-blue-800 border-b pb-2 mb-4 mt-8">Thông tin Ngân hàng (QR Code)</h2>
-
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <!-- Bank Bin -->
-                        <div class="form-control w-full">
-                            <label class="label">
-                                <span class="label-text font-bold">Mã ngân hàng (Bin Code)</span>
-                                <a href="https://vietqr.io/danh-sach-ngan-hang" target="_blank"
-                                    class="label-text-alt link link-primary">Tra cứu</a>
-                            </label>
-                            <input type="text" name="bank_bin" value="{{.Settings.BankBin}}"
-                                class="input input-bordered w-full" placeholder="VD: 970422 (MB)" required />
+                    <div class="form-control bg-gray-50 p-4 rounded-xl border border-dashed border-gray-300">
+                        <label class="label font-bold text-gray-700">Ảnh nền Banner (Hero Image)</label>
+                        {{ if .Settings.HeroImage }}
+                        <div class="relative w-full h-40 rounded-lg overflow-hidden mb-3 group">
+                            <img src="/api/files/settings/{{.Settings.Id}}/{{.Settings.HeroImage}}"
+                                class="w-full h-full object-cover">
+                            <div
+                                class="absolute inset-0 bg-black/50 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity">
+                                Ảnh hiện tại
+                            </div>
                         </div>
-
-                        <!-- Account Number -->
-                        <div class="form-control w-full">
-                            <label class="label"><span class="label-text font-bold">Số tài khoản</span></label>
-                            <input type="text" name="bank_account" value="{{.Settings.BankAccount}}"
-                                class="input input-bordered w-full" required />
-                        </div>
+                        {{ end }}
+                        <input type="file" name="hero_image" class="file-input file-input-bordered w-full"
+                            accept="image/*">
+                        <label class="label"><span class="label-text-alt">Nên dùng ảnh ngang, chất lượng cao
+                                (1920x1080).</span></label>
                     </div>
+                </div>
+            </div>
 
-                    <!-- Account Owner -->
-                    <div class="form-control w-full">
-                        <label class="label"><span class="label-text font-bold">Tên chủ tài khoản</span></label>
+            <div x-show="activeTab === 'payment'" class="space-y-6 animate-fade-in" style="display: none;">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="form-control">
+                        <label class="label font-bold">Ngân hàng (Bin)</label>
+                        <input type="text" name="bank_bin" value="{{.Settings.BankBin}}" class="input input-bordered">
+                    </div>
+                    <div class="form-control">
+                        <label class="label font-bold">Số tài khoản</label>
+                        <input type="text" name="bank_account" value="{{.Settings.BankAccount}}"
+                            class="input input-bordered">
+                    </div>
+                    <div class="form-control">
+                        <label class="label font-bold">Chủ tài khoản</label>
                         <input type="text" name="bank_owner" value="{{.Settings.BankOwner}}"
-                            class="input input-bordered w-full uppercase" required />
-                    </div>
-
-                    <!-- QR Template -->
-                    <div class="form-control w-full">
-                        <label class="label"><span class="label-text font-bold">Mẫu QR (VietQR)</span></label>
-                        <select name="qr_template" class="select select-bordered">
-                            <option value="compact" {{if eq .Settings.QrTemplate "compact" }}selected{{end}}>Compact
-                                (Gọn)</option>
-                            <option value="compact2" {{if eq .Settings.QrTemplate "compact2" }}selected{{end}}>Compact 2
-                            </option>
-                            <option value="qr_only" {{if eq .Settings.QrTemplate "qr_only" }}selected{{end}}>QR Only
-                            </option>
-                            <option value="print" {{if eq .Settings.QrTemplate "print" }}selected{{end}}>Print</option>
-                        </select>
-                    </div>
-
-                    <div class="card-actions justify-end mt-8">
-                        <button type="submit" class="btn btn-primary btn-lg shadow-lg">
-                            <i class="fa-solid fa-save"></i> Lưu Cài Đặt
-                        </button>
+                            class="input input-bordered">
                     </div>
                 </div>
-            </form>
-        </div>
+            </div>
 
-        <!-- License Info Sidebar -->
-        <div class="space-y-6">
-            <div class="card bg-base-100 shadow-xl border border-warning">
-                <form action="/admin/settings" method="POST" class="card-body">
-                    <input type="hidden" name="action" value="update_license">
-                    <h2 class="card-title text-warning"><i class="fa-solid fa-crown"></i> Bản quyền</h2>
-                    <div class="form-control w-full mb-2">
-                        <label class="label"><span class="label-text font-bold text-gray-500">License
-                                Key:</span></label>
+            <div x-show="activeTab === 'license'" class="space-y-6 animate-fade-in" style="display: none;">
+                <div class="alert"
+                    :class="'{{.Settings.ExpiryDate}}' !== '' ? 'alert-success bg-green-50 border-green-200' : 'alert-warning bg-orange-50 border-orange-200'">
+                    <i class="fa-solid fa-certificate text-2xl"
+                        :class="'{{.Settings.ExpiryDate}}' !== '' ? 'text-green-600' : 'text-orange-600'"></i>
+                    <div>
+                        <h3 class="font-bold">Trạng thái bản quyền</h3>
+                        <div class="text-sm">
+                            {{ if .Settings.ExpiryDate }}
+                            Thời hạn đến: <strong>{{.Settings.ExpiryDate}}</strong>
+                            {{ else }}
+                            Chưa kích hoạt hoặc hết hạn
+                            {{ end }}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-control">
+                    <label class="label font-bold text-gray-700">Mã Kích Hoạt (License Key)</label>
+                    <div class="join">
                         <input type="text" name="license_key" value="{{.Settings.LicenseKey}}"
-                            class="input input-bordered w-full font-mono text-sm" placeholder="Paste key here..." />
+                            class="input input-bordered join-item w-full font-mono text-sm"
+                            placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...">
+                        <button type="submit" name="action" value="update_license"
+                            class="btn btn-primary join-item">Kích Hoạt</button>
                     </div>
-
-                    <div class="form-control w-full">
-                        <label class="label"><span class="label-text font-bold text-gray-500">Ngày hết
-                                hạn:</span></label>
-                        <input type="text" value="{{.Settings.ExpiryDate}}"
-                            class="input input-bordered w-full bg-gray-100 {{if .Settings.ExpiryDate}}text-red-600{{end}}"
-                            disabled readonly />
-                    </div>
-                    <div class="card-actions mt-4">
-                        <button type="submit" class="btn btn-sm btn-warning w-full">Cập nhật License</button>
-                    </div>
-                </form>
-            </div>
-
-            <div class="card bg-base-100 shadow-xl">
-                <div class="card-body">
-                    <h2 class="card-title text-gray-700">Hướng dẫn</h2>
-                    <ul class="list-disc list-inside text-sm text-gray-600 space-y-2">
-                        <li><strong>Logo:</strong> Nên dùng ảnh vuông, nền trong suốt (PNG), kích thước khoảng
-                            200x200px.</li>
-                        <li><strong>Mã ngân hàng:</strong> Tra cứu trên trang VietQR để lấy đúng mã Bin (VD: MBBank là
-                            970422).</li>
-                        <li><strong>Thay đổi:</strong> Có hiệu lực ngay lập tức trên toàn hệ thống (Web & App thợ).</li>
-                    </ul>
+                    <label class="label">
+                        <span class="label-text-alt text-gray-500">Nhập mã JWT hợp lệ để gia hạn sử dụng phần
+                            mềm.</span>
+                    </label>
                 </div>
             </div>
-        </div>
-    </div>
-</div>
 
-<script>
-    // Simple Toast for success
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('success') === 'true') {
-        Swal.fire({
-            toast: true,
-            position: 'top-end',
-            icon: 'success',
-            title: 'Đã lưu cài đặt thành công!',
-            showConfirmButton: false,
-            timer: 3000
-        });
-        // Remove param
-        window.history.replaceState({}, document.title, window.location.pathname);
-    }
-</script>
+        </div>
+
+        <div class="bg-gray-50 px-8 py-5 border-t flex justify-end items-center gap-4">
+            <span class="text-xs text-gray-400" id="saveStatus"></span>
+            <button type="submit" class="btn btn-primary px-8 text-white shadow-lg shadow-blue-500/30">
+                <i class="fa-solid fa-save mr-2"></i> Lưu Cấu Hình
+            </button>
+        </div>
+    </form>
+</div>
 {{ end }}

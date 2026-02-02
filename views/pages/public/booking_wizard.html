@@ -1,254 +1,357 @@
 {{ define "content" }}
-<div class="container mx-auto px-4 max-w-4xl py-10" x-data="bookingWizard()" x-init="init()">
+<div class="min-h-screen bg-slate-50 relative" x-data="bookingWizard()">
 
-    <div class="text-center mb-10">
-        <h1 class="text-4xl font-extrabold text-blue-900 mb-2">Đặt Lịch Dịch Vụ</h1>
-        <p class="text-base-content/70">Chọn dịch vụ, chọn giờ, chúng tôi sẽ có mặt.</p>
+    <!-- Dark Header Background for Navbar Sync -->
+    <div
+        class="absolute top-0 inset-x-0 h-[400px] bg-slate-900 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-800 via-slate-900 to-slate-900">
+        <div class="absolute inset-0 bg-blue-500/10"></div>
     </div>
 
-    <ul class="steps w-full mb-8">
-        <li class="step" :class="step >= 1 ? 'step-primary' : ''">Dịch vụ</li>
-        <li class="step" :class="step >= 2 ? 'step-primary' : ''">Thông tin</li>
-        <li class="step" :class="step >= 3 ? 'step-primary' : ''">Thời gian</li>
-        <li class="step" :class="step >= 4 ? 'step-primary' : ''">Xác nhận</li>
-    </ul>
+    <div class="container mx-auto px-4 max-w-4xl relative z-10 pt-24 pb-12">
 
-    <div class="card bg-base-100 shadow-2xl overflow-visible">
-        <div class="card-body p-8">
+        <!-- Header -->
+        <div class="text-center mb-10 animate-fade-in-up">
+            <h1
+                class="text-3xl md:text-5xl font-extrabold text-white mb-3 tracking-tight shadow-slate-900/50 drop-shadow-sm">
+                Đặt Lịch Dịch Vụ</h1>
+            <p class="text-slate-300 text-base md:text-lg max-w-2xl mx-auto font-light">
+                Hoàn tất 4 bước đơn giản để kỹ thuật viên chuyên nghiệp đến hỗ trợ bạn.
+            </p>
+        </div>
 
-            <form id="bookingForm" hx-post="/book" hx-encoding="multipart/form-data" hx-swap="outerHTML">
+        <!-- Steps (Mobile Optimized) -->
+        <ul class="steps w-full mb-8">
+            <li class="step transition-all duration-300 text-xs md:text-sm"
+                :class="step >= 1 ? 'step-primary font-bold text-blue-200' : 'text-slate-500'">
+                <span :class="step >= 1 ? 'text-white' : ''">Dịch vụ</span>
+            </li>
+            <li class="step transition-all duration-300 text-xs md:text-sm"
+                :class="step >= 2 ? 'step-primary font-bold text-blue-200' : 'text-slate-500'">
+                <span :class="step >= 2 ? 'text-white' : ''">Thông tin</span>
+            </li>
+            <li class="step transition-all duration-300 text-xs md:text-sm"
+                :class="step >= 3 ? 'step-primary font-bold text-blue-200' : 'text-slate-500'">
+                <span :class="step >= 3 ? 'text-white' : ''">Thời gian</span>
+            </li>
+            <li class="step transition-all duration-300 text-xs md:text-sm"
+                :class="step >= 4 ? 'step-primary font-bold text-blue-200' : 'text-slate-500'">
+                <span :class="step >= 4 ? 'text-white' : ''">Xác nhận</span>
+            </li>
+        </ul>
 
-                <div x-show="step === 1" x-transition:enter="transition ease-out duration-300 transform"
-                    x-transition:enter-start="opacity-0 translate-x-12"
-                    x-transition:enter-end="opacity-100 translate-x-0">
-                    <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
-                        <span class="badge badge-primary badge-lg">1</span> Chọn loại dịch vụ
-                    </h2>
+        <!-- Main Card -->
+        <div class="card bg-white shadow-2xl shadow-slate-900/10 border-0 rounded-2xl overflow-hidden backdrop-blur-sm">
+            <!-- Progress Line -->
+            <div class="h-1 w-full bg-slate-100">
+                <div class="h-full bg-blue-600 transition-all duration-500" :style="`width: ${step * 25}%`"></div>
+            </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {{ range .Services }}
-                        <div class="form-control">
-                            <label
-                                class="label cursor-pointer border-2 border-base-200 rounded-xl p-4 hover:border-primary transition-all has-[:checked]:border-primary has-[:checked]:bg-base-200">
-                                <div class="flex items-center gap-4 w-full">
+            <div class="card-body p-5 md:p-10">
+
+                <div class="w-full">
+
+                    <!-- STEP 1: CHỌN DỊCH VỤ -->
+                    <div x-show="step === 1" x-transition:enter="transition ease-out duration-300"
+                        x-transition:enter-start="opacity-0 translate-x-4"
+                        x-transition:enter-end="opacity-100 translate-x-0">
+
+                        <h2 class="text-xl md:text-2xl font-bold mb-6 text-slate-800 flex items-center">
+                            <span
+                                class="w-8 h-8 md:w-10 md:h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center mr-3 text-sm md:text-lg">
+                                <i class="fa-solid fa-screwdriver-wrench"></i>
+                            </span>
+                            Chọn Loại Dịch Vụ
+                        </h2>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {{ range .Services }}
+                            <div @click="selectService('{{ .Id }}', '{{ .GetString " name" }}', {{ .GetFloat "price"
+                                }})"
+                                class="cursor-pointer group relative border rounded-xl p-4 transition-all duration-200 hover:shadow-lg active:scale-[0.98]"
+                                :class="formData.serviceId === '{{ .Id }}' 
+                                    ? 'border-blue-600 bg-blue-50/50 ring-1 ring-blue-600' 
+                                    : 'border-slate-200 bg-white hover:border-blue-400'">
+
+                                <div class="flex items-start gap-4">
                                     <div
-                                        class="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
+                                        class="w-14 h-14 md:w-16 md:h-16 rounded-lg bg-white shadow-sm border border-slate-100 flex items-center justify-center shrink-0 overflow-hidden group-hover:scale-105 transition-transform">
                                         {{ if .GetString "image" }}
-                                        <img src="/api/files/services/{{ .Id }}/{{ .GetString `image` }}"
-                                            class="w-full h-full object-cover rounded-full">
+                                        <img src="/api/files/services/{{ .Id }}/{{ .GetString " image" }}"
+                                            class="w-full h-full object-cover">
                                         {{ else }}
-                                        <i class="fa-solid fa-screwdriver-wrench text-xl"></i>
+                                        <i class="fa-solid fa-snowflake text-2xl md:text-3xl text-blue-500"></i>
                                         {{ end }}
                                     </div>
-                                    <div class="flex-1">
-                                        <span class="label-text font-bold text-lg block">{{ .GetString "name" }}</span>
-                                        <span class="text-xs text-gray-500 block line-clamp-1">{{ .GetString
-                                            "description" }}</span>
-                                        <span class="text-primary font-bold mt-1 block">{{ formatMoney (.GetFloat
-                                            "price") }}đ</span>
+
+                                    <div class="flex-1 min-w-0">
+                                        <h3
+                                            class="font-bold text-slate-800 text-base md:text-lg leading-tight group-hover:text-blue-700 truncate pr-6">
+                                            {{ .GetString "name" }}
+                                        </h3>
+                                        <p class="text-xs md:text-sm text-slate-500 line-clamp-1 mt-1">
+                                            {{ .GetString "description" }}
+                                        </p>
+                                        <div
+                                            class="mt-2 inline-block px-2 py-0.5 rounded text-blue-700 font-bold text-sm bg-blue-50 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                                            {{ if .GetFloat "price" }}{{ .GetFloat "price" | printf "%.0f" }} đ{{ else
+                                            }}Liên hệ{{ end }}
+                                        </div>
                                     </div>
-                                    <input type="radio" name="service_id" value="{{ .Id }}" class="radio radio-primary"
-                                        x-model="formData.serviceId" @click="setService('{{ .GetString " name" }}')" />
+
+                                    <div x-show="formData.serviceId === '{{ .Id }}'"
+                                        class="absolute top-3 right-3 text-blue-600 animate-scale-in">
+                                        <i class="fa-solid fa-circle-check text-xl bg-white rounded-full"></i>
+                                    </div>
                                 </div>
-                            </label>
-                        </div>
-                        {{ end }}
-
-                        <div class="form-control">
-                            <label
-                                class="label cursor-pointer border-2 border-base-200 rounded-xl p-4 hover:border-primary transition-all has-[:checked]:border-primary has-[:checked]:bg-base-200">
-                                <div class="flex items-center gap-4 w-full">
-                                    <div
-                                        class="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center text-gray-600">
-                                        <i class="fa-solid fa-ellipsis text-xl"></i>
-                                    </div>
-                                    <div class="flex-1">
-                                        <span class="label-text font-bold text-lg block">Khác / Chưa rõ</span>
-                                        <span class="text-xs text-gray-500 block">Kỹ thuật viên sẽ kiểm tra</span>
-                                        <span class="text-success font-bold mt-1 block">Miễn phí kiểm tra</span>
-                                    </div>
-                                    <input type="radio" name="service_id" value="check" class="radio radio-primary"
-                                        x-model="formData.serviceId" @click="setService('Kiểm tra / Khác')" />
-                                </div>
-                            </label>
-                        </div>
-                    </div>
-
-                    <div class="mt-6 flex justify-end">
-                        <button type="button" @click="nextStep()" :disabled="!formData.serviceId"
-                            class="btn btn-primary btn-lg">
-                            Tiếp theo <i class="fa-solid fa-arrow-right"></i>
-                        </button>
-                    </div>
-                </div>
-
-                <div x-show="step === 2" class="hidden" :class="{'hidden': step !== 2}" x-transition>
-                    <input type="hidden" name="lat" x-model="formData.lat">
-                    <input type="hidden" name="long" x-model="formData.long">
-
-                    <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
-                        <span class="badge badge-primary badge-lg">2</span> Thông tin & Vấn đề
-                    </h2>
-
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div class="space-y-4">
-                            <h3 class="font-bold text-gray-700 uppercase text-sm">Thiết bị</h3>
-                            <div class="form-control w-full">
-                                <label class="label"><span class="label-text">Loại máy</span></label>
-                                <select name="device_type" class="select select-bordered w-full"
-                                    x-model="formData.deviceType">
-                                    <option value="ac_split">Máy lạnh treo tường</option>
-                                    <option value="ac_cassette">Máy lạnh âm trần/Tủ đứng</option>
-                                    <option value="washer_front">Máy giặt cửa trước</option>
-                                    <option value="washer_top">Máy giặt cửa trên</option>
-                                    <option value="fridge">Tủ lạnh</option>
-                                    <option value="other">Khác</option>
-                                </select>
                             </div>
-                            <div class="form-control w-full">
-                                <label class="label"><span class="label-text">Hãng (Thương hiệu)</span></label>
-                                <input type="text" name="brand" placeholder="Ví dụ: Panasonic..."
-                                    class="input input-bordered w-full" x-model="formData.brand" />
-                            </div>
+                            {{ end }}
                         </div>
 
-                        <div class="space-y-4">
-                            <h3 class="font-bold text-gray-700 uppercase text-sm">Liên hệ</h3>
-                            <div class="form-control w-full">
-                                <label class="label"><span class="label-text">Họ và Tên</span></label>
-                                <input type="text" name="customer_name" class="input input-bordered w-full" required
-                                    x-model="formData.name" />
-                            </div>
-                            <div class="form-control w-full">
-                                <label class="label"><span class="label-text">Số điện thoại</span></label>
-                                <input type="tel" name="customer_phone" class="input input-bordered w-full" required
-                                    x-model="formData.phone" />
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="form-control mt-4 relative">
-                        <label class="label"><span class="label-text">Địa chỉ chi tiết</span>
-                            <button type="button" @click="getLocation()" class="btn btn-xs btn-outline btn-primary">
-                                <i class="fa-solid fa-location-crosshairs"></i> Lấy vị trí hiện tại
+                        <div class="mt-8 flex justify-end">
+                            <button type="button" @click="nextStep()" :disabled="!formData.serviceId"
+                                class="btn btn-primary w-full md:w-auto px-10 text-white shadow-lg shadow-blue-600/20 hover:shadow-blue-600/40 font-bold text-lg">
+                                Tiếp theo <i class="fa-solid fa-arrow-right ml-2"></i>
                             </button>
-                        </label>
-                        <textarea name="address" class="textarea textarea-bordered h-20"
-                            placeholder="Số nhà, đường, phường/xã..." required x-model="formData.address"></textarea>
-                        <div x-show="locationStatus" class="text-xs mt-1"
-                            :class="locationStatus.includes('thành công') ? 'text-success' : 'text-error'"
-                            x-text="locationStatus"></div>
+                        </div>
                     </div>
 
-                    <div class="form-control mt-4">
-                        <label class="label"><span class="label-text">Mô tả hỏng hóc / Ghi chú</span></label>
-                        <textarea name="issue_description" class="textarea textarea-bordered h-24"
-                            placeholder="Máy không lạnh, báo lỗi E1, chảy nước..." x-model="formData.issue"></textarea>
-                    </div>
+                    <!-- STEP 2: THÔNG TIN KHÁCH HÀNG -->
+                    <div x-show="step === 2" style="display: none;"
+                        x-transition:enter="transition ease-out duration-300"
+                        x-transition:enter-start="opacity-0 translate-x-4"
+                        x-transition:enter-end="opacity-100 translate-x-0">
 
-                    <div class="mt-6 flex justify-between">
-                        <button type="button" @click="step--" class="btn btn-ghost">Quay lại</button>
-                        <button type="button" @click="nextStep()"
-                            :disabled="!formData.name || !formData.phone || !formData.address"
-                            class="btn btn-primary btn-lg">
-                            Tiếp theo <i class="fa-solid fa-arrow-right"></i>
-                        </button>
-                    </div>
-                </div>
+                        <h2 class="text-xl md:text-2xl font-bold mb-6 text-slate-800 flex items-center">
+                            <span
+                                class="w-8 h-8 md:w-10 md:h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center mr-3 text-sm md:text-lg">
+                                <i class="fa-solid fa-user-pen"></i>
+                            </span>
+                            Thông Tin Liên Hệ
+                        </h2>
 
-                <div x-show="step === 3" class="hidden" :class="{'hidden': step !== 3}" x-transition>
-                    <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
-                        <span class="badge badge-primary badge-lg">3</span> Chọn thời gian
-                    </h2>
-
-                    <div class="form-control max-w-md mx-auto mb-6">
-                        <label class="label"><span class="label-text text-lg font-semibold">Chọn ngày</span></label>
-                        <input type="date" class="input input-bordered input-lg" x-model="selectedDate" :min="minDate"
-                            @change="fetchSlots()" required>
-                    </div>
-
-                    <div x-show="loadingSlots" class="text-center py-8">
-                        <span class="loading loading-spinner loading-lg text-primary"></span>
-                        <p class="mt-2 text-gray-500">Đang tải khung giờ...</p>
-                    </div>
-
-                    <div x-show="!loadingSlots && availableSlots.length > 0" class="max-w-2xl mx-auto">
-                        <h3 class="text-lg font-semibold mb-4 text-center">Chọn khung giờ</h3>
-                        <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
-                            <template x-for="slot in availableSlots" :key="slot.ID">
-                                <label class="cursor-pointer">
-                                    <input type="radio" name="selected_slot" :value="slot.ID" x-model="formData.slotId"
-                                        class="hidden peer">
-                                    <div
-                                        class="border-2 border-base-300 rounded-lg p-4 text-center hover:border-primary transition-all peer-checked:border-primary peer-checked:bg-primary/10">
-                                        <div class="text-lg font-bold" x-text="slot.StartTime + ' - ' + slot.EndTime">
-                                        </div>
-                                        <div class="text-xs text-gray-500 mt-1">
-                                            Còn <span x-text="slot.MaxCapacity - slot.CurrentBookings"></span> chỗ
-                                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
+                            <!-- User Info -->
+                            <div class="space-y-4">
+                                <div class="form-control">
+                                    <label class="label font-bold text-slate-700 pb-1">Họ và Tên <span
+                                            class="text-red-500">*</span></label>
+                                    <div class="relative">
+                                        <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"><i
+                                                class="fa-solid fa-user"></i></span>
+                                        <input type="text" x-model="formData.name"
+                                            class="input input-bordered w-full pl-10 bg-slate-50 focus:bg-white"
+                                            placeholder="VD: Nguyễn Văn A">
                                     </div>
-                                </label>
-                            </template>
-                        </div>
-                    </div>
+                                </div>
 
-                    <div x-show="!loadingSlots && selectedDate && availableSlots.length === 0" class="text-center py-8">
-                        <i class="fa-solid fa-calendar-xmark text-4xl text-gray-400 mb-3"></i>
-                        <p class="text-gray-600">Không có khung giờ nào còn trống cho ngày này.</p>
-                        <p class="text-sm text-gray-500">Vui lòng chọn ngày khác.</p>
-                    </div>
+                                <div class="form-control">
+                                    <label class="label font-bold text-slate-700 pb-1">Số điện thoại <span
+                                            class="text-red-500">*</span></label>
+                                    <div class="relative">
+                                        <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"><i
+                                                class="fa-solid fa-phone"></i></span>
+                                        <input type="tel" x-model="formData.phone"
+                                            class="input input-bordered w-full pl-10 bg-slate-50 focus:bg-white"
+                                            placeholder="VD: 0912 345 678">
+                                    </div>
+                                </div>
 
-                    <div class="mt-12 flex justify-between">
-                        <button type="button" @click="step--" class="btn btn-ghost">Quay lại</button>
-                        <button type="button" @click="nextStep()" :disabled="!formData.slotId"
-                            class="btn btn-primary btn-lg">
-                            Xem lại <i class="fa-solid fa-arrow-right"></i>
-                        </button>
-                    </div>
-                </div>
+                                <div class="form-control">
+                                    <label class="label font-bold text-slate-700 pb-1">Địa chỉ <span
+                                            class="text-red-500">*</span></label>
+                                    <div class="join w-full shadow-sm">
+                                        <input type="text" x-model="formData.address"
+                                            class="input input-bordered join-item w-full bg-slate-50 focus:bg-white"
+                                            placeholder="Số nhà, tên đường...">
+                                        <button type="button" @click="getLocation()"
+                                            class="btn btn-square join-item border-slate-300 hover:bg-white"
+                                            title="Lấy vị trí">
+                                            <i class="fa-solid fa-location-crosshairs text-blue-500 text-lg"></i>
+                                        </button>
+                                    </div>
+                                    <div x-show="locationStatus" class="mt-2 text-xs md:text-sm animate-fade-in"
+                                        :class="locationStatus.includes('thành công') ? 'text-green-600' : 'text-orange-500'">
+                                        <i class="fa-solid"
+                                            :class="locationStatus.includes('thành công') ? 'fa-check-circle' : 'fa-spinner fa-spin'"></i>
+                                        <span class="ml-1" x-text="locationStatus"></span>
+                                    </div>
+                                </div>
+                            </div>
 
-                <div x-show="step === 4" class="hidden" :class="{'hidden': step !== 4}" x-transition>
-                    <h2 class="text-2xl font-bold mb-6 text-center text-success"><i
-                            class="fa-solid fa-check-circle"></i> Xác nhận thông tin</h2>
-
-                    <div class="bg-base-200 p-6 rounded-xl space-y-4 text-sm md:text-base">
-                        <div class="flex justify-between border-b pb-2 border-gray-300">
-                            <span class="font-bold text-gray-500">Dịch vụ:</span>
-                            <span class="font-bold text-primary" x-text="getServiceName()"></span>
-                        </div>
-                        <div class="flex justify-between border-b pb-2 border-gray-300">
-                            <span class="font-bold text-gray-500">Khách hàng:</span>
-                            <span x-text="formData.name + ' - ' + formData.phone"></span>
-                        </div>
-                        <div class="flex justify-between border-b pb-2 border-gray-300">
-                            <span class="font-bold text-gray-500">Địa chỉ:</span>
-                            <div>
-                                <div class="text-right" x-text="formData.address"></div>
-                                <div x-show="formData.lat && formData.long" class="text-xs text-right text-success">
-                                    <i class="fa-solid fa-location-dot"></i> Đã ghim vị trí
+                            <!-- Optional Details -->
+                            <div class="bg-blue-50/50 p-5 rounded-xl border border-blue-100/50">
+                                <h3
+                                    class="font-bold text-blue-900 mb-3 flex items-center text-sm uppercase tracking-wide">
+                                    <i class="fa-solid fa-circle-info mr-2"></i> Chi tiết thêm
+                                </h3>
+                                <div class="space-y-3">
+                                    <select x-model="formData.deviceType"
+                                        class="select select-bordered w-full select-sm bg-white">
+                                        <option value="ac_split">Máy lạnh treo tường</option>
+                                        <option value="ac_cassette">Máy lạnh âm trần</option>
+                                        <option value="fridge">Tủ lạnh</option>
+                                        <option value="washer">Máy giặt</option>
+                                        <option value="other">Khác</option>
+                                    </select>
+                                    <input type="text" x-model="formData.brand"
+                                        class="input input-bordered input-sm w-full bg-white"
+                                        placeholder="Thương hiệu (Panasonic...)">
+                                    <textarea x-model="formData.issue"
+                                        class="textarea textarea-bordered h-24 bg-white w-full text-sm"
+                                        placeholder="Mô tả sự cố..."></textarea>
                                 </div>
                             </div>
                         </div>
-                        <div class="flex justify-between border-b pb-2 border-gray-300">
-                            <span class="font-bold text-gray-500">Thời gian:</span>
-                            <span class="font-bold text-secondary" x-text="getSelectedSlotDisplay()"></span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="font-bold text-gray-500">Ghi chú:</span>
-                            <span class="text-right text-gray-600 italic" x-text="formData.issue || 'Không có'"></span>
+
+                        <div class="mt-8 flex justify-between gap-4">
+                            <button type="button" @click="prevStep()"
+                                class="btn btn-ghost text-slate-500 hover:bg-slate-100"><i
+                                    class="fa-solid fa-arrow-left mr-2"></i> Quay lại</button>
+                            <button type="button" @click="nextStep()"
+                                class="btn btn-primary flex-1 md:flex-none md:px-10 text-white font-bold text-lg shadow-lg shadow-blue-600/20">Tiếp
+                                theo <i class="fa-solid fa-arrow-right ml-2"></i></button>
                         </div>
                     </div>
 
-                    <div class="mt-8 flex justify-between gap-4">
-                        <button type="button" @click="step--" class="btn btn-ghost">Sửa lại</button>
-                        <button type="submit"
-                            class="btn btn-success btn-lg flex-1 text-white shadow-xl hover:shadow-2xl transition-all">
-                            <i class="fa-solid fa-paper-plane"></i> XÁC NHẬN ĐẶT LỊCH
-                        </button>
+                    <!-- STEP 3: CHỌN THỜI GIAN -->
+                    <div x-show="step === 3" style="display: none;"
+                        x-transition:enter="transition ease-out duration-300"
+                        x-transition:enter-start="opacity-0 translate-x-4"
+                        x-transition:enter-end="opacity-100 translate-x-0">
+
+                        <h2 class="text-xl md:text-2xl font-bold mb-6 text-slate-800 flex items-center">
+                            <span
+                                class="w-8 h-8 md:w-10 md:h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center mr-3 text-sm md:text-lg">
+                                <i class="fa-solid fa-calendar-days"></i>
+                            </span>
+                            Chọn Thời Gian
+                        </h2>
+
+                        <div class="flex flex-col lg:flex-row gap-8">
+                            <div class="w-full lg:w-1/3">
+                                <label class="label font-bold text-slate-700">Ngày mong muốn</label>
+                                <input type="date" x-model="selectedDate" :min="minDate" @change="fetchSlots()"
+                                    class="input input-lg w-full text-center font-bold text-blue-900 border-2 border-slate-200 focus:border-blue-500 rounded-xl cursor-pointer">
+                                <div
+                                    class="mt-4 bg-blue-50 p-3 rounded-lg text-sm text-blue-800 text-center border border-blue-100">
+                                    Làm việc tất cả các ngày trong tuần<br><b>08:00 - 18:00</b>
+                                </div>
+                            </div>
+
+                            <div class="w-full lg:w-2/3">
+                                <div x-show="loadingSlots"
+                                    class="h-48 flex flex-col items-center justify-center text-slate-400 border-2 border-dashed rounded-xl border-slate-200">
+                                    <span class="loading loading-spinner loading-md text-blue-500 mb-2"></span>
+                                    <span>Đang tải lịch...</span>
+                                </div>
+
+                                <div x-show="!loadingSlots && availableSlots.length > 0"
+                                    class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                    <template x-for="slot in availableSlots" :key="slot.ID">
+                                        <label class="cursor-pointer relative group">
+                                            <input type="radio" name="slot" :value="slot.ID" x-model="formData.slotId"
+                                                class="peer sr-only">
+                                            <div
+                                                class="p-3 rounded-xl border text-center transition-all bg-white hover:border-blue-400 peer-checked:bg-blue-600 peer-checked:text-white peer-checked:shadow-lg peer-checked:border-blue-600">
+                                                <div class="font-bold text-lg" x-text="slot.StartTime.substring(0,5)">
+                                                </div>
+                                                <div class="text-[10px] opacity-80">Đến <span
+                                                        x-text="slot.EndTime.substring(0,5)"></span></div>
+                                            </div>
+                                        </label>
+                                    </template>
+                                </div>
+
+                                <div x-show="!loadingSlots && availableSlots.length === 0"
+                                    class="h-48 flex flex-col items-center justify-center text-red-500 bg-red-50 rounded-xl border-2 border-dashed border-red-200">
+                                    <i class="fa-regular fa-calendar-xmark text-2xl mb-2"></i>
+                                    <span class="font-bold">Ngày này đã kín lịch</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mt-8 flex justify-between gap-4">
+                            <button type="button" @click="prevStep()"
+                                class="btn btn-ghost text-slate-500 hover:bg-slate-100"><i
+                                    class="fa-solid fa-arrow-left mr-2"></i> Quay lại</button>
+                            <button type="button" @click="nextStep()" :disabled="!formData.slotId"
+                                class="btn btn-primary flex-1 md:flex-none md:px-10 text-white font-bold text-lg shadow-lg shadow-blue-600/20">Tiếp
+                                theo <i class="fa-solid fa-arrow-right ml-2"></i></button>
+                        </div>
                     </div>
+
+                    <!-- STEP 4: XÁC NHẬN -->
+                    <div x-show="step === 4" style="display: none;"
+                        x-transition:enter="transition ease-out duration-300"
+                        x-transition:enter-start="opacity-0 translate-x-4"
+                        x-transition:enter-end="opacity-100 translate-x-0">
+
+                        <div class="text-center mb-6">
+                            <div
+                                class="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg shadow-green-500/20">
+                                <i class="fa-solid fa-check text-3xl"></i>
+                            </div>
+                            <h2 class="text-xl font-bold text-slate-900">Xác Nhận Thông Tin</h2>
+                        </div>
+
+                        <div
+                            class="bg-slate-50 rounded-2xl border border-slate-200 overflow-hidden relative max-w-xl mx-auto">
+                            <div class="h-1.5 bg-gradient-to-r from-blue-500 to-cyan-400 w-full"></div>
+                            <div class="p-6 md:p-8 space-y-4">
+                                <div
+                                    class="flex justify-between items-start border-b border-dashed border-slate-200 pb-4">
+                                    <div>
+                                        <div class="text-xs uppercase font-bold text-slate-400">Dịch vụ</div>
+                                        <div class="font-bold text-slate-800 text-lg" x-text="formData.serviceName">
+                                        </div>
+                                    </div>
+                                    <div class="text-right">
+                                        <div class="text-xs uppercase font-bold text-slate-400">Giá dự kiến</div>
+                                        <div class="font-bold text-blue-600 text-lg"
+                                            x-text="formatMoney(formData.servicePrice)"></div>
+                                    </div>
+                                </div>
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <div class="text-xs uppercase font-bold text-slate-400">Khách hàng</div>
+                                        <div class="font-bold text-slate-800" x-text="formData.name"></div>
+                                        <div class="text-sm text-slate-500" x-text="formData.phone"></div>
+                                    </div>
+                                    <div>
+                                        <div class="text-xs uppercase font-bold text-slate-400">Thời gian</div>
+                                        <div class="font-bold text-blue-600" x-text="getSelectedSlotDisplay()"></div>
+                                    </div>
+                                </div>
+                                <div class="pt-4 border-t border-dashed border-slate-200">
+                                    <div class="text-xs uppercase font-bold text-slate-400">Địa chỉ</div>
+                                    <div class="font-medium text-slate-800 flex items-start mt-1">
+                                        <i class="fa-solid fa-location-dot text-red-500 mt-1 mr-2 shrink-0"></i>
+                                        <span x-text="formData.address"></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mt-8 flex gap-4 max-w-xl mx-auto">
+                            <button type="button" @click="prevStep()"
+                                class="btn btn-ghost hover:bg-slate-100 text-slate-500 flex-1">Sửa lại</button>
+                            <button type="button" @click="submitBooking()"
+                                class="btn btn-success flex-[2] text-white font-bold text-lg shadow-xl shadow-green-500/20 bg-gradient-to-r from-green-500 to-emerald-600 border-none"
+                                :disabled="submitting">
+                                <span x-show="submitting" class="loading loading-spinner text-white mr-2"></span>
+                                <span x-show="!submitting">XÁC NHẬN</span>
+                            </button>
+                        </div>
+                    </div>
+
                 </div>
+            </div>
+        </div>
 
-            </form>
+        <div
+            class="mt-8 text-center text-slate-400 text-xs md:text-sm flex flex-col md:flex-row items-center justify-center gap-3 md:gap-6">
+            <span class="flex items-center"><i class="fa-solid fa-shield-halved mr-2 text-blue-400"></i> Cam kết bảo mật
+                thông tin 100%</span>
         </div>
     </div>
 </div>

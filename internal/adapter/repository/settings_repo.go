@@ -59,6 +59,11 @@ func (r *SettingsRepo) GetSettings() (*domain.Settings, error) {
 		SeoDescription: rec.GetString("seo_description"),
 		SeoKeywords:    rec.GetString("seo_keywords"),
 		HeroImage:      rec.GetString("hero_image"),
+		HeroTitle:      rec.GetString("hero_title"),
+		HeroSubtitle:   rec.GetString("hero_subtitle"),
+		HeroCtaText:    rec.GetString("hero_cta_text"),
+		HeroCtaLink:    rec.GetString("hero_cta_link"),
+		WelcomeText:    rec.GetString("welcome_text"),
 	}, nil
 }
 

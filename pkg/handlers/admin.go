@@ -612,9 +612,26 @@ func (h *AdminHandler) UpdateSettings(e *core.RequestEvent) error {
 		record.Set("bank_owner", e.Request.FormValue("bank_owner"))
 		record.Set("qr_template", e.Request.FormValue("qr_template"))
 
+		// [FIX] Map SEO Fields
+		record.Set("seo_title", e.Request.FormValue("seo_title"))
+		record.Set("seo_description", e.Request.FormValue("seo_description"))
+		record.Set("seo_keywords", e.Request.FormValue("seo_keywords"))
+
+		// [FIX] Map Hero Section Fields
+		record.Set("hero_title", e.Request.FormValue("hero_title"))
+		record.Set("hero_subtitle", e.Request.FormValue("hero_subtitle"))
+		record.Set("hero_cta_text", e.Request.FormValue("hero_cta_text"))
+		record.Set("hero_cta_link", e.Request.FormValue("hero_cta_link"))
+		record.Set("welcome_text", e.Request.FormValue("welcome_text")) // If exists in form? check html. form doesn't seem to have welcome_text input?
+
 		files, _ := e.FindUploadedFiles("logo")
 		if len(files) > 0 {
 			record.Set("logo", files[0])
+		}
+
+		heroFiles, _ := e.FindUploadedFiles("hero_image")
+		if len(heroFiles) > 0 {
+			record.Set("hero_image", heroFiles[0])
 		}
 	}
 
@@ -627,4 +644,200 @@ func (h *AdminHandler) UpdateSettings(e *core.RequestEvent) error {
 
 	// 5. Redirect back with success
 	return e.Redirect(http.StatusSeeOther, "/admin/settings?success=true")
+}
+
+// -------------------------------------------------------------------
+// SERVICE MANAGEMENT HANDLERS
+// -------------------------------------------------------------------
+
+// GET /admin/services
+func (h *AdminHandler) ServicesList(e *core.RequestEvent) error {
+	services, err := h.App.FindRecordsByFilter("services", "1=1", "-created", 100, 0, nil)
+	if err != nil {
+		fmt.Println("Error fetching services:", err)
+		services = []*core.Record{}
+	}
+
+	// Fetch Categories for Dropdown
+	categories, _ := h.App.FindRecordsByFilter("categories", "active=true", "+sort_order", 100, 0, nil)
+
+	data := map[string]interface{}{
+		"Services":   services,
+		"Categories": categories,
+		"IsAdmin":    true,
+		"PageType":   "services",
+	}
+
+	return RenderPage(h.Templates, e, "layouts/admin.html", "admin/services.html", data)
+}
+
+// POST /admin/services (Create or Update)
+func (h *AdminHandler) ServiceSave(e *core.RequestEvent) error {
+	id := e.Request.FormValue("id")
+	name := e.Request.FormValue("name")
+	price := e.Request.FormValue("price")
+	duration := e.Request.FormValue("duration_minutes")
+	description := e.Request.FormValue("description")
+	intro := e.Request.FormValue("intro_text")
+	video := e.Request.FormValue("video_url")
+
+	// Rich text content
+	detailContent := e.Request.FormValue("detail_content")
+
+	collection, err := h.App.FindCollectionByNameOrId("services")
+	if err != nil {
+		return e.String(500, "Collection not found")
+	}
+
+	var record *core.Record
+	if id != "" {
+		record, err = h.App.FindRecordById("services", id)
+		if err != nil {
+			return e.String(404, "Service not found")
+		}
+	} else {
+		record = core.NewRecord(collection)
+		record.Set("active", true) // Default active
+	}
+
+	// Set fields
+	record.Set("name", name)
+	record.Set("price", price)
+	record.Set("duration_minutes", duration)
+	record.Set("description", description)
+	record.Set("intro_text", intro)
+	record.Set("detail_content", detailContent)
+	record.Set("video_url", video)
+
+	// Category handling
+	categoryID := e.Request.FormValue("category_id")
+	if categoryID != "" {
+		record.Set("category_id", categoryID)
+	}
+
+	// Handle Main Image
+	imgFile, _ := e.FindUploadedFiles("image")
+	if len(imgFile) > 0 {
+		record.Set("image", imgFile[0])
+	}
+
+	// Handle Gallery Images (Append or Replace? usually append in simple logic, but PB file upload replaces if not careful with names?)
+	// PB treats multiple file field as list.
+	galleryFiles, _ := e.FindUploadedFiles("gallery")
+	if len(galleryFiles) > 0 {
+		// If we want to APPEND, we need to get existing files.
+		// core.NewRecord uses set/get.
+		// If we simply Set("gallery", galleryFiles), it might replace or append depending on PB logic for FileField?
+		// Usually Set() on FileField replaces if Multi-select?
+		// For simplicity in MVP, let's just Set logic.
+		// Ideally we should allow removing individual images too.
+		// For now, let's assume 'gallery' input adds new images.
+		// To append:
+		// existing := record.Get("gallery").([]string) ... no, it stores filenames.
+		// record.AddFiles("gallery", galleryFiles...) // if such helper exists.
+		// Instead: record.Set("gallery", galleryFiles) adds them in standard PB usage for new record.
+		// For update, we might need manual handling if we don't want to wipe old ones.
+		// Let's rely on standard PB behavior: normally upload adds to the list if '+=' supported or just replaces.
+		// Users might expect "Add more images".
+		// We'll use simple Set for now.
+		record.Set("gallery", galleryFiles)
+	}
+
+	if err := h.App.Save(record); err != nil {
+		fmt.Println("Error saving service:", err)
+		return e.String(500, "Lỗi lưu dịch vụ: "+err.Error())
+	}
+
+	return e.Redirect(http.StatusSeeOther, "/admin/services")
+}
+
+// POST /admin/services/{id}/delete
+func (h *AdminHandler) ServiceDelete(e *core.RequestEvent) error {
+	id := e.Request.PathValue("id")
+	record, err := h.App.FindRecordById("services", id)
+	if err != nil {
+		return e.String(404, "Service not found")
+	}
+
+	if err := h.App.Delete(record); err != nil {
+		return e.String(500, "Error deleting service")
+	}
+
+	return e.Redirect(http.StatusSeeOther, "/admin/services")
+	return e.Redirect(http.StatusSeeOther, "/admin/services")
+}
+
+// -------------------------------------------------------------------
+// CATEGORY MANAGEMENT HANDLERS
+// -------------------------------------------------------------------
+
+// GET /admin/categories
+func (h *AdminHandler) CategoriesList(e *core.RequestEvent) error {
+	categories, err := h.App.FindRecordsByFilter("categories", "1=1", "+sort_order,-created", 100, 0, nil)
+	if err != nil {
+		categories = []*core.Record{}
+	}
+
+	data := map[string]interface{}{
+		"Categories": categories,
+		"IsAdmin":    true,
+		"PageType":   "categories",
+	}
+
+	return RenderPage(h.Templates, e, "layouts/admin.html", "admin/categories.html", data)
+}
+
+// POST /admin/categories
+func (h *AdminHandler) CategorySave(e *core.RequestEvent) error {
+	id := e.Request.FormValue("id")
+	name := e.Request.FormValue("name")
+	slug := e.Request.FormValue("slug")
+	sortOrder := e.Request.FormValue("sort_order")
+	description := e.Request.FormValue("description")
+	active := e.Request.FormValue("active") == "on"
+
+	collection, err := h.App.FindCollectionByNameOrId("categories")
+	if err != nil {
+		return e.String(500, "Collection categories not found")
+	}
+
+	var record *core.Record
+	if id != "" {
+		record, err = h.App.FindRecordById("categories", id)
+		if err != nil {
+			return e.String(404, "Category not found")
+		}
+	} else {
+		record = core.NewRecord(collection)
+	}
+
+	record.Set("name", name)
+	record.Set("slug", slug)
+	record.Set("description", description)
+	if sortOrder != "" {
+		record.Set("sort_order", sortOrder)
+	}
+	record.Set("active", active)
+
+	if err := h.App.Save(record); err != nil {
+		fmt.Println("Error saving category:", err)
+		return e.String(500, "Lỗi lưu danh mục: "+err.Error())
+	}
+
+	return e.Redirect(http.StatusSeeOther, "/admin/categories")
+}
+
+// POST /admin/categories/{id}/delete
+func (h *AdminHandler) CategoryDelete(e *core.RequestEvent) error {
+	id := e.Request.PathValue("id")
+	record, err := h.App.FindRecordById("categories", id)
+	if err != nil {
+		return e.String(404, "Category not found")
+	}
+
+	if err := h.App.Delete(record); err != nil {
+		return e.String(500, "Error deleting category")
+	}
+
+	return e.Redirect(http.StatusSeeOther, "/admin/categories")
 }

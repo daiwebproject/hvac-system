@@ -1,32 +1,136 @@
 {{ define "footer" }}
-<!-- Footer -->
-<footer class="footer p-10 bg-neutral text-neutral-content">
-    <aside>
-        <i class="fa-solid fa-snowflake text-5xl mb-2"></i>
-        <p class="font-bold text-lg">ĐẠI ĐIỆN LẠNH<br />Dịch vụ tận tâm - Nâng tầm cuộc sống</p>
-        <p class="mt-2 text-sm opacity-70">© 2026 DienLanhPro. All rights reserved.</p>
-    </aside>
-    <nav>
-        <h6 class="footer-title">Dịch vụ</h6>
-        <a class="link link-hover">Vệ sinh máy lạnh</a>
-        <a class="link link-hover">Sửa chữa máy giặt</a>
-        <a class="link link-hover">Lắp đặt di dời</a>
-        <a class="link link-hover">Bảo trì định kỳ</a>
-    </nav>
-    <nav>
-        <h6 class="footer-title">Công ty</h6>
-        <a class="link link-hover">Về chúng tôi</a>
-        <a class="link link-hover">Liên hệ</a>
-        <a class="link link-hover">Chính sách bảo hành</a>
-        <a class="link link-hover">Tuyển dụng</a>
-    </nav>
-    <nav>
-        <h6 class="footer-title">Kết nối</h6>
-        <div class="grid grid-flow-col gap-4">
-            <a class="text-2xl"><i class="fa-brands fa-facebook"></i></a>
-            <a class="text-2xl"><i class="fa-brands fa-youtube"></i></a>
-            <a class="text-2xl"><i class="fa-brands fa-tiktok"></i></a>
+<footer class="bg-slate-50 pt-16 pb-8 border-t-4 border-blue-600 font-sans text-slate-600">
+    <div class="container mx-auto px-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 mb-12">
+
+            <!-- Brand Column -->
+            <div class="space-y-4">
+                <a href="/" class="flex items-center gap-2 mb-2">
+                    <div class="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-lg">
+                        <i class="fa-solid fa-snowflake text-xl"></i>
+                    </div>
+                    <div>
+                        <span class="block text-xl font-extrabold text-slate-900 leading-none tracking-tight">
+                            {{if .Settings.CompanyName}}{{.Settings.CompanyName}}{{else}}ĐẠI ĐIỆN LẠNH{{end}}
+                        </span>
+                        <span class="text-xs font-bold text-blue-600 uppercase tracking-widest">Dịch vụ kỹ thuật</span>
+                    </div>
+                </a>
+                <p class="text-sm leading-relaxed text-slate-500">
+                    Chúng tôi cam kết mang đến giải pháp điện lạnh chuyên nghiệp, nhanh chóng và tận tâm nhất cho ngôi
+                    nhà của bạn.
+                </p>
+                <div class="flex gap-4 pt-2">
+                    <a href="#"
+                        class="w-9 h-9 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:text-blue-600 hover:border-blue-600 hover:bg-blue-50 transition-all">
+                        <i class="fa-brands fa-facebook-f"></i>
+                    </a>
+                    <a href="#"
+                        class="w-9 h-9 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:text-red-600 hover:border-red-600 hover:bg-red-50 transition-all">
+                        <i class="fa-brands fa-youtube"></i>
+                    </a>
+                    <a href="#"
+                        class="w-9 h-9 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:text-black hover:border-black hover:bg-gray-100 transition-all">
+                        <i class="fa-brands fa-tiktok"></i>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Services Column -->
+            <div>
+                <h3 class="font-bold text-slate-900 text-lg mb-6 flex items-center">
+                    Dịch Vụ Chính <div class="h-1 w-8 bg-blue-500 ml-3 rounded-full"></div>
+                </h3>
+                <ul class="space-y-3 text-sm">
+                    <li><a href="#" class="hover:text-blue-600 hover:translate-x-1 transition-transform inline-block"><i
+                                class="fa-solid fa-chevron-right text-xs text-blue-400 mr-2"></i>Vệ sinh máy lạnh</a>
+                    </li>
+                    <li><a href="#" class="hover:text-blue-600 hover:translate-x-1 transition-transform inline-block"><i
+                                class="fa-solid fa-chevron-right text-xs text-blue-400 mr-2"></i>Sửa chữa máy giặt</a>
+                    </li>
+                    <li><a href="#" class="hover:text-blue-600 hover:translate-x-1 transition-transform inline-block"><i
+                                class="fa-solid fa-chevron-right text-xs text-blue-400 mr-2"></i>Lắp đặt & Di dời</a>
+                    </li>
+                    <li><a href="#" class="hover:text-blue-600 hover:translate-x-1 transition-transform inline-block"><i
+                                class="fa-solid fa-chevron-right text-xs text-blue-400 mr-2"></i>Bảo trì định kỳ</a>
+                    </li>
+                    <li><a href="#" class="hover:text-blue-600 hover:translate-x-1 transition-transform inline-block"><i
+                                class="fa-solid fa-chevron-right text-xs text-blue-400 mr-2"></i>Nạp gas máy lạnh</a>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Contact Column -->
+            <div>
+                <h3 class="font-bold text-slate-900 text-lg mb-6 flex items-center">
+                    Liên Hệ <div class="h-1 w-8 bg-blue-500 ml-3 rounded-full"></div>
+                </h3>
+                <ul class="space-y-4 text-sm">
+                    <li class="flex items-start gap-3">
+                        <i class="fa-solid fa-location-dot text-blue-600 mt-1"></i>
+                        <span>Nam Định, Việt Nam</span>
+                    </li>
+                    <li class="flex items-start gap-3">
+                        <i class="fa-solid fa-phone text-blue-600 mt-1"></i>
+                        <span class="font-bold text-slate-800">{{if .Settings.Hotline}}{{ .Settings.Hotline
+                            }}{{else}}09xx xxx xxx{{end}}</span>
+                    </li>
+                    <li class="flex items-start gap-3">
+                        <i class="fa-solid fa-envelope text-blue-600 mt-1"></i>
+                        <span>contact@daidienlanh.com</span>
+                    </li>
+                    <li class="flex items-start gap-3">
+                        <i class="fa-solid fa-clock text-blue-600 mt-1"></i>
+                        <span>Thứ 2 - CN: 08:00 - 18:00</span>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Trust Badges Column -->
+            <div>
+                <h3 class="font-bold text-slate-900 text-lg mb-6 flex items-center">
+                    Cam Kết <div class="h-1 w-8 bg-blue-500 ml-3 rounded-full"></div>
+                </h3>
+                <div class="grid grid-cols-2 gap-3">
+                    <div
+                        class="bg-white p-3 rounded-xl border border-slate-100 shadow-sm text-center group hover:border-blue-300 transition-colors">
+                        <i
+                            class="fa-solid fa-medal text-2xl text-yellow-400 mb-2 group-hover:scale-110 transition-transform"></i>
+                        <p class="text-xs font-bold text-slate-700">Chất Lượng</p>
+                    </div>
+                    <div
+                        class="bg-white p-3 rounded-xl border border-slate-100 shadow-sm text-center group hover:border-blue-300 transition-colors">
+                        <i
+                            class="fa-solid fa-user-shield text-2xl text-blue-500 mb-2 group-hover:scale-110 transition-transform"></i>
+                        <p class="text-xs font-bold text-slate-700">Uy Tín</p>
+                    </div>
+                    <div
+                        class="bg-white p-3 rounded-xl border border-slate-100 shadow-sm text-center group hover:border-blue-300 transition-colors">
+                        <i
+                            class="fa-solid fa-bolt text-2xl text-orange-400 mb-2 group-hover:scale-110 transition-transform"></i>
+                        <p class="text-xs font-bold text-slate-700">Nhanh Chóng</p>
+                    </div>
+                    <div
+                        class="bg-white p-3 rounded-xl border border-slate-100 shadow-sm text-center group hover:border-blue-300 transition-colors">
+                        <i
+                            class="fa-solid fa-tags text-2xl text-green-500 mb-2 group-hover:scale-110 transition-transform"></i>
+                        <p class="text-xs font-bold text-slate-700">Giá Tốt</p>
+                    </div>
+                </div>
+            </div>
+
         </div>
-    </nav>
+
+        <div
+            class="border-t border-slate-200 pt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-slate-400">
+            <p>&copy; 2026 {{if .Settings.CompanyName}}{{.Settings.CompanyName}}{{else}}Đại Điện Lạnh{{end}}. All rights
+                reserved.</p>
+            <div class="flex gap-6">
+                <a href="#" class="hover:text-blue-600">Bảo mật</a>
+                <a href="#" class="hover:text-blue-600">Điều khoản</a>
+                <a href="#" class="hover:text-blue-600">Sitemap</a>
+            </div>
+        </div>
+    </div>
 </footer>
 {{ end }}

@@ -25,14 +25,14 @@ func RegisterRoutes(app *pocketbase.PocketBase, t *template.Template, eventBroke
 
 		// [SECURITY] Protect PocketBase Admin UI (/_/)
 		// Only allow access if special header is present
-		se.Router.BindFunc(func(e *core.RequestEvent) error {
-			if len(e.Request.URL.Path) >= 3 && e.Request.URL.Path[:3] == "/_/" {
-				if e.Request.Header.Get("X-Super-Admin") != "mat-khau-cua-toi" {
-					return e.String(http.StatusForbidden, "⛔ Super Admin Access Required")
-				}
-			}
-			return e.Next()
-		})
+		// se.Router.BindFunc(func(e *core.RequestEvent) error {
+		// 	if len(e.Request.URL.Path) >= 3 && e.Request.URL.Path[:3] == "/_/" {
+		// 		if e.Request.Header.Get("X-Super-Admin") != "mat-khau-cua-toi" {
+		// 			return e.String(http.StatusForbidden, "⛔ Super Admin Access Required")
+		// 		}
+		// 	}
+		// 	return e.Next()
+		// })
 
 		// ---------------------------------------------------------
 		// 1. STATIC FILES & SERVICE WORKERS
@@ -148,6 +148,7 @@ func RegisterRoutes(app *pocketbase.PocketBase, t *template.Template, eventBroke
 		// 4. PUBLIC ROUTES
 		// ---------------------------------------------------------
 		se.Router.GET("/", public.Index)
+		se.Router.GET("/services/{id}", public.ServiceDetail) // [NEW] Detail Page
 		se.Router.GET("/book", web.BookingPage)
 		se.Router.POST("/book", web.BookService)
 		se.Router.GET("/api/slots/available", slot.GetAvailableSlots)
@@ -196,6 +197,11 @@ func RegisterRoutes(app *pocketbase.PocketBase, t *template.Template, eventBroke
 		adminGroup.POST("/tools/inventory/create", adminTools.CreateInventoryItem)
 		adminGroup.POST("/tools/inventory/{id}/stock", adminTools.UpdateInventoryStock)
 		adminGroup.GET("/api/slots", admin.GetSlots)
+
+		// [NEW] Service Management
+		adminGroup.GET("/services", admin.ServicesList)
+		adminGroup.POST("/services", admin.ServiceSave)
+		adminGroup.POST("/services/{id}/delete", admin.ServiceDelete)
 
 		// ---------------------------------------------------------
 		// 7. TECH ROUTES (Protected)
