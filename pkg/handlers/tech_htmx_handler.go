@@ -143,8 +143,25 @@ func (h *TechHandler) ProcessPayment(e *core.RequestEvent) error {
 	}
 
 	invoice := invoices[0]
+	// Validate: If job already completed, prevent double submit
+	job, _ := h.App.FindRecordById("bookings", jobID)
+	if job != nil && job.GetString("job_status") == "completed" {
+		return e.JSON(200, map[string]interface{}{
+			"success":      true,
+			"invoice_hash": invoice.GetString("public_hash"),
+			"message":      "Đơn hàng này đã thanh toán rồi",
+		})
+	}
+
 	invoice.Set("payment_method", paymentMethod)
 	invoice.Set("status", "paid")
+
+	// Ensure Public Hash exists for external viewing
+	publicHash := invoice.GetString("public_hash")
+	if publicHash == "" {
+		publicHash = fmt.Sprintf("%x", time.Now().UnixNano())
+		invoice.Set("public_hash", publicHash)
+	}
 
 	// Save Transaction Code if provided (e.g., for Bank Transfer)
 	if transactionCode != "" {
@@ -156,13 +173,6 @@ func (h *TechHandler) ProcessPayment(e *core.RequestEvent) error {
 		} else {
 			invoice.Set("payment_note", fmt.Sprintf("Ref: %s", transactionCode))
 		}
-	}
-
-	// Ensure Public Hash exists for external viewing
-	if invoice.GetString("public_hash") == "" {
-		// Simple hash generation using timestamp and ID
-		hash := fmt.Sprintf("%x", time.Now().UnixNano())
-		invoice.Set("public_hash", hash)
 	}
 
 	// Handle Signature Upload
@@ -178,14 +188,14 @@ func (h *TechHandler) ProcessPayment(e *core.RequestEvent) error {
 	}
 
 	// Update job status if needed
-	job, _ := h.App.FindRecordById("bookings", jobID)
 	if job != nil {
 		job.Set("payment_status", "paid")
-		job.Set("job_status", "completed") // Ensure completed
+		job.Set("job_status", "completed")  // Mark as fully completed
+		job.Set("completed_at", time.Now()) // Track completion time
 		h.App.Save(job)
 	}
 
-	// Publish payment event
+	// 1. Publish payment event for Customer
 	h.Broker.Publish(broker.ChannelCustomer, jobID, broker.Event{
 		Type:      "payment.processed",
 		Timestamp: time.Now().Unix(),
@@ -196,12 +206,27 @@ func (h *TechHandler) ProcessPayment(e *core.RequestEvent) error {
 		},
 	})
 
+	// 2. Publish completion event for Admin
+	h.Broker.Publish(broker.ChannelAdmin, "", broker.Event{
+		Type:      "job.completed",
+		Timestamp: time.Now().Unix(),
+		Data: map[string]interface{}{
+			"booking_id":      jobID,
+			"tech_id":         e.Auth.Id,
+			"tech_name":       e.Auth.Get("name"),
+			"invoice_amount":  invoice.GetFloat("total_amount"),
+			"payment_method":  paymentMethod,
+			"transaction_ref": transactionCode,
+			"status":          "completed",
+		},
+	})
+
 	// Check if this is an HTMX or API request
 	// Always return JSON for our custom frontend logic
 	return e.JSON(200, map[string]interface{}{
 		"success":      true,
 		"invoice_id":   invoice.Id,
-		"invoice_hash": invoice.GetString("public_hash"),
+		"invoice_hash": publicHash,
 		"message":      "Thanh toán thành công",
 	})
 }

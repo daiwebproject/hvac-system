@@ -302,10 +302,9 @@ func (h *TechHandler) ShowCompleteJob(e *core.RequestEvent) error {
 }
 
 // SubmitCompleteJob processes the completion form with parts and invoice recalculation
-// POST /tech/job/{id}/complete
 func (h *TechHandler) SubmitCompleteJob(e *core.RequestEvent) error {
 	jobID := e.Request.PathValue("id")
-	job, err := h.App.FindRecordById("bookings", jobID)
+	_, err := h.App.FindRecordById("bookings", jobID)
 	if err != nil {
 		return e.String(404, "Job không tồn tại")
 	}
@@ -355,39 +354,41 @@ func (h *TechHandler) SubmitCompleteJob(e *core.RequestEvent) error {
 	}
 
 	// 3. Generate/Recalculate Invoice
-	// First, generate base invoice with current parts
 	invoice, err := h.InvoiceService.GenerateInvoice(jobID)
 	if err != nil {
 		fmt.Printf("Invoice generation error: %v\n", err)
-		// Don't block completion, admin can fix invoice later
-	} else {
-		fmt.Printf("Invoice generated with ID: %s\n", invoice.Id)
+		return e.String(500, "Lỗi tạo hóa đơn: "+err.Error()+". Vui lòng thử lại hoặc liên hệ Admin.")
 	}
 
-	// 4. Update Booking Status to completed
-	job.Set("job_status", "completed")
-	if err := h.App.Save(job); err != nil {
-		return e.String(500, "Lỗi cập nhật trạng thái job")
+	// Ensure public hash for sharing
+	if invoice.GetString("public_hash") == "" {
+		invoice.Set("public_hash", fmt.Sprintf("%x", time.Now().UnixNano()))
+		h.App.Save(invoice)
 	}
 
-	// 5. Publish Events
-	h.Broker.Publish(broker.ChannelAdmin, "", broker.Event{
-		Type:      "job.completed",
-		Timestamp: time.Now().Unix(),
-		Data: map[string]interface{}{
-			"booking_id":  jobID,
-			"tech_id":     e.Auth.Id,
-			"parts_count": len(jobParts),
-			"report_id":   report.Id,
-		},
-	})
+	// 4. Update Booking Status to completed - MOVED TO PAYMENT
+	// job.Set("job_status", "completed")
+	// if err := h.App.Save(job); err != nil {
+	// 	return e.String(500, "Lỗi cập nhật trạng thái job")
+	// }
+
+	// 5. Publish Events - MOVED TO PAYMENT
+	// h.Broker.Publish(broker.ChannelAdmin, "", broker.Event{
+	// 	Type:      "job.completed",
+	// 	Timestamp: time.Now().Unix(),
+	// 	Data: map[string]interface{}{
+	// 		"booking_id":  jobID,
+	// 		"tech_id":     e.Auth.Id,
+	// 		"parts_count": len(jobParts),
+	// 		"report_id":   report.Id,
+	// 	},
+	// })
 
 	// Redirect to Invoice & Payment page instead of jobs list
 	return e.Redirect(http.StatusSeeOther, fmt.Sprintf("/tech/job/%s/invoice-payment", jobID))
 }
 
 // ShowInvoicePayment displays the invoice, signature canvas, and payment options
-// GET /tech/job/{id}/invoice-payment
 func (h *TechHandler) ShowInvoicePayment(e *core.RequestEvent) error {
 	jobID := e.Request.PathValue("id")
 
@@ -397,15 +398,25 @@ func (h *TechHandler) ShowInvoicePayment(e *core.RequestEvent) error {
 	}
 
 	// Get or Generate Invoice
+	// TÌM HOẶC TẠO HÓA ĐƠN
 	invoices, _ := h.App.FindRecordsByFilter("invoices", fmt.Sprintf("booking_id='%s'", jobID), "", 1, 0, nil)
 	var invoice *core.Record
+
 	if len(invoices) > 0 {
 		invoice = invoices[0]
 	} else {
-		invoice, _ = h.InvoiceService.GenerateInvoice(jobID)
-	}
+		// Thử tạo mới
+		var errGen error
+		invoice, errGen = h.InvoiceService.GenerateInvoice(jobID)
 
-	// settings handled by middleware
+		// [FIX] NẾU LỖI -> ĐỪNG RENDER TRANG THANH TOÁN
+		if errGen != nil || invoice == nil {
+			// Log lỗi để debug
+			fmt.Printf("Cannot generate invoice for job %s: %v\n", jobID, errGen)
+			// Redirect về trang nghiệm thu để thợ làm lại báo cáo
+			return e.Redirect(http.StatusTemporaryRedirect, fmt.Sprintf("/tech/job/%s/complete", jobID))
+		}
+	}
 
 	data := map[string]interface{}{
 		"Job":     job,

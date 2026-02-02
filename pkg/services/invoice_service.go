@@ -2,6 +2,7 @@ package services
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/pocketbase/pocketbase/core"
 )
@@ -70,6 +71,7 @@ func (s *InvoiceService) GenerateInvoice(bookingID string) (*core.Record, error)
 	invoice.Set("labor_total", laborTotal)
 	invoice.Set("total_amount", totalAmount)
 	invoice.Set("status", "unpaid")
+	invoice.Set("public_hash", fmt.Sprintf("%x", time.Now().UnixNano()))
 
 	if err := s.app.Save(invoice); err != nil {
 		return nil, err

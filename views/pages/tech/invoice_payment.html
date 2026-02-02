@@ -9,36 +9,40 @@
 
     <div class="flex-1 p-4 space-y-6 pb-24 max-w-lg mx-auto w-full">
         <!-- Invoice Details -->
-<div class="bg-white rounded-xl shadow p-4 border border-gray-100">
-    {{ if .Invoice }}
-        <h2 class="font-bold text-gray-800 mb-2 border-b pb-2">Hóa Đơn: {{.Invoice.GetString "invoice_code"}}</h2>
+        <div class="bg-white rounded-xl shadow p-4 border border-gray-100">
+            {{ if .Invoice }}
+            <h2 class="font-bold text-gray-800 mb-2 border-b pb-2">Hóa Đơn: {{.Invoice.GetString "invoice_code"}}</h2>
 
-        <div class="space-y-2 text-sm">
-            <div class="flex justify-between">
-                <span class="text-gray-500">Khách hàng:</span>
-                <span class="font-semibold">{{.Job.GetString "customer_name"}}</span>
+            <div class="space-y-2 text-sm">
+                <div class="flex justify-between">
+                    <span class="text-gray-500">Khách hàng:</span>
+                    <span class="font-semibold">{{.Job.GetString "customer_name"}}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-500">Số điện thoại:</span>
+                    <span class="font-mono">{{.Job.GetString "customer_phone"}}</span>
+                </div>
+                <div class="divider my-1"></div>
+                <div class="flex justify-between items-end">
+                    <span class="font-bold text-gray-600">THÀNH TIỀN:</span>
+                    {{ if .Invoice }}
+                    <span class="font-bold text-2xl text-blue-600">
+                        {{.Invoice.GetFloat "total_amount" | printf "%.0f"}} đ
+                    </span>
+                    {{ else }}
+                    <span class="text-red-500 font-bold">Chưa có hóa đơn</span>
+                    {{ end }}
+                </div>
             </div>
-            <div class="flex justify-between">
-                <span class="text-gray-500">Số điện thoại:</span>
-                <span class="font-mono">{{.Job.GetString "customer_phone"}}</span>
+
+            {{ else }}
+            <div class="text-center py-4 text-yellow-600">
+                <i class="fa-solid fa-triangle-exclamation text-2xl mb-2"></i>
+                <h3 class="font-bold">Chưa có thông tin hóa đơn</h3>
+                <p class="text-xs mt-1">Vui lòng tạo hóa đơn trước khi thanh toán.</p>
             </div>
-            <div class="divider my-1"></div>
-            <div class="flex justify-between items-end">
-                <span class="font-bold text-gray-600">THÀNH TIỀN:</span>
-                <span class="font-bold text-2xl text-blue-600">
-                    {{.Invoice.GetFloat "total_amount" | printf "%.0f"}} đ
-                </span>
-            </div>
+            {{ end }}
         </div>
-    
-    {{ else }}
-        <div class="text-center py-4 text-yellow-600">
-            <i class="fa-solid fa-triangle-exclamation text-2xl mb-2"></i>
-            <h3 class="font-bold">Chưa có thông tin hóa đơn</h3>
-            <p class="text-xs mt-1">Vui lòng tạo hóa đơn trước khi thanh toán.</p>
-        </div>
-    {{ end }}
-    </div>
 
         <!-- Signature Pad -->
         <div class="bg-white rounded-xl shadow p-4 border border-gray-100">
@@ -193,7 +197,9 @@
                         const form = document.getElementById('payment-form');
                         const formData = new FormData(form);
                         formData.append('signature_file', blob, 'signature.png');
-                        formData.append('transaction_code', this.transactionCode); // Add code
+                        if (this.transactionCode) {
+                            formData.append('transaction_code', this.transactionCode);
+                        }
 
                         // Show Loading
                         Swal.fire({
@@ -212,27 +218,26 @@
                                         title: 'Thanh toán thành công!',
                                         icon: 'success',
                                         html: `
-                                            <div class="grid gap-3 mt-4">
-                                                <button onclick="shareInvoice('${invoiceUrl}')" class="btn btn-info text-white">
+                                            <div class="flex flex-col gap-3 mt-4">
+                                                <p class="text-sm text-gray-600">Đơn hàng đã hoàn tất và lưu vào hệ thống bảo hành.</p>
+                                                
+                                                <a href="${zaloShareUrl}" target="_blank" class="btn btn-info text-white w-full">
                                                     <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/91/Icon_of_Zalo.svg/1200px-Icon_of_Zalo.svg.png" 
                                                          class="w-6 h-6 mr-2 bg-white rounded-full p-0.5">
-                                                    Gửi Zalo cho Khách
-                                                </button>
-                                                
+                                                    Gửi Hóa đơn qua Zalo
+                                                </a>
+
+                                                <div class="divider text-xs">HOẶC</div>
+
                                                 <div class="join w-full">
                                                     <input type="text" value="${invoiceUrl}" class="input input-bordered input-sm join-item w-full text-xs" readonly>
-                                                    <button onclick="copyToClipboard('${invoiceUrl}')" class="btn btn-sm join-item">
+                                                    <button onclick="navigator.clipboard.writeText('${invoiceUrl}'); Swal.showValidationMessage('Đã sao chép!')" class="btn btn-sm join-item">
                                                         <i class="fa-regular fa-copy"></i>
                                                     </button>
                                                 </div>
-
-                                                <div class="divider my-1 text-xs text-gray-400">Hoặc</div>
-
-                                                <a href="/invoice/${data.invoice_hash}" target="_blank" class="btn btn-outline btn-primary btn-sm">
-                                                    <i class="fa-solid fa-receipt"></i> Xem hóa đơn
-                                                </a>
-                                                <a href="/tech/jobs" class="btn btn-neutral btn-sm">
-                                                    <i class="fa-solid fa-house"></i> Về Trang Chủ
+                                                
+                                                <a href="/tech/jobs" class="btn btn-outline btn-sm mt-2">
+                                                    <i class="fa-solid fa-house"></i> Về danh sách việc
                                                 </a>
                                             </div>
                                         `,
