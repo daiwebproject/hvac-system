@@ -47,8 +47,12 @@ class FirebaseMessagingClient {
 
   async getToken() {
     try {
+      // WAITING FOR SERVICE WORKER READY
+      const registration = await navigator.serviceWorker.ready;
+
       const currentToken = await this.messaging.getToken({
-        vapidKey: "BM0Uvapd87utXwp2bBC_23HMT3LjtSwWGq6rUU8FnK6DvnJnTDCR_Kj4mGAC-HLgoia-tgjobgSWDpDJkKX_DBk"
+        vapidKey: "BM0Uvapd87utXwp2bBC_23HMT3LjtSwWGq6rUU8FnK6DvnJnTDCR_Kj4mGAC-HLgoia-tgjobgSWDpDJkKX_DBk",
+        serviceWorkerRegistration: registration // <--- KEY FIX: Sử dụng lại SW chính
       });
 
       if (currentToken) {

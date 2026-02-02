@@ -57,6 +57,38 @@ self.addEventListener('fetch', (event) => {
 });
 
 // ... (Các phần Sync và Notification giữ nguyên)
+// --- 4. FIREBASE MESSAGING INTEGRATION ---
+importScripts('https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js');
+importScripts('https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js');
+
+const firebaseConfig = {
+  apiKey: "AIzaSyB1zmMjyK6XtqVm8Kcu-EwwAUpfSTkg8AA",
+  authDomain: "techapp-hvac.firebaseapp.com",
+  projectId: "techapp-hvac",
+  storageBucket: "techapp-hvac.firebasestorage.app",
+  messagingSenderId: "250596752999",
+  appId: "1:250596752999:web:6d810cf577eedfb7d55ec2",
+  measurementId: "G-TDF9H77TG2"
+};
+
+firebase.initializeApp(firebaseConfig);
+const messaging = firebase.messaging();
+
+// Handle Background Messages via Firebase SDK
+messaging.onBackgroundMessage((payload) => {
+  console.log('[SW] Firebase Message:', payload);
+  const title = payload.notification?.title || 'Thông báo mới';
+  const options = {
+    body: payload.notification?.body || 'Bạn có thông báo mới',
+    icon: payload.notification?.icon || '/assets/icons/icon-192x192.png',
+    badge: '/assets/icons/badge.png',
+    data: payload.data || {},
+    actions: [{ action: 'view', title: 'Xem chi tiết' }]
+  };
+  return self.registration.showNotification(title, options);
+});
+
+// Sync Logic
 self.addEventListener('sync', (event) => {
   if (event.tag === 'sync-reports' || event.tag === 'sync-offline-jobs') {
     event.waitUntil(syncReports());
@@ -78,9 +110,6 @@ async function syncReports() {
           if (blob) formData.append('after_images', blob, `evidence_${i}.jpg`);
         }
       }
-      // Fetch trong Sync chạy ngầm nên cần credentials nếu server yêu cầu
-      // Nhưng vì đây là background sync, cookie có thể không tồn tại nếu user đóng browser.
-      // Tuy nhiên với lỗi hiện tại của bạn là ở frontend active, fix ở fetch listener là đủ.
       const response = await fetch(`/tech/job/${report.jobId}/complete`, {
         method: 'POST',
         body: formData,
@@ -132,14 +161,8 @@ async function notifyClients(msg) {
   const allClients = await clients.matchAll({ includeUncontrolled: true });
   allClients.forEach(client => client.postMessage(msg));
 }
-self.addEventListener('push', (event) => {
-  let data = { title: 'HVAC System', body: 'Thông báo mới', icon: '/assets/icons/icon-192x192.png' };
-  if (event.data) {
-    try { data = { ...data, ...event.data.json() }; }
-    catch (e) { data.body = event.data.text(); }
-  }
-  event.waitUntil(self.registration.showNotification(data.title, data));
-});
+
+// Notification Click Handle (Merged)
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const urlToOpen = event.notification.data?.url || '/tech/jobs';

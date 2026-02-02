@@ -318,3 +318,40 @@ window.OfflineJobReporter = new OfflineJobReporter();
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = OfflineJobReporter;
 }
+// Alpine.js integration for offline status
+function offlineIndicator() {
+  return {
+    isOnline: navigator.onLine,
+    pendingCount: 0,
+
+    init() {
+      // Sync initial state
+      this.updateStatus();
+
+      // Listen for network changes
+      window.addEventListener('online', () => {
+        this.isOnline = true;
+        this.updateStatus();
+      });
+      window.addEventListener('offline', () => {
+        this.isOnline = false;
+      });
+
+      // Listen for sync events
+      window.addEventListener('report-synced', () => this.updateStatus());
+      window.addEventListener('network:online', () => this.updateStatus());
+
+      // Poll periodically just in case
+      setInterval(() => this.updateStatus(), 10000);
+    },
+
+    async updateStatus() {
+      if (window.OfflineJobReporter) {
+        const status = await window.OfflineJobReporter.getSyncStatus();
+        this.pendingCount = status.pendingReports || 0;
+        // this.isOnline is handled by event listeners effectively, but syncing doesn't hurt
+        // this.isOnline = status.isOnline; 
+      }
+    }
+  };
+}

@@ -1,5 +1,5 @@
 {{ define "content" }}
-<div x-data="invoicePayment()" class="min-h-screen bg-gray-50 flex flex-col">
+<div x-data="invoicePayment" class="min-h-screen bg-gray-50 flex flex-col">
     <!-- Header -->
     <div class="bg-blue-600 text-white p-4 shadow-lg sticky top-0 z-20">
         <div class="flex items-center justify-between">
@@ -9,27 +9,36 @@
 
     <div class="flex-1 p-4 space-y-6 pb-24 max-w-lg mx-auto w-full">
         <!-- Invoice Details -->
-        <div class="bg-white rounded-xl shadow p-4 border border-gray-100">
-            <h2 class="font-bold text-gray-800 mb-2 border-b pb-2">Hóa Đơn: {{.Invoice.GetString "invoice_code"}}</h2>
+<div class="bg-white rounded-xl shadow p-4 border border-gray-100">
+    {{ if .Invoice }}
+        <h2 class="font-bold text-gray-800 mb-2 border-b pb-2">Hóa Đơn: {{.Invoice.GetString "invoice_code"}}</h2>
 
-            <div class="space-y-2 text-sm">
-                <div class="flex justify-between">
-                    <span class="text-gray-500">Khách hàng:</span>
-                    <span class="font-semibold">{{.Job.GetString "customer_name"}}</span>
-                </div>
-                <div class="flex justify-between">
-                    <span class="text-gray-500">Số điện thoại:</span>
-                    <span class="font-mono">{{.Job.GetString "customer_phone"}}</span>
-                </div>
-                <div class="divider my-1"></div>
-                <div class="flex justify-between items-end">
-                    <span class="font-bold text-gray-600">THÀNH TIỀN:</span>
-                    <span class="font-bold text-2xl text-blue-600">
-                        {{.Invoice.GetFloat "total_amount" | printf "%.0f"}} đ
-                    </span>
-                </div>
+        <div class="space-y-2 text-sm">
+            <div class="flex justify-between">
+                <span class="text-gray-500">Khách hàng:</span>
+                <span class="font-semibold">{{.Job.GetString "customer_name"}}</span>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-gray-500">Số điện thoại:</span>
+                <span class="font-mono">{{.Job.GetString "customer_phone"}}</span>
+            </div>
+            <div class="divider my-1"></div>
+            <div class="flex justify-between items-end">
+                <span class="font-bold text-gray-600">THÀNH TIỀN:</span>
+                <span class="font-bold text-2xl text-blue-600">
+                    {{.Invoice.GetFloat "total_amount" | printf "%.0f"}} đ
+                </span>
             </div>
         </div>
+    
+    {{ else }}
+        <div class="text-center py-4 text-yellow-600">
+            <i class="fa-solid fa-triangle-exclamation text-2xl mb-2"></i>
+            <h3 class="font-bold">Chưa có thông tin hóa đơn</h3>
+            <p class="text-xs mt-1">Vui lòng tạo hóa đơn trước khi thanh toán.</p>
+        </div>
+    {{ end }}
+    </div>
 
         <!-- Signature Pad -->
         <div class="bg-white rounded-xl shadow p-4 border border-gray-100">
@@ -72,8 +81,8 @@
             <!-- QR Code Section -->
             <div x-show="method === 'transfer'" x-transition class="text-center space-y-4">
                 <div class="bg-white p-3 inline-block rounded-xl shadow-md border border-gray-100">
-                    <img :src="getQrUrl('{{.Invoice.GetFloat "
-                        total_amount"}}', 'Thanh toan HD {{.Invoice.GetString "invoice_code"}}' )" alt="VietQR"
+                    <img :src="getQrUrl('{{.Invoice.GetFloat " total_amount" | printf "%.0f"
+                        }}', 'Thanh toan HD {{.Invoice.GetString "invoice_code"}}' )" alt="VietQR"
                         class="w-56 h-56 object-contain rounded-lg">
                 </div>
 
