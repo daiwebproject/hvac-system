@@ -1,266 +1,138 @@
-{{ define "public/invoice_view.html" }}
-<!DOCTYPE html>
-<html lang="vi" data-theme="winter">
+{{ define "content" }}
+<div class="min-h-screen bg-gray-50 py-8 px-4">
+    <div class="max-w-2xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100"
+        id="invoice-card">
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hóa Đơn Dịch Vụ - #{{.Invoice.Id}}</title>
-    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.4.19/dist/full.min.css" rel="stylesheet">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <style>
-        .timeline-box {
-            position: relative;
-            padding-left: 20px;
-            border-left: 2px solid #e5e7eb;
-        }
-
-        .timeline-item {
-            position: relative;
-            margin-bottom: 20px;
-        }
-
-        .timeline-item::before {
-            content: '';
-            position: absolute;
-            left: -26px;
-            top: 0;
-            width: 14px;
-            height: 14px;
-            border-radius: 50%;
-            background: #3b82f6;
-            border: 2px solid white;
-        }
-    </style>
-</head>
-
-<body class="bg-gray-100 min-h-screen">
-    <div class="max-w-md mx-auto bg-white shadow-xl min-h-screen flex flex-col">
-        <!-- Header -->
-        <div class="bg-blue-600 text-white p-6 rounded-b-3xl shadow-lg relative overflow-hidden">
-            <div class="absolute top-0 right-0 opacity-10 text-9xl transform translate-x-10 translate-y-[-20px]">
-                <i class="fa-solid fa-file-invoice"></i>
-            </div>
-            <div class="relative z-10">
-                <div class="flex justify-between items-start">
-                    <img src="/assets/icons/logo_white.png"
-                        onerror="this.src='https://placehold.co/50x50/white/blue?text=H'"
-                        class="w-12 h-12 rounded bg-white p-1">
-                    <div class="text-right">
-                        <h1 class="text-xl font-bold">HÓA ĐƠN</h1>
-                        <p class="text-blue-100 text-sm">#{{.Invoice.Id}}</p>
-                    </div>
+        <div class="bg-blue-600 text-white p-6">
+            <div class="flex justify-between items-start">
+                <div>
+                    <h1 class="font-bold text-2xl uppercase">{{.Settings.CompanyName}}</h1>
+                    <p class="text-blue-100 text-sm mt-1"><i class="fa-solid fa-phone mr-1"></i> {{.Settings.Hotline}}
+                    </p>
+                    <p class="text-blue-100 text-sm"><i class="fa-solid fa-globe mr-1"></i> hvac-system.vn</p>
                 </div>
-                <div class="mt-6">
-                    <p class="text-blue-200 text-sm">Khách hàng</p>
-                    <h2 class="text-2xl font-bold">{{.Booking.GetString "customer_name"}}</h2>
-                    <p class="text-blue-100"><i class="fa-solid fa-location-dot mr-1"></i> {{.Booking.GetString
-                        "address"}}</p>
+                <div class="text-right">
+                    <div class="bg-white/20 p-2 rounded text-center backdrop-blur-sm">
+                        <span class="block text-xs uppercase opacity-75">Mã Hóa Đơn</span>
+                        <span class="font-mono font-bold text-lg">#{{.Invoice.GetString "invoice_code"}}</span>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <!-- Body Content -->
-        <div class="p-4 flex-1 space-y-6">
-
-            <!-- 1. Timeline -->
-            <div class="card bg-base-100 shadow-sm border border-gray-100">
-                <div class="card-body p-4">
-                    <h3 class="text-sm font-bold text-gray-500 uppercase mb-4 tracking-wide">
-                        <i class="fa-solid fa-clock-rotate-left mr-1"></i> Nhật ký công việc
-                    </h3>
-                    <div class="pl-2">
-                        {{ range .Timeline }}
-                        <div class="timeline-item pb-2">
-                            <span class="text-xs text-gray-400 font-mono block mb-1">{{.time}}</span>
-                            <div class="font-bold text-gray-800">{{.label}}</div>
-                        </div>
-                        {{ end }}
-                    </div>
-                </div>
-            </div>
-
-            <!-- 2. Evidence -->
-            {{ if .Report }}
-            <div class="card bg-base-100 shadow-sm border border-gray-100">
-                <div class="card-body p-4">
-                    <h3 class="text-sm font-bold text-gray-500 uppercase mb-2 tracking-wide">
-                        <i class="fa-solid fa-images mr-1"></i> Hình ảnh nghiệm thu
-                    </h3>
-                    <div class="grid grid-cols-2 gap-2">
-                        {{ range .Report.GetStringSlice "after_images" }}
-                        <div class="aspect-square bg-gray-100 rounded overflow-hidden relative group">
-                            <img src="/api/files/job_reports/{{$.Report.Id}}/{{.}}" class="w-full h-full object-cover"
-                                onclick="window.open(this.src)">
-                        </div>
-                        {{ end }}
-                    </div>
-                    {{ if eq (len .Report.GetStringSlice "after_images") 0 }}
-                    <p class="text-xs text-gray-400 italic">Không có hình ảnh.</p>
-                    {{ end }}
-                    <div class="mt-2 text-sm italic text-gray-600 bg-gray-50 p-2 rounded">
-                        "{{ .Report.GetString "tech_notes" }}"
-                    </div>
-                </div>
-            </div>
-            {{ end }}
-
-            <!-- 3. Billing Details -->
-            <div class="card bg-base-100 shadow-sm border border-gray-100">
-                <div class="card-body p-4">
-                    <h3 class="text-sm font-bold text-gray-500 uppercase mb-4 tracking-wide">
-                        <i class="fa-solid fa-receipt mr-1"></i> Chi tiết thanh toán
-                    </h3>
-
-                    <div class="space-y-2 text-sm">
-                        <!-- Service -->
-                        <div class="flex justify-between pb-2 border-b border-dashed">
-                            <span>Phí dịch vụ (Công thợ)</span>
-                            <span class="font-mono font-bold">{{ printf "%.0f" (.Invoice.GetFloat "labor_total") }}
-                                đ</span>
-                        </div>
-
-                        <!-- Parts -->
-                        {{ range .Parts }}
-                        <div class="flex justify-between items-center text-gray-600">
-                            <span>{{ .GetString "name" }} (x{{.GetInt "quantity"}})</span>
-                            <span class="font-mono">{{ printf "%.0f" (.GetFloat "total") }} đ</span>
-                        </div>
-                        {{ end }}
-
-                        <!-- Total -->
-                        <div class="flex justify-between items-center pt-3 mt-2 border-t border-gray-200">
-                            <span class="font-bold text-lg">TỔNG CỘNG</span>
-                            <span class="font-bold text-xl text-blue-600">{{ printf "%.0f" (.Invoice.GetFloat
-                                "total_amount") }} đ</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 4. Signature & Rating -->
-            {{ if ne (.Booking.GetString "job_status") "completed_signed" }}
-            <div class="card bg-base-100 shadow-lg border-2 border-blue-500 relative overflow-hidden">
-                <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-400 to-purple-500"></div>
-                <div class="card-body p-4">
-                    <h3 class="font-bold text-center text-lg mb-2">Xác nhận nghiệm thu</h3>
-
-                    <!-- Star Rating -->
-                    <div class="flex justify-center gap-2 mb-4 rating rating-lg">
-                        <input type="radio" name="rating-2" class="mask mask-star-2 bg-orange-400" value="1" />
-                        <input type="radio" name="rating-2" class="mask mask-star-2 bg-orange-400" value="2" />
-                        <input type="radio" name="rating-2" class="mask mask-star-2 bg-orange-400" value="3" />
-                        <input type="radio" name="rating-2" class="mask mask-star-2 bg-orange-400" value="4" />
-                        <input type="radio" name="rating-2" class="mask mask-star-2 bg-orange-400" value="5" checked />
-                    </div>
-
-                    <!-- Signature Pad -->
-                    <div class="border-2 border-dashed border-gray-300 rounded-lg bg-gray-50 touch-none">
-                        <canvas id="signature-pad" class="w-full h-40"></canvas>
-                    </div>
-                    <button class="btn btn-xs btn-ghost text-gray-400 w-full mt-1" onclick="clearSignature()">Xóa ký
-                        lại</button>
-
-                    <button class="btn btn-primary w-full mt-4 shadow-lg shadow-blue-500/30" onclick="submitFeedback()">
-                        <i class="fa-solid fa-signature"></i> Ký xác nhận & Hoàn tất
-                    </button>
-                </div>
-            </div>
-            {{ else }}
-            <div class="alert alert-success">
-                <i class="fa-solid fa-check-circle"></i>
+        <div class="p-6 border-b border-gray-100">
+            <div class="flex flex-col md:flex-row justify-between gap-4">
                 <div>
-                    <h3 class="font-bold">Đã xác nhận</h3>
-                    <div class="text-xs">Cảm ơn quý khách đã sử dụng dịch vụ!</div>
+                    <h3 class="text-gray-500 text-xs uppercase font-bold mb-1">Khách hàng</h3>
+                    <p class="font-bold text-gray-800 text-lg">{{.Job.GetString "customer_name"}}</p>
+                    <p class="text-gray-600"><i class="fa-solid fa-location-dot text-red-500 mr-1"></i> {{.Job.GetString
+                        "address"}}</p>
+                    <p class="text-gray-600"><i class="fa-solid fa-phone mr-1"></i> {{.Job.GetString "customer_phone"}}
+                    </p>
+                </div>
+                <div class="text-right">
+                    <h3 class="text-gray-500 text-xs uppercase font-bold mb-1">Trạng thái</h3>
+                    {{ if eq (.Invoice.GetString "status") "paid" }}
+                    <span class="badge badge-success gap-2 p-3">
+                        <i class="fa-solid fa-check-circle"></i> ĐÃ THANH TOÁN
+                    </span>
+                    <p class="text-xs text-gray-400 mt-1">Lúc: {{.Invoice.GetString "updated" | slice 0 16}}</p>
+                    {{ else }}
+                    <span class="badge badge-warning gap-2 p-3">CHƯA THANH TOÁN</span>
+                    {{ end }}
                 </div>
             </div>
-            {{ end }}
+        </div>
 
-            <!-- Footer Company Info -->
-            <div class="text-center text-xs text-gray-400 pt-6 pb-10">
-                <p class="font-bold text-gray-500">{{if .Settings}}{{.Settings.CompanyName}}{{else}}ĐẠI ĐIỆN LẠNH
-                    TECHNOLOGY{{end}}</p>
-                <p>Hotline: {{if .Settings}}{{.Settings.Hotline}}{{else}}0909.123.456{{end}} - Website: daidienlanh.com
-                </p>
+        <div class="p-6">
+            <h3 class="font-bold text-gray-800 border-b pb-2 mb-4">Chi Tiết Dịch Vụ & Linh Kiện</h3>
+
+            <div class="overflow-x-auto">
+                <table class="table table-sm w-full">
+                    <thead>
+                        <tr class="bg-gray-50 text-gray-500">
+                            <th>Hạng mục</th>
+                            <th class="text-center">SL</th>
+                            <th class="text-right">Đơn giá</th>
+                            <th class="text-right">Thành tiền</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>
+                                <span class="font-semibold">{{.Job.GetString "device_type"}}</span>
+                                <br><span class="text-xs text-gray-500">Phí dịch vụ cơ bản</span>
+                            </td>
+                            <td class="text-center">1</td>
+                            <td class="text-right font-mono">{{.Job.GetFloat "estimated_cost" | printf "%.0f"}}</td>
+                            <td class="text-right font-bold font-mono">{{.Job.GetFloat "estimated_cost" | printf
+                                "%.0f"}}</td>
+                        </tr>
+
+                        {{ range .Items }}
+                        <tr>
+                            <td>
+                                <span>{{.GetString "item_name"}}</span>
+                            </td>
+                            <td class="text-center">{{.GetInt "quantity"}}</td>
+                            <td class="text-right font-mono">{{.GetFloat "price" | printf "%.0f"}}</td>
+                            <td class="text-right font-bold font-mono">{{.GetFloat "total" | printf "%.0f"}}</td>
+                        </tr>
+                        {{ end }}
+                    </tbody>
+
+                    <tfoot>
+                        <tr>
+                            <td colspan="3" class="text-right font-bold text-gray-600 pt-4">TỔNG CỘNG:</td>
+                            <td class="text-right pt-4">
+                                <span class="text-2xl font-black text-blue-600">
+                                    {{.Invoice.GetFloat "total_amount" | printf "%.0f"}}
+                                </span>
+                                <span class="text-xs font-bold text-gray-500">VNĐ</span>
+                            </td>
+                        </tr>
+                    </tfoot>
+                </table>
             </div>
+        </div>
+
+        <div class="bg-gray-50 p-6 text-sm text-gray-600 border-t border-gray-100">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <h4 class="font-bold text-gray-800 mb-2"><i class="fa-solid fa-shield-halved text-blue-500"></i>
+                        Chính sách bảo hành</h4>
+                    <p>Bảo hành <strong>03 tháng</strong> cho linh kiện thay thế.</p>
+                    <p>Vui lòng giữ lại hóa đơn này (hoặc ảnh chụp) để được hỗ trợ bảo hành.</p>
+                </div>
+                <div>
+                    <h4 class="font-bold text-gray-800 mb-2"><i class="fa-solid fa-comments text-green-500"></i> Hỗ trợ
+                    </h4>
+                    <p>Mọi thắc mắc xin liên hệ Hotline: <span class="font-bold">{{.Settings.Hotline}}</span></p>
+                    <p>STK: <span class="font-mono font-bold">{{.Settings.BankAccount}}</span> ({{.Settings.BankBin}})
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-gray-100 p-4 text-center text-xs text-gray-400">
+            Cảm ơn quý khách đã sử dụng dịch vụ! | Generated by {{.Settings.CompanyName}} System
         </div>
     </div>
 
-    <script>
-        // Init Signature Pad
-        const canvas = document.getElementById('signature-pad');
-        let signaturePad;
+    <div class="max-w-2xl mx-auto mt-6 flex justify-center gap-4 print:hidden">
+        <button onclick="window.print()" class="btn btn-outline">
+            <i class="fa-solid fa-print"></i> In Hóa Đơn
+        </button>
+        <button onclick="copyLink()" class="btn btn-primary">
+            <i class="fa-regular fa-copy"></i> Sao chép Link
+        </button>
+    </div>
+</div>
 
-        function resizeCanvas() {
-            const ratio = Math.max(window.devicePixelRatio || 1, 1);
-            canvas.width = canvas.offsetWidth * ratio;
-            canvas.height = canvas.offsetHeight * ratio;
-            canvas.getContext("2d").scale(ratio, ratio);
-            if (signaturePad) signaturePad.clear();
-        }
-
-        if (canvas) {
-            window.addEventListener("resize", resizeCanvas);
-            resizeCanvas();
-            signaturePad = new SignaturePad(canvas, {
-                backgroundColor: 'rgba(255, 255, 255, 0)',
-                penColor: 'rgb(0, 0, 0)'
-            });
-        }
-
-        function clearSignature() {
-            if (signaturePad) signaturePad.clear();
-        }
-
-        async function submitFeedback() {
-            if (signaturePad.isEmpty()) {
-                Swal.fire('Chưa ký tên', 'Vui lòng ký tên xác nhận nghiệm thu', 'warning');
-                return;
-            }
-
-            const signatureData = signaturePad.toDataURL(); // Base64 PNG
-            const rating = document.querySelector('input[name="rating-2"]:checked').value;
-
-            // Show Loading
-            Swal.fire({
-                title: 'Đang xử lý...',
-                didOpen: () => Swal.showLoading()
-            });
-
-            const formData = new FormData();
-            formData.append('signature', signatureData);
-            formData.append('rating', rating);
-
-            try {
-                // Post to API with current hash from URL
-                const pathParts = window.location.pathname.split('/');
-                const hash = pathParts[pathParts.length - 1]; // /invoice/{hash}
-
-                const res = await fetch(`/api/invoice/${hash}/feedback`, {
-                    method: 'POST',
-                    body: formData
-                });
-
-                if (res.ok) {
-                    Swal.fire({
-                        title: 'Thành công!',
-                        text: 'Cảm ơn quý khách đã đánh giá.',
-                        icon: 'success'
-                    }).then(() => {
-                        window.location.reload();
-                    });
-                } else {
-                    throw new Error('Lỗi Server');
-                }
-            } catch (e) {
-                Swal.fire('Lỗi', 'Không thể gửi đánh giá, vui lòng thử lại', 'error');
-            }
-        }
-    </script>
-</body>
-
-</html>
+<script>
+    function copyLink() {
+        navigator.clipboard.writeText(window.location.href);
+        alert('Đã sao chép đường dẫn hóa đơn!');
+    }
+</script>
 {{ end }}

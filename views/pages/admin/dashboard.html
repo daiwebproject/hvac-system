@@ -335,6 +335,12 @@
                                 <i class="fa-solid fa-ban"></i> Hủy đơn
                             </button>
 
+                            <a x-show="selectedJob?.status == 'completed' && selectedJob?.invoice_hash"
+                                :href="'/invoice/' + selectedJob?.invoice_hash" target="_blank"
+                                class="btn btn-secondary btn-sm text-white">
+                                <i class="fa-solid fa-receipt mr-2"></i> Xem Hóa Đơn
+                            </a>
+
                             <button x-show="selectedJob?.status == 'pending'" class="btn btn-primary btn-sm" @click="
                                 document.getElementById('modal-view-job').checked = false;
                                 setTimeout(() => document.getElementById('modal-assign-' + selectedJob.id).checked = true, 100);

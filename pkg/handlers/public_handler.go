@@ -38,38 +38,38 @@ func (h *PublicHandler) ShowInvoice(e *core.RequestEvent) error {
 		return e.String(500, "Booking data mismatched")
 	}
 
-	// 3. Fetch Job Report (Photos)
-	var report *core.Record
-	reports, _ := h.App.FindRecordsByFilter("job_reports", fmt.Sprintf("booking_id='%s'", bookingID), "", 1, 0, nil)
-	if len(reports) > 0 {
-		report = reports[0]
-	}
+	// 3. Fetch Job Report (Photos) - SKIPPED (Not used in current Invoice View)
+	// var report *core.Record
+	// reports, _ := h.App.FindRecordsByFilter("job_reports", fmt.Sprintf("booking_id='%s'", bookingID), "", 1, 0, nil)
+	// if len(reports) > 0 {
+	// 	report = reports[0]
+	// }
 
 	// 4. Fetch Job Parts (Materials)
-	var parts []*core.Record
-	if report != nil {
-		parts, _ = h.App.FindRecordsByFilter("job_parts", fmt.Sprintf("job_report_id='%s'", report.Id), "", 100, 0, nil)
-	}
+	// [FIX] User needs invoice items, assuming they are stored in 'invoice_items' collection or similar.
+	// We will try access 'job_parts' as before but user mentioned "Danh sách vật tư/linh kiện đã thay"
+	// and provided code: items, _ := h.App.FindRecordsByFilter("invoice_items", "invoice_id='"+invoice.Id+"'", "", 100, 0, nil)
+	// We will follow user's instruction to try finding "invoice_items". If not compatible, we might need to adjust.
+	// For now, let's implement as requested.
+	items, _ := h.App.FindRecordsByFilter("invoice_items", fmt.Sprintf("invoice_id='%s'", invoice.Id), "", 100, 0, nil)
 
-	// 5. Fetch Technician
-	// techService := services.NewTechManagementService(nil)
+	// If invoice items are empty, fallback to job_parts if desired?
+	// The user prompt specifically asked for "invoice_items".
+
+	// 5. Fetch Settings
+	settingsRecord, _ := h.App.FindFirstRecordByData("settings", "active", true)
+
+	// 6. Fetch Technician (Keeping existing logic)
 	techID := booking.GetString("technician_id")
 	tech, _ := h.App.FindRecordById("technicians", techID)
 
-	// 6. Prepare Timeline Data
-	timeline := []map[string]string{
-		{"time": booking.GetString("created"), "label": "Đặt lịch", "icon": "fa-calendar-check", "active": "true"},
-		{"time": booking.GetString("arrived_at"), "label": "Thợ đến nơi", "icon": "fa-location-dot", "active": "true"},
-		{"time": booking.GetString("completed_at"), "label": "Hoàn thành", "icon": "fa-check-circle", "active": "true"},
-	}
-
 	data := map[string]interface{}{
 		"Invoice":  invoice,
-		"Booking":  booking,
+		"Job":      booking,
 		"Tech":     tech,
-		"Report":   report,
-		"Parts":    parts,
-		"Timeline": timeline,
+		"Parts":    items, // Mapping 'Items' to 'Parts' in template or vice versa. Template uses .Items
+		"Items":    items,
+		"Settings": settingsRecord,
 	}
 
 	// Use generic RenderPage or ExecuteTemplate directly.

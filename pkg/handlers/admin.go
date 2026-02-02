@@ -91,6 +91,7 @@ type BookingJSON struct {
 	Lat            float64 `json:"lat"`
 	Long           float64 `json:"long"`
 	Issue          string  `json:"issue"`
+	InvoiceHash    string  `json:"invoice_hash"` // [MỚI] Thêm trường này
 }
 
 // Dashboard renders the admin dashboard with Kanban board
@@ -158,6 +159,13 @@ func (h *AdminHandler) Dashboard(e *core.RequestEvent) error {
 			)
 		}
 
+		// [MỚI] Tìm hóa đơn của job này để lấy Hash
+		invoiceHash := ""
+		// Tìm record hóa đơn theo booking_id
+		if invoices, err := h.App.FindRecordsByFilter("invoices", "booking_id='"+b.Id+"'", "", 1, 0, nil); err == nil && len(invoices) > 0 {
+			invoiceHash = invoices[0].GetString("public_hash")
+		}
+
 		bookingsJSON = append(bookingsJSON, BookingJSON{
 			ID:             b.Id,
 			Customer:       b.GetString("customer_name"),
@@ -173,6 +181,7 @@ func (h *AdminHandler) Dashboard(e *core.RequestEvent) error {
 			Lat:            b.GetFloat("lat"),
 			Long:           b.GetFloat("long"),
 			Issue:          b.GetString("issue_description"),
+			InvoiceHash:    invoiceHash, // [MỚI] Gán giá trị
 		})
 	}
 
