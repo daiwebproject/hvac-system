@@ -160,8 +160,9 @@
         <p class="text-blue-100 text-lg mb-8 max-w-2xl mx-auto">Đừng để sự cố làm gián đoạn cuộc sống của bạn. Gọi
             ngay cho chúng tôi để được tư vấn và hỗ trợ nhanh nhất.</p>
         <div class="flex flex-col md:flex-row gap-4 justify-center">
-            <a href="tel:1900xxxx" class="btn btn-lg btn-white text-blue-900 border-none hover:bg-gray-100">
-                <i class="fa-solid fa-phone"></i> Hotline: 1900.XXXX
+            <a href="tel:{{if .Settings}}{{.Settings.Hotline}}{{else}}1900xxxx{{end}}"
+                class="btn btn-lg btn-white text-blue-900 border-none hover:bg-gray-100">
+                <i class="fa-solid fa-phone"></i> Hotline: {{if .Settings}}{{.Settings.Hotline}}{{else}}1900.XXXX{{end}}
             </a>
             <a href="/book" class="btn btn-lg btn-warning border-none text-blue-900 hover:bg-yellow-500">
                 <i class="fa-solid fa-calendar-check"></i> Đặt Lịch Online

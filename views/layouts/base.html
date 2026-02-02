@@ -7,7 +7,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description"
         content="Dịch vụ điện lạnh chuyên nghiệp, sửa chữa máy lạnh, máy giặt, lắp đặt camera tại nhà. Có mặt trong 30 phút.">
-    <title>{{ block "title" . }}ĐẠI ĐIỆN LẠNH - Dịch Vụ Tại Nhà Chuyên Nghiệp{{ end }}</title>
+    <title>{{ block "title" . }}{{if .Settings}}{{.Settings.CompanyName}}{{else}}ĐẠI ĐIỆN LẠNH{{end}} - Dịch Vụ Tại Nhà
+        Chuyên Nghiệp{{ end }}</title>
 
     <!-- CSS -->
     <link href="https://cdn.jsdelivr.net/npm/daisyui@4.4.19/dist/full.min.css" rel="stylesheet" />

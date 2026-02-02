@@ -9,7 +9,7 @@
     <meta name="theme-color" content="#2563eb">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>Tech Portal | HVAC System</title>
+    <title>Tech Portal | {{if .Settings}}{{.Settings.CompanyName}}{{else}}HVAC System{{end}}</title>
 
     <link rel="manifest" href="/assets/manifest.json">
     <link rel="apple-touch-icon" href="/assets/icons/icon-192x192.png">

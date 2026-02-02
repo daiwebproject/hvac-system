@@ -80,21 +80,21 @@
                 <div class="text-sm text-gray-600 bg-blue-50 p-4 rounded-xl border border-blue-100 text-left">
                     <div class="flex justify-between mb-1">
                         <span>Ngân hàng:</span>
-                        <span class="font-bold">{{.BankName}}</span>
+                        <span class="font-bold">NGAN HANG</span>
                     </div>
                     <div class="flex justify-between mb-1 items-center">
                         <span>STK:</span>
                         <div class="flex items-center gap-2">
                             <span class="font-mono font-bold text-lg cursor-pointer hover:text-blue-600"
-                                @click="navigator.clipboard.writeText('{{.BankAccount}}'); Swal.fire({toast:true,position:'top',icon:'success',title:'Đã sao chép STK',showConfirmButton:false,timer:1500})">
-                                {{.BankAccount}}
+                                @click="navigator.clipboard.writeText('{{.Settings.BankAccount}}'); Swal.fire({toast:true,position:'top',icon:'success',title:'Đã sao chép STK',showConfirmButton:false,timer:1500})">
+                                {{.Settings.BankAccount}}
                             </span>
                             <i class="fa-regular fa-copy text-gray-400 text-xs"></i>
                         </div>
                     </div>
                     <div class="flex justify-between">
                         <span>Chủ TK:</span>
-                        <span class="font-bold uppercase">{{.AccountName}}</span>
+                        <span class="font-bold uppercase">{{.Settings.BankOwner}}</span>
                     </div>
                 </div>
                 <p class="text-xs text-gray-400 italic">Vui lòng kiểm tra kỹ thông tin người nhận</p>
@@ -165,8 +165,8 @@
             getQrUrl(amount, info) {
                 // VietQR QuickLink format
                 // https://img.vietqr.io/image/<BANK_ID>-<ACCOUNT_NO>-<TEMPLATE>.png?amount=<AMOUNT>&addInfo=<INFO>
-                const bankBin = '{{.BankBin}}';
-                const accountNo = '{{.BankAccount}}';
+                const bankBin = '{{.Settings.BankBin}}';
+                const accountNo = '{{.Settings.BankAccount}}';
                 return `https://img.vietqr.io/image/${bankBin}-${accountNo}-compact.png?amount=${amount}&addInfo=${encodeURIComponent(info)}`;
             },
 

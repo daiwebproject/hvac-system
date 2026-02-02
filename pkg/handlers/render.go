@@ -12,6 +12,32 @@ import (
 
 // RenderPage renders a page. It detects HTMX requests to render only the content block.
 func RenderPage(t *template.Template, e *core.RequestEvent, layoutName string, pagePath string, data interface{}) error {
+	// [NEW] Auto-inject Settings from Context
+	settings := e.Get("Settings")
+
+	// Helper to ensure data is a map
+	var dataMap map[string]interface{}
+	if data == nil {
+		dataMap = make(map[string]interface{})
+	} else if dm, ok := data.(map[string]interface{}); ok {
+		dataMap = dm
+	} else {
+		// If data is not a map (e.g. struct), we might need to wrap it or handle differently.
+		// For now, assuming most handlers pass map[string]interface{} or nil.
+		// If struct is passed, we can't easily inject without reflection or key collision.
+		// Let's wrap it if valid.
+		dataMap = map[string]interface{}{
+			"Data": data,
+		}
+	}
+
+	if settings != nil {
+		dataMap["Settings"] = settings
+	}
+
+	// Reassign data to be the updated map
+	data = dataMap
+
 	// 1. Clone template gốc
 	tmpl, err := t.Clone()
 	if err != nil {

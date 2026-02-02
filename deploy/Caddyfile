@@ -1,0 +1,30 @@
+# Caddyfile Template for HVAC System
+# Enable On-Demand TLS for dynamic domain handling if complex,
+# but for manual multi-instance, we verify domains explicitly.
+
+# Default Catch-all (Optional)
+# :80 {
+#     respond "HVAC System Gateway Ready"
+# }
+
+# Customer A - dienlanhhungcuong.com
+# Maps to Docker Container on Port 8091
+dienlanhhungcuong.com {
+    reverse_proxy localhost:8091
+}
+
+# Customer B - daidienlanh.com
+# Maps to Docker Container on Port 8092
+daidienlanh.com {
+    reverse_proxy localhost:8092
+}
+
+# Customer C - future-customer.com
+# future-customer.com {
+#    reverse_proxy localhost:8093
+# }
+
+# Global Options
+{
+    # email your-email@example.com # Optional, for Let's Encrypt notifications
+}

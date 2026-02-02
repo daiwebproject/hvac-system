@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"time"
 
+	"hvac-system/internal/adapter/repository" // [NEW]
 	domain "hvac-system/internal/core"
 	"hvac-system/pkg/broker"
 	"hvac-system/pkg/services"
@@ -23,6 +24,7 @@ type TechHandler struct {
 	Inventory      *services.InventoryService
 	InvoiceService *services.InvoiceService
 	BookingService domain.BookingService
+	SettingsRepo   *repository.SettingsRepo // [NEW]
 }
 
 // --- Auth ---
@@ -247,6 +249,9 @@ func (h *TechHandler) JobDetail(e *core.RequestEvent) error {
 		progress = 100
 	}
 
+	// [NEW] Fetch Settings (if not already in common data, but JobDetail doesn't use getTechCommonData yet)
+	// settings handled by middleware
+
 	data := map[string]interface{}{
 		"Job":             job,
 		"Report":          report,  // Dữ liệu báo cáo (Ảnh sau)
@@ -282,6 +287,8 @@ func (h *TechHandler) ShowCompleteJob(e *core.RequestEvent) error {
 	if service != nil {
 		laborPrice = service.GetFloat("price")
 	}
+
+	// settings handled by middleware
 
 	data := map[string]interface{}{
 		"Booking":    job,
@@ -395,19 +402,15 @@ func (h *TechHandler) ShowInvoicePayment(e *core.RequestEvent) error {
 	if len(invoices) > 0 {
 		invoice = invoices[0]
 	} else {
-		// Should have been generated in SubmitCompleteJob, but safe fallback
 		invoice, _ = h.InvoiceService.GenerateInvoice(jobID)
 	}
+
+	// settings handled by middleware
 
 	data := map[string]interface{}{
 		"Job":     job,
 		"Invoice": invoice,
 		"IsTech":  true,
-		// Hardcoded Company Bank Info for QR
-		"BankBin":     "970422", // MBBank (Example) - Use valid BIN
-		"BankAccount": "0333666999",
-		"BankName":    "MB BANK",
-		"AccountName": "CTY DIEN LANH",
 	}
 
 	return RenderPage(h.Templates, e, "layouts/tech.html", "tech/invoice_payment.html", data)

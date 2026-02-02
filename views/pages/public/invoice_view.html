@@ -181,8 +181,10 @@
 
             <!-- Footer Company Info -->
             <div class="text-center text-xs text-gray-400 pt-6 pb-10">
-                <p class="font-bold text-gray-500">ĐẠI ĐIỆN LẠNH TECHNOLOGY</p>
-                <p>Hotline: 0909.123.456 - Website: daidienlanh.com</p>
+                <p class="font-bold text-gray-500">{{if .Settings}}{{.Settings.CompanyName}}{{else}}ĐẠI ĐIỆN LẠNH
+                    TECHNOLOGY{{end}}</p>
+                <p>Hotline: {{if .Settings}}{{.Settings.Hotline}}{{else}}0909.123.456{{end}} - Website: daidienlanh.com
+                </p>
             </div>
         </div>
     </div>

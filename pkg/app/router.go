@@ -70,6 +70,12 @@ func RegisterRoutes(app *pocketbase.PocketBase, t *template.Template, eventBroke
 		techRepo := repository.NewTechnicianRepo(app)
 		techService := services.NewTechManagementService(techRepo)
 
+		// [NEW] Settings Repo
+		settingsRepo := repository.NewSettingsRepo(app)
+
+		// [NEW] Register Global Middleware for Settings Injection & License Check
+		se.Router.BindFunc(middleware.SettingsMiddleware(settingsRepo))
+
 		// ---------------------------------------------------------
 		// 3. HANDLERS SETUP
 		// ---------------------------------------------------------
@@ -79,9 +85,10 @@ func RegisterRoutes(app *pocketbase.PocketBase, t *template.Template, eventBroke
 			Broker:           eventBroker,
 			BookingService:   bookingService,
 			SlotService:      slotService,
-			TechService:      techService, // Injected
+			TechService:      techService,
 			AnalyticsService: analytics,
 			UIComponents:     uiComponents,
+			SettingsRepo:     settingsRepo, // Injected
 		}
 
 		tech := &handlers.TechHandler{
@@ -90,7 +97,8 @@ func RegisterRoutes(app *pocketbase.PocketBase, t *template.Template, eventBroke
 			Broker:         eventBroker,
 			Inventory:      inventoryService,
 			InvoiceService: invoiceService,
-			BookingService: bookingServiceInternal, // Injected Internal Service
+			BookingService: bookingServiceInternal,
+			SettingsRepo:   settingsRepo, // Injected
 		}
 
 		slot := &handlers.SlotHandler{
@@ -107,9 +115,10 @@ func RegisterRoutes(app *pocketbase.PocketBase, t *template.Template, eventBroke
 		}
 
 		web := &handlers.WebHandler{
-			App:       app,
-			Templates: t,
-			Broker:    eventBroker,
+			App:          app,
+			Templates:    t,
+			Broker:       eventBroker,
+			SettingsRepo: settingsRepo, // Injected for Public pages
 		}
 
 		// --- [MỚI] FCM HANDLER ---
@@ -155,6 +164,8 @@ func RegisterRoutes(app *pocketbase.PocketBase, t *template.Template, eventBroke
 
 		adminGroup.GET("/", admin.Dashboard)
 		adminGroup.GET("/stream", admin.Stream)
+		adminGroup.GET("/settings", admin.ShowSettings)
+		adminGroup.POST("/settings", admin.UpdateSettings)
 		// adminGroup.POST("/bookings/{id}/assign", admin.AssignJob)
 		adminGroup.POST("/bookings/{id}/cancel", admin.CancelBooking)
 		adminGroup.POST("/bookings/{id}/update", admin.UpdateBookingInfo)

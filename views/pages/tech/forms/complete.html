@@ -1,5 +1,13 @@
 {{define "content"}}
 <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
+<script>
+    // [NEW] Global Bank Config from Server
+    const BANK_CONFIG = {
+        bin: '{{.Settings.BankBin}}',
+        accountNo: '{{.Settings.BankAccount}}',
+        template: '{{.Settings.QrTemplate}}' || 'compact'
+    };
+</script>
 <div class="max-w-md mx-auto bg-gray-50 min-h-screen" x-data="jobCompletion({
          jobId: '{{.Booking.Id}}',
          laborPrice: {{.LaborPrice}}
@@ -258,9 +266,10 @@
             },
 
             getQrUrl(amount, info) {
-                const bankBin = '970422'; // MBBank
-                const accountNo = '0333666999';
-                return `https://img.vietqr.io/image/${bankBin}-${accountNo}-compact.png?amount=${amount}&addInfo=${encodeURIComponent(info)}`;
+                const bankBin = BANK_CONFIG.bin;
+                const accountNo = BANK_CONFIG.accountNo;
+                const template = BANK_CONFIG.template;
+                return `https://img.vietqr.io/image/${bankBin}-${accountNo}-${template}.png?amount=${amount}&addInfo=${encodeURIComponent(info)}`;
             },
 
             async submitForm() {

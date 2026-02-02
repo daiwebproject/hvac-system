@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"time"
 
+	"hvac-system/internal/adapter/repository"
 	"hvac-system/pkg/broker"
 	"hvac-system/pkg/models"
 	"hvac-system/pkg/services"
@@ -15,9 +16,10 @@ import (
 )
 
 type WebHandler struct {
-	App       *pocketbase.PocketBase
-	Templates *template.Template
-	Broker    *broker.SegmentedBroker
+	App          *pocketbase.PocketBase
+	Templates    *template.Template
+	Broker       *broker.SegmentedBroker
+	SettingsRepo *repository.SettingsRepo // [NEW]
 }
 
 // 1. Trang chủ - Landing Page

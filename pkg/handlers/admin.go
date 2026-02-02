@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	"hvac-system/internal/adapter/repository"
 	domain "hvac-system/internal/core"
 	"hvac-system/pkg/broker"
 	"hvac-system/pkg/services"
@@ -25,6 +26,7 @@ type AdminHandler struct {
 	TechService      *services.TechManagementService    // NEW: Tech Management
 	AnalyticsService domain.AnalyticsService
 	UIComponents     *ui.Components
+	SettingsRepo     *repository.SettingsRepo // [NEW]
 }
 
 func (h *AdminHandler) ShowLogin(e *core.RequestEvent) error {
@@ -509,4 +511,53 @@ func (h *AdminHandler) GetSlots(e *core.RequestEvent) error {
 	}
 
 	return e.JSON(200, slots)
+}
+
+// ShowSettings displays the settings form
+func (h *AdminHandler) ShowSettings(e *core.RequestEvent) error {
+	// 1. Fetch current settings
+	settings, err := h.SettingsRepo.GetSettings()
+	if err != nil {
+		// Should generally return default even if err
+		fmt.Println("Error fetching settings:", err)
+	}
+
+	data := map[string]interface{}{
+		"Settings": settings,
+		"IsAdmin":  true,
+		"PageType": "settings",
+	}
+
+	return RenderPage(h.Templates, e, "layouts/admin.html", "admin/settings.html", data)
+}
+
+// UpdateSettings processes the settings form
+func (h *AdminHandler) UpdateSettings(e *core.RequestEvent) error {
+	// 1. Get the Record to update
+	record, err := h.SettingsRepo.GetSettingsRecord()
+	if err != nil {
+		return e.String(500, "Không tìm thấy cấu hình hệ thống (Settings Record Missing)")
+	}
+
+	// 2. Update Text Fields
+	record.Set("company_name", e.Request.FormValue("company_name"))
+	record.Set("hotline", e.Request.FormValue("hotline"))
+	record.Set("bank_bin", e.Request.FormValue("bank_bin"))
+	record.Set("bank_account", e.Request.FormValue("bank_account"))
+	record.Set("bank_owner", e.Request.FormValue("bank_owner"))
+	record.Set("qr_template", e.Request.FormValue("qr_template"))
+
+	// 3. Handle Logo Upload
+	files, _ := e.FindUploadedFiles("logo")
+	if len(files) > 0 {
+		record.Set("logo", files[0])
+	}
+
+	// 4. Save
+	if err := h.App.Save(record); err != nil {
+		return e.String(500, "Lỗi lưu cấu hình: "+err.Error())
+	}
+
+	// 5. Redirect back with success (or use Toast via URL param?)
+	return e.Redirect(http.StatusSeeOther, "/admin/settings?success=true")
 }
