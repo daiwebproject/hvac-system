@@ -45,16 +45,20 @@ func (r *SettingsRepo) GetSettings() (*domain.Settings, error) {
 
 	// 2. Map to Struct
 	return &domain.Settings{
-		Id:          rec.Id,
-		CompanyName: rec.GetString("company_name"),
-		Logo:        rec.GetString("logo"),
-		Hotline:     rec.GetString("hotline"),
-		BankBin:     rec.GetString("bank_bin"),
-		BankAccount: rec.GetString("bank_account"),
-		BankOwner:   rec.GetString("bank_owner"),
-		QrTemplate:  rec.GetString("qr_template"),
-		LicenseKey:  rec.GetString("license_key"),
-		ExpiryDate:  rec.GetString("expiry_date"),
+		Id:             rec.Id,
+		CompanyName:    rec.GetString("company_name"),
+		Logo:           rec.GetString("logo"),
+		Hotline:        rec.GetString("hotline"),
+		BankBin:        rec.GetString("bank_bin"),
+		BankAccount:    rec.GetString("bank_account"),
+		BankOwner:      rec.GetString("bank_owner"),
+		QrTemplate:     rec.GetString("qr_template"),
+		LicenseKey:     rec.GetString("license_key"),
+		ExpiryDate:     rec.GetString("expiry_date"),
+		SeoTitle:       rec.GetString("seo_title"),
+		SeoDescription: rec.GetString("seo_description"),
+		SeoKeywords:    rec.GetString("seo_keywords"),
+		HeroImage:      rec.GetString("hero_image"),
 	}, nil
 }
 

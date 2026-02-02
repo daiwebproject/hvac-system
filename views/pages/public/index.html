@@ -1,42 +1,104 @@
 {{ define "content" }}
 <div x-data="pageController()">
 
-    <div class="hero min-h-[85vh] relative"
-        style="background-image: url('{{ if .PageSettings }}{{ .PageSettings.GetString " banner_url" }}{{ else
-        }}https://images.unsplash.com/photo-1621905251189-08b45d6a269e?q=80&w=2069{{ end }}');">
+    <div class="relative min-h-[85vh] flex items-center justify-center overflow-hidden">
 
-        <div class="hero-overlay bg-gradient-to-r from-blue-900/90 to-blue-800/60"></div>
+        <div class="absolute inset-0 z-0">
+            {{ if and .PageSettings (.PageSettings.GetString "hero_image") }}
+            <img src="/api/files/settings/{{.PageSettings.Id}}/{{.PageSettings.GetString " hero_image"}}"
+                class="w-full h-full object-cover object-center" alt="Background">
+            {{ else }}
+            <img src="https://images.unsplash.com/photo-1621905251189-08b45d6a269e?q=80&w=2069"
+                class="w-full h-full object-cover object-center" alt="Default Background">
+            {{ end }}
 
-        <div class="hero-content text-center text-neutral-content py-20">
-            <div class="max-w-3xl animate-fade-in-up">
-                <h1 class="mb-5 text-4xl md:text-6xl font-extrabold text-white leading-tight drop-shadow-lg">
-                    {{ if .PageSettings }}{{ .PageSettings.GetString "hero_title" }}{{ else }}GIẢI PHÁP ĐIỆN LẠNH{{ end
-                    }} <br>
-                    <span class="text-warning">
-                        {{ if .PageSettings }}{{ .PageSettings.GetString "hero_subtitle" }}{{ else }}CHUYÊN NGHIỆP & TẬN
-                        TÂM{{ end }}
-                    </span>
-                </h1>
+            <div class="absolute inset-0 bg-gradient-to-r from-slate-900/90 via-slate-900/70 to-slate-900/30"></div>
+        </div>
 
-                <p class="mb-8 text-xl text-gray-200 leading-relaxed">
-                    {{ if .PageSettings }}{{ .PageSettings.GetString "welcome_text" }}{{ else }}Chúng tôi cung cấp dịch
-                    vụ sửa
-                    chữa, bảo trì điện lạnh uy tín. Cam kết có mặt trong 30 phút.{{ end }}
-                </p>
+        <div class="container mx-auto px-4 z-10 relative mt-16 md:mt-0">
+            <div class="grid md:grid-cols-2 gap-12 items-center">
 
-                <div class="flex gap-4 justify-center flex-wrap">
-                    <button @click="openModal()"
-                        class="btn btn-warning btn-lg border-none hover:bg-yellow-400 text-blue-900 font-bold px-8 shadow-xl hover:-translate-y-1 transition-all">
-                        <i class="fa-solid fa-calendar-check animate-bounce"></i> ĐẶT LỊCH NGAY
-                    </button>
+                <div class="text-white space-y-6 animate-fade-in-up text-center md:text-left">
+                    <div
+                        class="inline-block px-4 py-1.5 rounded-full bg-blue-600/30 border border-blue-400/30 backdrop-blur-sm text-blue-100 text-sm font-semibold tracking-wide uppercase mb-2">
+                        <i class="fa-solid fa-star text-yellow-400 mr-2"></i> Dịch vụ số 1 tại {{ if .PageSettings }}{{
+                        .PageSettings.CompanyName }}{{ else }}Khu vực{{ end }}
+                    </div>
 
-                    <a href="tel:{{if .Settings.Hotline}}{{ .Settings.Hotline }}{{end}}"
-                        class="btn btn-outline text-white hover:bg-white hover:text-blue-900 btn-lg px-8 backdrop-blur-sm">
-                        <i class="fa-solid fa-phone-volume"></i> {{if .Settings.Hotline}}{{ .Settings.Hotline
-                        }}{{else}}Hotline{{end}}
-                    </a>
+                    <h1 class="text-4xl md:text-6xl lg:text-7xl font-extrabold leading-tight tracking-tight">
+                        {{ if .PageSettings }}{{ .PageSettings.GetString "hero_title" }}{{ else }}GIẢI PHÁP<br>ĐIỆN
+                        LẠNH{{ end }}
+                        <br>
+                        <span class="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300">
+                            {{ if .PageSettings }}{{ .PageSettings.GetString "hero_subtitle" }}{{ else }}CHUYÊN NGHIỆP{{
+                            end }}
+                        </span>
+                    </h1>
+
+                    <p class="text-lg md:text-xl text-gray-300 max-w-lg mx-auto md:mx-0 leading-relaxed font-light">
+                        {{ if .PageSettings }}{{ .PageSettings.GetString "welcome_text" }}{{ else }}
+                        Đội ngũ kỹ thuật viên tay nghề cao, cam kết khắc phục triệt để mọi sự cố. Phục vụ 24/7 kể cả
+                        ngày lễ.
+                        {{ end }}
+                    </p>
+
+                    <div class="flex flex-col sm:flex-row gap-4 pt-4 justify-center md:justify-start">
+                        <button @click="openModal()"
+                            class="group btn btn-primary border-none bg-blue-600 hover:bg-blue-700 text-white btn-lg px-8 shadow-lg shadow-blue-600/30 hover:-translate-y-1 transition-all duration-300">
+                            <span class="mr-2">{{ if .PageSettings }}{{ .PageSettings.GetString "hero_cta_text" }}{{
+                                else }}ĐẶT LỊCH NGAY{{ end }}</span>
+                            <i class="fa-solid fa-arrow-right group-hover:translate-x-1 transition-transform"></i>
+                        </button>
+
+                        <a href="tel:{{if .Settings.Hotline}}{{ .Settings.Hotline }}{{end}}"
+                            class="btn btn-outline text-white hover:bg-white hover:text-slate-900 btn-lg px-8 backdrop-blur-sm border-white/40 hover:border-white">
+                            <i class="fa-solid fa-phone-volume animate-pulse"></i>
+                            {{if .Settings.Hotline}}{{ .Settings.Hotline }}{{else}}Hotline{{end}}
+                        </a>
+                    </div>
+
+                    <div class="grid grid-cols-3 gap-2 md:gap-6 pt-8 border-t border-white/10 mt-8">
+                        <div class="text-center md:text-left">
+                            <h3 class="text-2xl font-bold text-blue-400">30<span
+                                    class="text-sm text-gray-400">phút</span></h3>
+                            <p class="text-xs md:text-sm text-gray-400">Có mặt nhanh chóng</p>
+                        </div>
+                        <div class="text-center md:text-left border-l border-white/10 pl-2 md:pl-6">
+                            <h3 class="text-2xl font-bold text-blue-400">24/7</h3>
+                            <p class="text-xs md:text-sm text-gray-400">Hỗ trợ mọi lúc</p>
+                        </div>
+                        <div class="text-center md:text-left border-l border-white/10 pl-2 md:pl-6">
+                            <h3 class="text-2xl font-bold text-blue-400">100%</h3>
+                            <p class="text-xs md:text-sm text-gray-400">Hài lòng & Bảo hành</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="hidden md:block relative">
+                    <div
+                        class="absolute -top-20 -right-10 bg-white/10 backdrop-blur-md p-6 rounded-2xl border border-white/20 shadow-2xl animate-[float_6s_ease-in-out_infinite]">
+                        <div class="flex items-center gap-4">
+                            <div
+                                class="w-12 h-12 rounded-full bg-green-500 flex items-center justify-center text-white">
+                                <i class="fa-solid fa-check"></i>
+                            </div>
+                            <div>
+                                <p class="text-white font-bold">Kỹ thuật viên</p>
+                                <p class="text-green-300 text-sm">Đang di chuyển đến bạn...</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
+        </div>
+
+        <div class="absolute bottom-0 left-0 w-full overflow-hidden leading-[0]">
+            <svg class="relative block w-[calc(100%+1.3px)] h-[50px] md:h-[100px]" data-name="Layer 1"
+                xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 120" preserveAspectRatio="none">
+                <path
+                    d="M321.39,56.44c58-10.79,114.16-30.13,172-41.86,82.39-16.72,168.19-17.73,250.45-.39C823.78,31,906.67,72,985.66,92.83c70.05,18.48,146.53,26.09,214.34,3V0H0V27.35A600.21,600.21,0,0,0,321.39,56.44Z"
+                    class="fill-gray-50"></path>
+            </svg>
         </div>
     </div>
 

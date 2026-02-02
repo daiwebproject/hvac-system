@@ -6,23 +6,23 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <meta name="description"
-        content="Dịch vụ điện lạnh uy tín tại {{if .Settings}}{{.Settings.CompanyName}}{{else}}Việt Nam{{end}}. Chuyên sửa chữa máy lạnh, máy giặt, vệ sinh bảo trì. Hotline: {{if .Settings}}{{.Settings.Hotline}}{{end}}">
-
     <title>
-        {{ block "title" . }}
-        {{ if .Settings }}{{ .Settings.CompanyName }}{{ else }}ĐẠI ĐIỆN LẠNH{{ end }} - Dịch Vụ Sửa Chữa Tại Nhà Uy Tín
-        {{ end }}
+        {{ if .Settings }}{{ if .Settings.SeoTitle }}{{ .Settings.SeoTitle }}{{ else }}{{ .Settings.CompanyName }} -
+        Dịch Vụ Uy Tín{{ end }}{{ else }}Đại Điện Lạnh - Dịch Vụ Uy Tín{{ end }}
     </title>
 
-    <meta property="og:type" content="business.business">
-    <meta property="og:title"
-        content="{{if .Settings}}{{.Settings.CompanyName}}{{else}}Đại Điện Lạnh{{end}} - Dịch vụ tận tâm">
-    <meta property="og:description" content="Sửa chữa, lắp đặt, bảo trì điện lạnh chuyên nghiệp. Có mặt trong 30 phút.">
+    <meta name="description"
+        content="{{ if .Settings }}{{ if .Settings.SeoDescription }}{{ .Settings.SeoDescription }}{{ else }}Dịch vụ sửa chữa, bảo trì điện lạnh chuyên nghiệp tại nhà. Uy tín - Nhanh chóng - Giá tốt.{{ end }}{{ else }}Dịch vụ sửa chữa, bảo trì điện lạnh chuyên nghiệp tại nhà.{{ end }}">
+    <meta name="keywords"
+        content="{{ if .Settings }}{{ if .Settings.SeoKeywords }}{{ .Settings.SeoKeywords }}{{ else }}điện lạnh, sửa điều hòa, máy giặt, tủ lạnh{{ end }}{{ else }}điện lạnh, sửa điều hòa{{ end }}">
+    <meta name="author" content="{{ if .Settings }}{{ .Settings.CompanyName }}{{ end }}">
 
-    {{ if .LogoUrl }}
-    <meta property="og:image" content="{{.LogoUrl}}">
-    {{ end }}
+    <meta property="og:type" content="business.business">
+    <meta property="og:title" content="{{ if .Settings }}{{ .Settings.SeoTitle }}{{ end }}">
+    <meta property="og:description" content="{{ if .Settings }}{{ .Settings.SeoDescription }}{{ end }}">
+    {{ if .Settings }}{{ if .Settings.HeroImage }}
+    <meta property="og:image" content="/api/files/settings/{{.Settings.Id}}/{{.Settings.HeroImage}}">
+    {{ end }}{{ end }}
 
     <link href="https://cdn.jsdelivr.net/npm/daisyui@4.4.19/dist/full.min.css" rel="stylesheet" />
     <script src="https://cdn.tailwindcss.com"></script>
@@ -32,21 +32,6 @@
     <script src="/assets/js/public.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
-
-    <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "HomeAndConstructionBusiness",
-      "name": "{{if .Settings}}{{.Settings.CompanyName}}{{else}}Đại Điện Lạnh{{end}}",
-      "image": "{{if .LogoUrl}}{{ .LogoUrl }}{{end}}",
-      "telephone": "{{if .Settings}}{{.Settings.Hotline}}{{else}}1900xxxx{{end}}",
-      "priceRange": "$$",
-      "address": {
-        "@type": "PostalAddress",
-        "addressCountry": "VN"
-      }
-    }
-    </script>
 </head>
 
 <body class="bg-base-100 font-sans text-base-content flex flex-col min-h-screen" hx-boost="true"

@@ -18,17 +18,21 @@ type PublicHandler struct {
 
 // Index renders the homepage with dynamic data
 // GET /
+// Index renders the homepage with dynamic data
+// GET /
 func (h *PublicHandler) Index(e *core.RequestEvent) error {
 	// 1. Get active Services
 	services, _ := h.App.FindRecordsByFilter("services", "active=true", "-created", 100, 0, nil)
 
-	// 2. Get System Settings (Logo, Banner, Company Name...)
+	// 2. Get System Settings
 	settings, _ := h.App.FindFirstRecordByData("settings", "active", true)
 
 	// 3. Prepare Data
 	data := map[string]interface{}{
-		"Services":     services,
-		"PageSettings": settings,
+		"Services": services,
+		// Truyền cả 2 key để tương thích với code cũ và mới
+		"Settings":     settings, // Dùng cho base.html (SEO, Header, Footer)
+		"PageSettings": settings, // Dùng cho index.html (Hero section)
 	}
 
 	return RenderPage(h.Templates, e, "layouts/base.html", "public/index.html", data)

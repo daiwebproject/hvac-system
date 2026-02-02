@@ -14,4 +14,10 @@ type Settings struct {
 
 	LicenseKey string `json:"license_key" db:"license_key"`
 	ExpiryDate string `json:"expiry_date" db:"expiry_date"`
+
+	// SEO & Design
+	SeoTitle       string `json:"seo_title" db:"seo_title"`
+	SeoDescription string `json:"seo_description" db:"seo_description"`
+	SeoKeywords    string `json:"seo_keywords" db:"seo_keywords"`
+	HeroImage      string `json:"hero_image" db:"hero_image"`
 }
