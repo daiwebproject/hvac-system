@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"time"
@@ -78,6 +79,25 @@ func (h *TechHandler) UpdateJobStatusHTMX(e *core.RequestEvent) error {
 			"tech_id":    e.Auth.Id,
 		},
 	})
+
+	// [NEW] Send Push Notification
+	if h.FCMService != nil {
+		go func() {
+			// Reload tech to get fresh token if needed
+			tech, err := h.App.FindRecordById("technicians", e.Auth.Id)
+			if err == nil {
+				token := tech.GetString("fcm_token")
+				if token != "" {
+					h.FCMService.NotifyJobStatusChange(
+						context.Background(), // Fixed: context.Background()
+						token,
+						jobID,
+						newStatus,
+					)
+				}
+			}
+		}()
+	}
 
 	// Return updated status in JSON format (Frontend Controller handles UI update)
 	return e.JSON(200, map[string]string{

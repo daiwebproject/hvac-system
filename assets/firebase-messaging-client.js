@@ -73,7 +73,13 @@ class FirebaseMessagingClient {
       // const formData = new FormData();
       // formData.append('token', token);
 
-      const response = await fetch('/api/tech/fcm/token', {
+      // Determine endpoint based on URL
+      let endpoint = '/api/tech/fcm/token';
+      if (window.location.pathname.startsWith('/admin')) {
+        endpoint = '/admin/fcm/token';
+      }
+
+      const response = await fetch(endpoint, {
         method: 'POST',
         // [QUAN TRỌNG] Thêm Header báo là gửi JSON
         headers: {

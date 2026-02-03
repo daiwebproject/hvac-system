@@ -41,6 +41,7 @@ type Technician struct {
 	Avatar   string `json:"avatar"`
 	Active   bool   `json:"active"`
 	Verified bool   `json:"verified"`
+	FCMToken string `json:"fcm_token"` // [NEW]
 }
 
 // TimeSlot represents a bookable time window

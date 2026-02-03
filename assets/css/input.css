@@ -1,0 +1,59 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom Styles */
+/* Loading Bar - Youtube style */
+#loading-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 3px;
+    background: linear-gradient(90deg, #3b82f6, #06b6d4);
+    transform: scaleX(0);
+    transform-origin: left;
+    z-index: 9999;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+#loading-bar.htmx-request {
+    opacity: 1;
+    animation: indeterminateProgress 1.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+@keyframes indeterminateProgress {
+    0% {
+        transform: scaleX(0) translateX(0);
+    }
+
+    40% {
+        transform: scaleX(0.4) translateX(25%);
+    }
+
+    100% {
+        transform: scaleX(1) translateX(100%);
+    }
+}
+
+/* Smooth content transitions */
+#main-content {
+    transition: opacity 0.2s ease-in-out;
+}
+
+#main-content.htmx-swapping {
+    opacity: 0.7;
+}
+
+/* Admin Toggles */
+.collapse-title,
+:where(.collapse > input[type="checkbox"]) {
+    min-height: 0 !important;
+}
+
+/* Leaflet Custom Marker */
+.custom-map-marker-container {
+    background: transparent;
+    border: none;
+}

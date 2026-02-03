@@ -1,7 +1,6 @@
 package app
 
 import (
-	"fmt"
 	"html/template"
 	"net/http"
 	"os"
@@ -20,7 +19,7 @@ import (
 )
 
 // RegisterRoutes configures all application routes
-func RegisterRoutes(app *pocketbase.PocketBase, t *template.Template, eventBroker *broker.SegmentedBroker, analytics domain.AnalyticsService, bookingServiceInternal domain.BookingService) {
+func RegisterRoutes(app *pocketbase.PocketBase, t *template.Template, eventBroker *broker.SegmentedBroker, analytics domain.AnalyticsService, bookingServiceInternal domain.BookingService, fcmService *services.FCMService) {
 	app.OnServe().BindFunc(func(se *core.ServeEvent) error {
 
 		// [SECURITY] Protect PocketBase Admin UI (/_/)
@@ -62,16 +61,6 @@ func RegisterRoutes(app *pocketbase.PocketBase, t *template.Template, eventBroke
 		inventoryService := services.NewInventoryService(app)
 		invoiceService := services.NewInvoiceService(app)
 
-		// --- [QUAN TRỌNG] KHỞI TẠO FCM SERVICE ---
-		// Cố gắng load file key, nếu không có thì log cảnh báo chứ không crash app
-		fcmService, err := services.NewFCMService("serviceAccountKey.json")
-		if err != nil {
-			fmt.Printf("⚠️ FCM WARNING: Không tìm thấy hoặc lỗi file 'serviceAccountKey.json': %v\n", err)
-			fmt.Println("   Tính năng thông báo đẩy (Push Notification) sẽ KHÔNG hoạt động.")
-		} else {
-			fmt.Println("✅ FCM Service đã khởi tạo thành công.")
-		}
-
 		uiComponents := &ui.Components{
 			App:       app,
 			Templates: t,
@@ -110,6 +99,7 @@ func RegisterRoutes(app *pocketbase.PocketBase, t *template.Template, eventBroke
 			InvoiceService: invoiceService,
 			BookingService: bookingServiceInternal,
 			SettingsRepo:   settingsRepo, // Injected
+			FCMService:     fcmService,   // [NEW]
 		}
 
 		slot := &handlers.SlotHandler{
@@ -130,6 +120,7 @@ func RegisterRoutes(app *pocketbase.PocketBase, t *template.Template, eventBroke
 			Templates:    t,
 			Broker:       eventBroker,
 			SettingsRepo: settingsRepo, // Injected for Public pages
+			FCMService:   fcmService,   // [NEW]
 		}
 
 		// --- [MỚI] FCM HANDLER ---
@@ -189,6 +180,9 @@ func RegisterRoutes(app *pocketbase.PocketBase, t *template.Template, eventBroke
 		adminGroup.POST("/techs/create", admin.CreateTech)
 		adminGroup.POST("/techs/{id}/password", admin.ResetTechPassword)
 		adminGroup.POST("/techs/{id}/toggle", admin.ToggleTechStatus)
+
+		// [NEW] FCM Token
+		adminGroup.POST("/fcm/token", fcm.RegisterDeviceToken)
 
 		// Admin Tools
 		adminGroup.GET("/tools/slots", adminTools.ShowSlotManager)

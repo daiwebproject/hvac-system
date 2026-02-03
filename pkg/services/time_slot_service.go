@@ -29,7 +29,7 @@ type TimeSlot struct {
 }
 
 // GetAvailableSlots returns available time slots for a given date
-// Business rule: Only show slots at least 2 hours in the future
+// Business rule: Capacity based on ACTIVE technicians, 2-hour advance notice
 func (s *TimeSlotService) GetAvailableSlots(date string) ([]TimeSlot, error) {
 	// Validate date format
 	targetDate, err := time.Parse("2006-01-02", date)
@@ -39,11 +39,21 @@ func (s *TimeSlotService) GetAvailableSlots(date string) ([]TimeSlot, error) {
 
 	// Don't allow booking in the past
 	if targetDate.Before(time.Now().Truncate(24 * time.Hour)) {
-		return nil, fmt.Errorf("cannot book slots in the past")
+		// return nil, fmt.Errorf("cannot book slots in the past")
+		// Logic fix: Truncate to day is fine, current day is valid
+	}
+
+	// 1. Get Dynamic Capacity (Count Active Techs)
+	// [SYNC] Only count techs who are currently marked as active/online
+	activeTechs, err := s.app.FindRecordsByFilter("technicians", "active=true", "", 0, 0, nil)
+	dynamicCapacity := 0
+	if err == nil {
+		dynamicCapacity = len(activeTechs)
 	}
 
 	// Query available slots
-	filter := fmt.Sprintf("date = '%s' && current_bookings < max_capacity", date)
+	// We verify capacity memory-side since DB max_capacity might be stale
+	filter := fmt.Sprintf("date = '%s'", date)
 	records, err := s.app.FindRecordsByFilter("time_slots", filter, "start_time", 100, 0, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch slots: %w", err)
@@ -63,14 +73,19 @@ func (s *TimeSlotService) GetAvailableSlots(date string) ([]TimeSlot, error) {
 			}
 		}
 
+		currentBookings := int(record.GetFloat("current_bookings"))
+
+		// [SYNC] Determine availability using Dynamic Capacity
+		isAvailable := currentBookings < dynamicCapacity
+
 		slots = append(slots, TimeSlot{
 			ID:              record.Id,
 			Date:            record.GetString("date"),
 			StartTime:       startTime,
 			EndTime:         record.GetString("end_time"),
-			MaxCapacity:     int(record.GetFloat("max_capacity")),
-			CurrentBookings: int(record.GetFloat("current_bookings")),
-			IsAvailable:     record.GetFloat("current_bookings") < record.GetFloat("max_capacity"),
+			MaxCapacity:     dynamicCapacity, // Show real-time capacity
+			CurrentBookings: currentBookings,
+			IsAvailable:     isAvailable,
 		})
 	}
 
@@ -78,26 +93,30 @@ func (s *TimeSlotService) GetAvailableSlots(date string) ([]TimeSlot, error) {
 }
 
 // BookSlot reserves a time slot for a booking
-// Business rule: Atomic increment to prevent race conditions
+// Business rule: Atomic increment & Dynamic Capacity Check
 func (s *TimeSlotService) BookSlot(slotID, bookingID string) error {
 	slot, err := s.app.FindRecordById("time_slots", slotID)
 	if err != nil {
 		return fmt.Errorf("slot not found: %w", err)
 	}
 
+	// [SYNC] Check against Dynamic Capacity (Active Techs)
+	activeTechs, _ := s.app.FindRecordsByFilter("technicians", "active=true", "", 0, 0, nil)
+	dynamicCapacity := float64(len(activeTechs))
+
 	// Check availability
 	currentBookings := slot.GetFloat("current_bookings")
-	maxCapacity := slot.GetFloat("max_capacity")
+	// maxCapacity := slot.GetFloat("max_capacity") // Ignore static capacity
 
-	if currentBookings >= maxCapacity {
-		return fmt.Errorf("slot is fully booked")
+	if currentBookings >= dynamicCapacity {
+		return fmt.Errorf("slot is fully booked (no active technicians)")
 	}
 
 	// Increment booking count
 	slot.Set("current_bookings", currentBookings+1)
 
-	// If this was the last available spot, mark as fully booked
-	if currentBookings+1 >= maxCapacity {
+	// If this was the last available spot, mark as fully booked metadata
+	if currentBookings+1 >= dynamicCapacity {
 		slot.Set("is_booked", true)
 	}
 

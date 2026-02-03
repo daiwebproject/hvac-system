@@ -69,27 +69,13 @@ func (s *AnalyticsService) GetDashboardStats() (*core.DashboardStats, error) {
 	completedCount, _ := s.repo.CountBookings("job_status = 'completed'")
 	stats.CompletedCount = int(completedCount)
 
-	// 3. Rate
+	// 3. Rate (Same-day completion rate)
 	if stats.BookingsToday > 0 {
-		stats.CompletionRate = (float64(stats.CompletedCount) / float64(stats.BookingsToday)) * 100
-	} else if completedCount > 0 {
-		// Fallback rate calculation if no bookings today but we want overall rate?
-		// Original logic was only based on bookings today denominator?
-		// Original code: if stats.BookingsToday > 0
-		// Wait, stats.CompletedCount is TOTAL completed, not completed TODAY.
-		// Original code divides `stats.CompletedCount` by `stats.BookingsToday`. This ratio seems weird if counts are mismatched (Total Completed / Today Bookings).
-		// But I will preserve original logic to minimize regression risk.
-		// Actually, let's correct it: usually completion rate is for the same period.
-		// If "BookingsToday" is the denominator, "CompletedToday" should be numerator.
-		// Original code:
-		// stats.CompletedCount = int(completed) -- query "job_status = 'completed'" (ALL TIME)
-		// stats.BookingsToday = created >= today.
-		// Result = AllTimeCompleted / TodayCreated * 100.
-		// This generates > 100% easily.
-		// I will Assume the intention was "Completion Rate TODAY" or "Overall Completion Rate".
-		// Given `GetDashboardStats` name, usually it is "for the period" or "live status".
-		// I will keep it as is (literal port execution) but flagging it mentally.
-		stats.CompletionRate = (float64(stats.CompletedCount) / float64(stats.BookingsToday)) * 100
+		// Count bookings created today that are also completed
+		completedToday, _ := s.repo.CountBookings("created >= '" + today + " 00:00:00' && job_status = 'completed'")
+		stats.CompletionRate = (float64(completedToday) / float64(stats.BookingsToday)) * 100
+	} else {
+		stats.CompletionRate = 0
 	}
 
 	return stats, nil

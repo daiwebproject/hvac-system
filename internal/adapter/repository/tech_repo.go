@@ -22,6 +22,7 @@ func (r *PBTechnicianRepo) toDomain(record *pbCore.Record) *core.Technician {
 		Avatar:   record.GetString("avatar"),
 		Active:   record.GetBool("active"),
 		Verified: record.GetBool("verified"),
+		FCMToken: record.GetString("fcm_token"), // [NEW]
 	}
 }
 

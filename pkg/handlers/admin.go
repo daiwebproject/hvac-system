@@ -91,7 +91,8 @@ type BookingJSON struct {
 	Lat            float64 `json:"lat"`
 	Long           float64 `json:"long"`
 	Issue          string  `json:"issue"`
-	InvoiceHash    string  `json:"invoice_hash"` // [MỚI] Thêm trường này
+	CancelReason   string  `json:"cancel_reason"` // [MỚI] Lý do hủy
+	InvoiceHash    string  `json:"invoice_hash"`  // [MỚI] Thêm trường này
 }
 
 // Dashboard renders the admin dashboard with Kanban board
@@ -125,7 +126,7 @@ func (h *AdminHandler) Dashboard(e *core.RequestEvent) error {
 	topTechs, _ := h.AnalyticsService.GetTopTechnicians(5)
 
 	// 3. Serialize bookings to JSON for Frontend Map/Kanban interactions
-	var bookingsJSON []BookingJSON
+	bookingsJSON := []BookingJSON{}
 	for _, b := range bookings {
 		// Xử lý tên dịch vụ
 		serviceName := b.GetString("device_type")
@@ -166,6 +167,21 @@ func (h *AdminHandler) Dashboard(e *core.RequestEvent) error {
 			invoiceHash = invoices[0].GetString("public_hash")
 		}
 
+		// [FIX] Address Logic: Prioritize address_details (specific), fallback to address (generic)
+		address := b.GetString("address_details")
+		if address == "" {
+			address = b.GetString("address")
+		}
+
+		// [FIX] Cancel Reason Logic
+		cancelReason := b.GetString("cancel_reason")
+		if cancelReason == "" && b.GetString("job_status") == "cancelled" {
+			cancelReason = b.GetString("cancel_note") // Fallback attempt
+			if cancelReason == "" {
+				cancelReason = "Đã hủy"
+			}
+		}
+
 		bookingsJSON = append(bookingsJSON, BookingJSON{
 			ID:             b.Id,
 			Customer:       b.GetString("customer_name"),
@@ -177,15 +193,20 @@ func (h *AdminHandler) Dashboard(e *core.RequestEvent) error {
 			StatusLabel:    b.GetString("job_status"),
 			Phone:          b.GetString("customer_phone"),
 			AddressDetails: b.GetString("address_details"),
-			Address:        b.GetString("address"),
+			Address:        address, // [FIX] Use processed address
 			Lat:            b.GetFloat("lat"),
 			Long:           b.GetFloat("long"),
 			Issue:          b.GetString("issue_description"),
-			InvoiceHash:    invoiceHash, // [MỚI] Gán giá trị
+			CancelReason:   cancelReason, // [FIX]
+			InvoiceHash:    invoiceHash,  // [MỚI] Gán giá trị
 		})
 	}
 
-	bookingsJSONBytes, _ := json.Marshal(bookingsJSON)
+	bookingsJSONBytes, err := json.Marshal(bookingsJSON)
+	if err != nil {
+		fmt.Printf("Error marshalling bookingsJSON: %v\n", err)
+		bookingsJSONBytes = []byte("[]")
+	}
 
 	// [NEW] Chuẩn bị dữ liệu Thợ cho Map
 	type TechMapJSON struct {
@@ -196,7 +217,7 @@ func (h *AdminHandler) Dashboard(e *core.RequestEvent) error {
 		Active bool    `json:"active"`
 	}
 
-	var techsJSON []TechMapJSON
+	techsJSON := []TechMapJSON{}
 	for _, t := range technicians {
 		techsJSON = append(techsJSON, TechMapJSON{
 			ID:     t.Id,
@@ -207,7 +228,11 @@ func (h *AdminHandler) Dashboard(e *core.RequestEvent) error {
 		})
 	}
 
-	techsJSONBytes, _ := json.Marshal(techsJSON)
+	techsJSONBytes, err := json.Marshal(techsJSON)
+	if err != nil {
+		fmt.Printf("Error marshalling techsJSON: %v\n", err)
+		techsJSONBytes = []byte("[]")
+	}
 
 	// Fetch Services for Dropdown
 	servicesList, _ := h.App.FindRecordsByFilter("services", "active=true", "-created", 100, 0, nil)

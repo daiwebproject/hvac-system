@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"fmt"
 	"html/template"
 	"strconv"
@@ -20,6 +21,7 @@ type WebHandler struct {
 	Templates    *template.Template
 	Broker       *broker.SegmentedBroker
 	SettingsRepo *repository.SettingsRepo // [NEW]
+	FCMService   *services.FCMService     // [NEW]
 }
 
 // 1. Trang chủ - Landing Page
@@ -113,6 +115,24 @@ func (h *WebHandler) BookService(e *core.RequestEvent) error {
 			"message":    "Booking đã được tạo thành công",
 		},
 	})
+
+	// [NEW] Send Push Notification to Admin (Topic: admin_alerts)
+	if h.FCMService != nil {
+		go func() {
+			payload := &services.NotificationPayload{
+				Title: "🔥 Đơn hàng mới!",
+				Body:  fmt.Sprintf("Khách %s vừa đặt dịch vụ %s", customerName, deviceType),
+				Data: map[string]string{
+					"type":       "new_booking",
+					"booking_id": booking.Id,
+					"action":     "open_dashboard",
+				},
+				Icon:  "/assets/icon.png",
+				Badge: "/assets/badge.png",
+			}
+			h.FCMService.SendToTopic(context.Background(), "admin_alerts", payload)
+		}()
+	}
 
 	// If slot was selected, book it
 	if slotID != "" {

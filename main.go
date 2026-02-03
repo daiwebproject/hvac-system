@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 
 	"hvac-system/internal/adapter/repository"
@@ -9,6 +10,7 @@ import (
 	"hvac-system/pkg/app"
 	"hvac-system/pkg/broker"
 	"hvac-system/pkg/middleware"
+	"hvac-system/pkg/services"
 
 	_ "hvac-system/migrations"
 
@@ -46,14 +48,22 @@ func main() {
 	slotService := service.NewTimeSlotService(slotRepo, bookingRepo, svcRepo)
 	analyticsServiceInternal := service.NewAnalyticsService(analyticsRepo)
 
-	// Booking Service
-	bookingServiceInternal := service.NewBookingService(bookingRepo, techRepo, slotService)
+	// [NEW] FCM Service
+	fcmService, err := services.NewFCMService("serviceAccountKey.json")
+	if err != nil {
+		fmt.Printf("⚠️ FCM WARNING: %v\n", err)
+	} else {
+		fmt.Println("✅ FCM Service Initialized")
+	}
+
+	// Booking Service (injected with FCM)
+	bookingServiceInternal := service.NewBookingService(bookingRepo, techRepo, slotService, fcmService)
 
 	// Handlers
 	bookingHandler := handler.NewBookingHandler(bookingServiceInternal)
 
 	// 4. Register Routes (Legacy)
-	app.RegisterRoutes(pb, templates, eventBroker, analyticsServiceInternal, bookingServiceInternal)
+	app.RegisterRoutes(pb, templates, eventBroker, analyticsServiceInternal, bookingServiceInternal, fcmService)
 
 	// Register New Handler Routes (Mixing with legacy for transition)
 	pb.OnServe().BindFunc(func(e *core.ServeEvent) error {

@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"fmt"
 	"hvac-system/internal/core"
 	"math"
@@ -8,20 +9,23 @@ import (
 )
 
 type BookingService struct {
-	bookingRepo core.BookingRepository
-	techRepo    core.TechnicianRepository
-	slotControl core.TimeSlotControl
+	bookingRepo   core.BookingRepository
+	techRepo      core.TechnicianRepository
+	slotControl   core.TimeSlotControl
+	notifications core.NotificationService // [NEW]
 }
 
 func NewBookingService(
 	bookingRepo core.BookingRepository,
 	techRepo core.TechnicianRepository,
 	slotControl core.TimeSlotControl,
+	notifications core.NotificationService, // [NEW]
 ) core.BookingService {
 	return &BookingService{
-		bookingRepo: bookingRepo,
-		techRepo:    techRepo,
-		slotControl: slotControl,
+		bookingRepo:   bookingRepo,
+		techRepo:      techRepo,
+		slotControl:   slotControl,
+		notifications: notifications,
 	}
 }
 
@@ -80,6 +84,20 @@ func (s *BookingService) AssignTechnician(bookingID, technicianID string) error 
 	// Persist
 	if err := s.bookingRepo.Update(booking); err != nil {
 		return fmt.Errorf("failed to save assignment: %w", err)
+	}
+
+	// [NEW] Notify Technician
+	if s.notifications != nil && tech.FCMToken != "" {
+		// Use a goroutine to not block the response? Or sync?
+		// Sync is safer for error handling but let's just log error if fails
+		go func() {
+			_ = s.notifications.NotifyNewJobAssignment(
+				context.Background(),
+				tech.FCMToken,
+				booking.ID,
+				booking.CustomerName,
+			)
+		}()
 	}
 
 	return nil

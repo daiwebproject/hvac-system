@@ -1,6 +1,10 @@
 package core
 
-import "github.com/pocketbase/pocketbase/tools/filesystem"
+import (
+	"context"
+
+	"github.com/pocketbase/pocketbase/tools/filesystem"
+)
 
 // BookingRepository defines data access methods for Bookings
 type BookingRepository interface {
@@ -54,6 +58,10 @@ type AnalyticsService interface {
 	GetRevenueLast7Days() ([]RevenueStat, error)
 	GetTopTechnicians(limit int) ([]TechPerformance, error)
 	GetDashboardStats() (*DashboardStats, error)
+}
+
+type NotificationService interface {
+	NotifyNewJobAssignment(ctx context.Context, techToken string, jobID string, customerName string) error
 }
 
 // BookingService defines business logic methods

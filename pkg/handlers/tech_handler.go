@@ -25,6 +25,7 @@ type TechHandler struct {
 	InvoiceService *services.InvoiceService
 	BookingService domain.BookingService
 	SettingsRepo   *repository.SettingsRepo // [NEW]
+	FCMService     *services.FCMService     // [NEW]
 }
 
 // --- Auth ---

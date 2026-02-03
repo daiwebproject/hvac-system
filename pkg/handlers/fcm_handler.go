@@ -24,11 +24,6 @@ type RegisterDeviceTokenRequest struct {
 // RegisterDeviceToken registers or updates FCM token for a technician
 // POST /api/tech/register-fcm-token
 func (h *FCMHandler) RegisterDeviceToken(e *core.RequestEvent) error {
-	authRecord := e.Auth
-	if authRecord == nil {
-		return e.JSON(401, map[string]string{"error": "Unauthorized"})
-	}
-
 	var req RegisterDeviceTokenRequest
 	if err := e.BindBody(&req); err != nil {
 		return e.JSON(400, map[string]string{"error": "Invalid request"})
@@ -37,6 +32,30 @@ func (h *FCMHandler) RegisterDeviceToken(e *core.RequestEvent) error {
 	if req.Token == "" {
 		return e.JSON(400, map[string]string{"error": "Token is required"})
 	}
+
+	// 1. Handle Admin (Auth Check)
+	authRecord := e.Auth
+	if authRecord == nil {
+		return e.JSON(401, map[string]string{"error": "Unauthorized"})
+	}
+
+	if authRecord.Collection().Name == "_superusers" { // PocketBase Admin Collection
+		if h.FCMService == nil {
+			return e.JSON(503, map[string]string{"error": "FCM not configured"})
+		}
+		// Subscribe Admin to 'admin_alerts' topic
+		err := h.FCMService.SubscribeToTopic(context.Background(), []string{req.Token}, "admin_alerts")
+		if err != nil {
+			fmt.Printf("Error subscribing admin to topic: %v\n", err)
+		}
+		return e.JSON(200, map[string]interface{}{
+			"success": true,
+			"message": "Admin FCM token registered and subscribed",
+		})
+	}
+
+	// 2. Handle Technician
+	// Continued below...
 
 	// Find technician record
 	tech, err := h.App.FindRecordById("technicians", authRecord.Id)
