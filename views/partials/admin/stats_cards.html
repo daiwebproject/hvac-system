@@ -1,34 +1,35 @@
 {{/* Stats Cards Partial - Admin Dashboard */}}
 {{ define "admin/stats_cards" }}
-<div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-4 md:mb-6">
     <!-- Daily Revenue -->
-    <div class="stat bg-base-100 shadow rounded-lg">
-        <div class="stat-title">Doanh thu ngày</div>
-        <div class="stat-value text-primary text-2xl">{{ printf "%.0f" .TotalRevenue }}đ</div>
-        <div class="stat-desc">Hôm nay</div>
+    <div class="stat bg-white shadow-sm rounded-xl py-2 px-3 md:p-4 border border-gray-100">
+        <div class="stat-title text-xs md:text-sm font-medium text-gray-500">Doanh thu</div>
+        <div class="stat-value text-primary text-lg md:text-2xl truncate" title="{{ printf " %.0f" .TotalRevenue }}">{{
+            printf "%.0f" .TotalRevenue }}đ</div>
+        <div class="stat-desc text-[10px] md:text-xs">Hôm nay</div>
     </div>
 
     <!-- Pending Orders -->
-    <div class="stat bg-base-100 shadow rounded-lg">
-        <div class="stat-title">Đơn hàng mới</div>
-        <div class="stat-value text-secondary text-2xl">{{ .Pending }}</div>
-        <div class="stat-desc">Đang chờ xử lý</div>
+    <div class="stat bg-white shadow-sm rounded-xl py-2 px-3 md:p-4 border border-gray-100">
+        <div class="stat-title text-xs md:text-sm font-medium text-gray-500">Đơn mới</div>
+        <div class="stat-value text-secondary text-lg md:text-2xl">{{ .Pending }}</div>
+        <div class="stat-desc text-[10px] md:text-xs">Chờ xử lý</div>
     </div>
 
     <!-- Active Technicians -->
-    <div class="stat bg-base-100 shadow rounded-lg">
-        <div class="stat-title">Kỹ thuật viên</div>
-        <div class="stat-value text-accent text-2xl">{{ .ActiveTechs }}</div>
-        <div class="stat-desc">Đang online</div>
+    <div class="stat bg-white shadow-sm rounded-xl py-2 px-3 md:p-4 border border-gray-100">
+        <div class="stat-title text-xs md:text-sm font-medium text-gray-500">Kỹ thuật</div>
+        <div class="stat-value text-accent text-lg md:text-2xl">{{ .ActiveTechs }}</div>
+        <div class="stat-desc text-[10px] md:text-xs">Online</div>
     </div>
 
     <!-- Completion Rate -->
-    <div class="stat bg-base-100 shadow rounded-lg">
-        <div class="stat-title">Tỉ lệ hoàn thành</div>
-        <div class="stat-value text-success text-2xl">
+    <div class="stat bg-white shadow-sm rounded-xl py-2 px-3 md:p-4 border border-gray-100">
+        <div class="stat-title text-xs md:text-sm font-medium text-gray-500">Hoàn thành</div>
+        <div class="stat-value text-success text-lg md:text-2xl">
             {{ printf "%.0f" .CompletionRate }}%
         </div>
-        <div class="stat-desc">Dựa trên đơn hôm nay</div>
+        <div class="stat-desc text-[10px] md:text-xs">Hôm nay</div>
     </div>
 </div>
 {{ end }}

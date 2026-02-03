@@ -16,26 +16,30 @@
 
 <div x-data="kanbanBoard(window.initialBookings)" class="pb-20">
 
-    <div class="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
+    <div class="grid grid-cols-1 xl:grid-cols-12 gap-4 md:gap-6 items-start">
 
         <div class="xl:col-span-9 space-y-6">
 
             <div
-                class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-white p-3 md:p-4 rounded-xl shadow-sm border border-gray-100">
                 <div>
-                    <h2 class="text-xl font-bold text-gray-800 flex items-center">
-                        <i class="fa-solid fa-layer-group text-blue-600 mr-2"></i> Tiến độ đơn hàng
+                    <h2 class="text-lg md:text-xl font-bold text-gray-800 flex items-center">
+                        <i class="fa-solid fa-layer-group text-blue-600 mr-2"></i> Tiến độ
                     </h2>
-                    <p class="text-xs text-gray-500 mt-1">Kéo thả để cập nhật trạng thái hoặc giao việc.</p>
+                    <p class="text-[10px] md:text-xs text-gray-500 mt-1 hidden sm:block">Kéo thả để cập nhật trạng thái
+                        hoặc giao việc.</p>
                 </div>
                 <div class="flex gap-2 w-full sm:w-auto">
                     <div class="join flex-1 sm:flex-none">
-                        <button class="btn btn-sm btn-active join-item"><i class="fa-solid fa-grip-vertical"></i>
-                            Kanban</button>
-                        <button class="btn btn-sm join-item bg-base-100"><i class="fa-solid fa-list"></i> List</button>
+                        <button class="btn btn-xs md:btn-sm btn-active join-item"><i
+                                class="fa-solid fa-grip-vertical"></i>
+                            <span class="hidden xs:inline">Kanban</span></button>
+                        <button class="btn btn-xs md:btn-sm join-item bg-base-100"><i class="fa-solid fa-list"></i>
+                            <span class="hidden xs:inline">List</span></button>
                     </div>
-                    <label for="modal-create-job" class="btn btn-sm btn-primary gap-2 shadow-lg shadow-blue-500/30">
-                        <i class="fa-solid fa-plus"></i> <span class="hidden sm:inline">Tạo đơn</span>
+                    <label for="modal-create-job"
+                        class="btn btn-xs md:btn-sm btn-primary gap-2 shadow-lg shadow-blue-500/30 ml-auto sm:ml-0">
+                        <i class="fa-solid fa-plus"></i> <span>Tạo đơn</span>
                     </label>
                 </div>
             </div>

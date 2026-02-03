@@ -44,14 +44,33 @@
 
     <!-- Menu -->
     <div class="px-5 mt-6 space-y-3">
-        <div class="bg-white rounded-[20px] shadow-sm border border-gray-100 overflow-hidden">
-            <a href="#" class="flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors border-b border-gray-50">
-                <div class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500">
-                    <i class="fa-solid fa-gear"></i>
+        <div class="bg-white rounded-[20px] shadow-sm border border-gray-100 overflow-hidden"
+            x-data="{ permission: Notification.permission }">
+            <div class="flex items-center gap-4 p-4 border-b border-gray-50">
+                <div class="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center text-blue-500">
+                    <i class="fa-solid fa-bell"></i>
                 </div>
-                <div class="flex-1 font-semibold text-gray-700">Cài đặt</div>
-                <i class="fa-solid fa-chevron-right text-gray-300 text-xs"></i>
-            </a>
+                <div class="flex-1">
+                    <div class="font-semibold text-gray-700">Thông báo đẩy</div>
+                    <div class="text-xs text-gray-400"
+                        x-text="permission === 'granted' ? 'Đang bật' : (permission === 'denied' ? 'Bị chặn' : 'Chưa bật')">
+                    </div>
+                </div>
+
+                <button x-show="permission === 'default'" @click="enableNotifications()"
+                    class="btn btn-sm btn-primary rounded-full px-4">
+                    Bật
+                </button>
+
+                <div x-show="permission === 'granted'" class="text-green-500 font-bold text-sm">
+                    <i class="fa-solid fa-check"></i>
+                </div>
+
+                <div x-show="permission === 'denied'"
+                    class="text-red-500 font-bold text-xs bg-red-50 px-2 py-1 rounded">
+                    Chặn
+                </div>
+            </div>
             <a href="#" class="flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors">
                 <div class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500">
                     <i class="fa-solid fa-circle-question"></i>

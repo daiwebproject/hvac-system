@@ -21,8 +21,22 @@ class FirebaseMessagingClient {
 
       if (firebase.messaging.isSupported()) {
         this.messaging = firebase.messaging();
-        await this.requestPermissionAndGetToken();
-        this.setupOnMessage();
+
+        // Checks current permission
+        const permission = Notification.permission;
+
+        if (permission === 'granted') {
+          // Already granted, get token and setup
+          await this.requestPermissionAndGetToken();
+          this.setupOnMessage();
+        } else if (permission === 'default') {
+          // Wait for user gesture
+          console.log('FCM: Waiting for user gesture to enable notifications');
+          // Dispatch event to show UI button
+          window.dispatchEvent(new CustomEvent('fcm:permission-needed'));
+        } else {
+          console.warn('FCM: Notification permission denied');
+        }
       } else {
         console.warn('FCM not supported');
       }
@@ -31,12 +45,19 @@ class FirebaseMessagingClient {
     }
   }
 
+  // Exposed method for Button Click
+  async manualRequestPermission() {
+    await this.requestPermissionAndGetToken();
+    this.setupOnMessage();
+  }
+
   async requestPermissionAndGetToken() {
     try {
       const permission = await Notification.requestPermission();
       if (permission === 'granted') {
         console.log('Notification granted.');
         await this.getToken();
+        window.dispatchEvent(new CustomEvent('fcm:granted')); // Hide button
       } else {
         console.warn('Notification denied.');
       }
@@ -146,6 +167,12 @@ function initializeFirebaseClient() {
 
   window.fcmClient = new FirebaseMessagingClient(config);
   window.fcmClient.init();
+
+  // Global helper for UI buttons
+  window.enableNotifications = () => {
+    console.log('enableNotifications called');
+    window.fcmClient.manualRequestPermission();
+  };
 }
 // function initializeFirebaseClient() {
 //   if (window.fcmClient) return;
