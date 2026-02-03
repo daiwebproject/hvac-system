@@ -581,13 +581,24 @@ func (h *AdminHandler) UpdateSettings(e *core.RequestEvent) error {
 		fmt.Printf("   Form[%s]: %v\n", key, values)
 	}
 
-	// 1. Get the Record to update
+	// 1. Get the Record to update (or create if doesn't exist)
 	record, err := h.SettingsRepo.GetSettingsRecord()
 	if err != nil {
-		fmt.Println("❌ Error finding settings record:", err)
-		return e.String(500, "Không tìm thấy cấu hình hệ thống (Settings Record Missing)")
+		fmt.Println("⚠️  No settings record found, creating default...")
+		// Create a new settings record
+		settingsCollection, errColl := h.App.FindCollectionByNameOrId("settings")
+		if errColl != nil {
+			fmt.Println("❌ Error finding settings collection:", errColl)
+			return e.String(500, "Không tìm thấy bảng settings")
+		}
+		record = core.NewRecord(settingsCollection)
+		// Set defaults
+		record.Set("company_name", "HVAC System")
+		record.Set("active", true)
+		fmt.Println("✅ Created new settings record")
+	} else {
+		fmt.Printf("   Found Record ID: %s (Current Key: %s)\n", record.Id, record.GetString("license_key"))
 	}
-	fmt.Printf("   Found Record ID: %s (Current Key: %s)\n", record.Id, record.GetString("license_key"))
 
 	action := e.Request.FormValue("action")
 	fmt.Printf("   Action detected: '%s'\n", action)

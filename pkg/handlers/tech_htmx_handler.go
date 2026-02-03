@@ -129,6 +129,7 @@ func (h *TechHandler) ProcessPayment(e *core.RequestEvent) error {
 	paymentMethod := e.Request.FormValue("payment_method")
 	transactionCode := e.Request.FormValue("transaction_code")
 
+	// 1. Find invoice
 	invoices, _ := h.App.FindRecordsByFilter(
 		"invoices",
 		fmt.Sprintf("booking_id='%s'", jobID),
@@ -139,20 +140,69 @@ func (h *TechHandler) ProcessPayment(e *core.RequestEvent) error {
 	)
 
 	if len(invoices) == 0 {
-		return e.String(404, "Invoice not found")
-	}
-
-	invoice := invoices[0]
-	// Validate: If job already completed, prevent double submit
-	job, _ := h.App.FindRecordById("bookings", jobID)
-	if job != nil && job.GetString("job_status") == "completed" {
-		return e.JSON(200, map[string]interface{}{
-			"success":      true,
-			"invoice_hash": invoice.GetString("public_hash"),
-			"message":      "Đơn hàng này đã thanh toán rồi",
+		return e.JSON(404, map[string]interface{}{
+			"success": false,
+			"error":   "Không tìm thấy hóa đơn cho đơn hàng này",
 		})
 	}
 
+	invoice := invoices[0]
+
+	// 2. Check invoice status FIRST - prevent duplicate payment
+	if invoice.GetString("status") == "paid" {
+		fmt.Printf("⚠️  PAYMENT: Invoice %s already paid, preventing duplicate\n", invoice.Id)
+		return e.JSON(200, map[string]interface{}{
+			"success":      true,
+			"invoice_hash": invoice.GetString("public_hash"),
+			"message":      "Hóa đơn này đã được thanh toán rồi",
+		})
+	}
+
+	// 3. Check job status
+	job, err := h.App.FindRecordById("bookings", jobID)
+	if err != nil {
+		return e.JSON(404, map[string]interface{}{
+			"success": false,
+			"error":   "Không tìm thấy đơn hàng",
+		})
+	}
+
+	if job.GetString("job_status") == "completed" {
+		fmt.Printf("⚠️  PAYMENT: Job %s already completed\n", jobID)
+		return e.JSON(200, map[string]interface{}{
+			"success":      true,
+			"invoice_hash": invoice.GetString("public_hash"),
+			"message":      "Đơn hàng đã hoàn thành",
+		})
+	}
+
+	// 4. Validate tech signature exists
+	if invoice.GetString("tech_signature") == "" {
+		fmt.Printf("⚠️  PAYMENT: Invoice %s missing tech signature\n", invoice.Id)
+		return e.JSON(400, map[string]interface{}{
+			"success": false,
+			"error":   "Thợ chưa ký xác nhận hoàn thành. Vui lòng quay lại trang nghiệm thu.",
+		})
+	}
+
+	// 5. Validate payment method requirements
+	if paymentMethod == "transfer" {
+		if transactionCode == "" || len(transactionCode) < 3 {
+			return e.JSON(400, map[string]interface{}{
+				"success": false,
+				"error":   "Vui lòng nhập mã giao dịch hợp lệ (tối thiểu 3 ký tự)",
+			})
+		}
+	} else if paymentMethod == "cash" {
+		// Cash confirmed on frontend, no extra validation needed
+	} else {
+		return e.JSON(400, map[string]interface{}{
+			"success": false,
+			"error":   "Phương thức thanh toán không hợp lệ",
+		})
+	}
+
+	// 5. Update invoice
 	invoice.Set("payment_method", paymentMethod)
 	invoice.Set("status", "paid")
 
@@ -175,27 +225,32 @@ func (h *TechHandler) ProcessPayment(e *core.RequestEvent) error {
 		}
 	}
 
-	// Handle Signature Upload
-	// Expecting "signature_file" from FormData (converted from canvas blob)
+	// 6. Handle Customer Signature Upload
+	// This is the customer's signature confirming payment (tech signature was saved during completion)
 	files, _ := e.FindUploadedFiles("signature_file")
 	if len(files) > 0 {
 		invoice.Set("customer_signature", files[0])
+		invoice.Set("customer_signed_at", time.Now())
 	}
 
 	if err := h.App.Save(invoice); err != nil {
-		fmt.Printf("Payment Save Error: %v\n", err)
-		return e.String(500, "Failed to update payment: "+err.Error())
+		fmt.Printf("❌ Payment Save Error: %v\n", err)
+		return e.JSON(500, map[string]interface{}{
+			"success": false,
+			"error":   "Lỗi lưu thông tin thanh toán: " + err.Error(),
+		})
 	}
 
-	// Update job status if needed
-	if job != nil {
-		job.Set("payment_status", "paid")
-		job.Set("job_status", "completed")  // Mark as fully completed
-		job.Set("completed_at", time.Now()) // Track completion time
-		h.App.Save(job)
+	// 7. Update job status
+	job.Set("payment_status", "paid")
+	job.Set("job_status", "completed")  // Mark as fully completed
+	job.Set("completed_at", time.Now()) // Track completion time
+	if err := h.App.Save(job); err != nil {
+		fmt.Printf("❌ Job Update Error: %v\n", err)
+		// Continue - invoice is paid, this is less critical
 	}
 
-	// 1. Publish payment event for Customer
+	// 8. Publish payment event for Customer
 	h.Broker.Publish(broker.ChannelCustomer, jobID, broker.Event{
 		Type:      "payment.processed",
 		Timestamp: time.Now().Unix(),
@@ -206,7 +261,7 @@ func (h *TechHandler) ProcessPayment(e *core.RequestEvent) error {
 		},
 	})
 
-	// 2. Publish completion event for Admin
+	// 9. Publish completion event for Admin
 	h.Broker.Publish(broker.ChannelAdmin, "", broker.Event{
 		Type:      "job.completed",
 		Timestamp: time.Now().Unix(),
@@ -220,6 +275,8 @@ func (h *TechHandler) ProcessPayment(e *core.RequestEvent) error {
 			"status":          "completed",
 		},
 	})
+
+	fmt.Printf("✅ PAYMENT: Successfully processed for job %s, invoice %s\n", jobID, invoice.Id)
 
 	// Check if this is an HTMX or API request
 	// Always return JSON for our custom frontend logic

@@ -45,19 +45,7 @@
                                 </tr>
                             </thead>
                             <tbody class="text-gray-700">
-                                <!-- Service Fee -->
-                                <tr class="border-b border-gray-50 last:border-none">
-                                    <td class="pl-3 py-2 font-medium">
-                                        {{.Job.GetString "device_type"}}
-                                        <div class="text-[10px] text-gray-400 font-normal">Phí dịch vụ</div>
-                                    </td>
-                                    <td class="text-center py-2">1</td>
-                                    <td class="text-right pr-3 py-2 font-mono">
-                                        {{.Job.GetFloat "estimated_cost" | printf "%.0f" | formatMoney}}
-                                    </td>
-                                </tr>
-
-                                <!-- Parts Items -->
+                                {{ if .Items }}
                                 {{ range .Items }}
                                 <tr class="border-b border-gray-50 last:border-none">
                                     <td class="pl-3 py-2">
@@ -66,6 +54,13 @@
                                     <td class="text-center py-2">{{.GetInt "quantity"}}</td>
                                     <td class="text-right pr-3 py-2 font-mono">
                                         {{.GetFloat "total" | printf "%.0f" | formatMoney}}
+                                    </td>
+                                </tr>
+                                {{ end }}
+                                {{ else }}
+                                <tr>
+                                    <td colspan="3" class="text-center py-4 text-gray-400 text-sm">
+                                        Chưa có chi tiết dịch vụ
                                     </td>
                                 </tr>
                                 {{ end }}
@@ -128,7 +123,7 @@
                         <div
                             class="rounded-xl border-2 border-transparent bg-gray-50 p-3 text-center transition-all peer-checked:border-blue-500 peer-checked:bg-blue-50 peer-checked:text-blue-700 hover:bg-gray-100">
                             <i class="fa-solid fa-qrcode text-xl mb-1 block"></i>
-                            <span class="text-xs font-bold">Chuyển khoản</span>
+                            <span class="text-xs font-bold">Chuyển khoản (QR)</span>
                         </div>
                     </label>
                     <label class="cursor-pointer">
@@ -143,15 +138,55 @@
 
                 <!-- METHOD SPECIFIC INPUTS -->
                 <div x-show="method === 'transfer'" x-transition
-                    class="space-y-3 p-3 bg-blue-50 rounded-xl border border-blue-100">
+                    class="space-y-4 p-4 bg-blue-50/50 rounded-xl border border-blue-100">
+
+                    <!-- QR Code & Bank Info -->
+                    <div class="text-center bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                        <div class="mb-3">
+                            <span class="badge badge-primary badge-outline text-xs font-bold px-3 py-2 bg-blue-50">Quét
+                                mã để thanh toán</span>
+                        </div>
+
+                        <!-- Dynamic QR Code -->
+                        {{ if .Invoice }}
+                        {{ $bankBin := .Settings.BankBin }}
+                        {{ $bankAccount := .Settings.BankAccount }}
+                        {{ $qrTemplate := or .Settings.QrTemplate "compact" }}
+                        {{ $amount := .Invoice.GetFloat "total_amount" | printf "%.0f" }}
+                        {{ $invoiceCode := .Invoice.GetString "invoice_code" }}
+                        <img src="https://img.vietqr.io/image/{{$bankBin}}-{{$bankAccount}}-{{$qrTemplate}}.png?amount={{$amount}}&addInfo=THANH%20TOAN%20{{$invoiceCode}}"
+                            alt="QR Code Chuyển khoản"
+                            class="w-48 h-48 mx-auto object-contain mb-3 border-2 border-dashed border-gray-200 rounded-lg p-2"
+                            onerror="this.src='/assets/placeholder_qr.png'">
+                        {{ else }}
+                        <div
+                            class="w-48 h-48 mx-auto mb-3 flex items-center justify-center border-2 border-dashed border-red-200 rounded-lg bg-red-50 text-red-500 text-xs text-center p-2">
+                            Chưa có hóa đơn để tạo mã QR
+                        </div>
+                        {{ end }}
+
+                        <div class="space-y-1 text-sm">
+                            {{ $bankOwner := or .Settings.BankOwner "CHUA CAP NHAT" }}
+                            <p class="font-bold text-gray-800 uppercase">{{$bankOwner}}</p>
+                            <div class="flex items-center justify-center gap-2 text-gray-600 font-mono bg-gray-50 py-1.5 px-3 rounded-lg mx-auto w-fit border border-gray-200 cursor-pointer active:scale-95 transition-transform"
+                                @click="copyBankAccount()">
+                                {{or .Settings.BankAccount "---"}} <i class="fa-regular fa-copy text-xs"></i>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="form-control">
                         <label class="label py-1">
                             <span class="label-text-alt text-blue-800 font-bold">Mã giao dịch / Nội dung CK (Bắt
                                 buộc)</span>
                         </label>
                         <input type="text" name="transaction_code" x-model="transactionCode"
+                            x-init="transactionCode = '{{if .Invoice}}{{.Invoice.GetString " invoice_code"}}{{end}}'"
                             placeholder="VD: CK 150K..."
-                            class="input input-sm input-bordered w-full focus:input-primary bg-white">
+                            class="input input-sm input-bordered w-full focus:input-primary bg-white font-mono text-sm">
+                        <label class="label py-0">
+                            <span class="label-text-alt text-gray-400 text-[10px]">Nên dùng Mã HĐ làm nội dung CK</span>
+                        </label>
                     </div>
                 </div>
 
@@ -162,8 +197,8 @@
                             x-model="cashConfirmed">
                         <span class="text-xs text-green-900 font-medium leading-tight">
                             Tôi xác nhận đã nhận đủ
-                            <span class="font-bold">{{.Invoice.GetFloat "total_amount" | printf "%.0f" | formatMoney}}
-                                ₫</span>
+                            <span class="font-bold">{{if .Invoice}}{{.Invoice.GetFloat "total_amount" | printf "%.0f" |
+                                formatMoney}}{{else}}0{{end}} ₫</span>
                             tiền mặt từ khách hàng.
                         </span>
                     </label>
@@ -174,7 +209,7 @@
 
     <!-- Fixed Bottom Action -->
     <div class="fixed bottom-0 left-0 right-0 p-4 bg-white/90 backdrop-blur-md border-t border-gray-100 z-50 pb-safe">
-        <form id="payment-form" hx-post="/api/tech/job/{{.Job.Id}}/payment" hx-encoding="multipart/form-data">
+        <form id="payment-form" action="/api/tech/job/{{.Job.Id}}/payment" enctype="multipart/form-data">
             <input type="hidden" name="payment_method" x-model="method">
             <!-- Included in form submit automatically by name attribute -->
 
@@ -220,7 +255,7 @@
 
                 // Handle resize
                 window.addEventListener('resize', () => {
-                    // Simple resize reset - ideally would save data
+                    const ratio = Math.max(window.devicePixelRatio || 1, 1);
                     canvas.width = canvas.offsetWidth * ratio;
                     canvas.height = canvas.offsetHeight * ratio;
                     canvas.getContext("2d").scale(ratio, ratio);
@@ -230,6 +265,24 @@
 
             clearSignature() {
                 this.signaturePad.clear();
+            },
+
+            copyBankAccount() {
+                const bankAccount = '{{.Settings.BankAccount}}';
+                if (navigator.clipboard && bankAccount) {
+                    navigator.clipboard.writeText(bankAccount).then(() => {
+                        Swal.fire({
+                            toast: true,
+                            position: 'top',
+                            icon: 'success',
+                            title: 'Đã sao chép STK',
+                            timer: 1500,
+                            showConfirmButton: false
+                        });
+                    }).catch(() => {
+                        Swal.fire('Lỗi', 'Không thể sao chép', 'error');
+                    });
+                }
             },
 
             submitPayment() {
@@ -253,67 +306,77 @@
                     return;
                 }
 
+                // 2. Safe Base64 to Blob conversion (No fetch dataURL)
                 const dataURL = this.signaturePad.toDataURL();
-                fetch(dataURL)
-                    .then(res => res.blob())
-                    .then(blob => {
-                        const form = document.getElementById('payment-form');
-                        const formData = new FormData(form);
-                        formData.append('signature_file', blob, 'signature.png');
+                const splitData = dataURL.split(',');
+                const byteString = atob(splitData[1]);
+                const mimeString = splitData[0].split(':')[1].split(';')[0];
 
-                        Swal.fire({
-                            title: 'Đang xử lý...',
-                            text: 'Vui lòng đợi trong giây lát',
-                            allowOutsideClick: false,
-                            didOpen: () => Swal.showLoading()
-                        });
+                const ab = new ArrayBuffer(byteString.length);
+                const ia = new Uint8Array(ab);
+                for (let i = 0; i < byteString.length; i++) {
+                    ia[i] = byteString.charCodeAt(i);
+                }
+                const blob = new Blob([ab], { type: mimeString });
 
-                        fetch(form.getAttribute('hx-post'), { method: 'POST', body: formData })
-                            .then(res => res.json())
-                            .then(data => {
-                                if (data.success) {
-                                    const invoiceUrl = window.location.origin + "/invoice/" + data.invoice_hash;
-                                    const zaloShareUrl = `https://zalo.me/share?url=${encodeURIComponent(invoiceUrl)}`;
+                // 3. Submit
+                const form = document.getElementById('payment-form');
+                const formData = new FormData(form);
+                formData.append('signature_file', blob, 'signature.png');
 
-                                    Swal.fire({
-                                        title: 'Hoàn thành!',
-                                        icon: 'success',
-                                        html: `
-                                            <div class="space-y-4 mt-2">
-                                                <p class="text-sm text-gray-600">Đơn hàng đã được ghi nhận thành công.</p>
-                                                
-                                                <div class="bg-gray-50 rounded-lg p-3 border border-gray-100">
-                                                    <p class="text-xs text-gray-400 font-bold uppercase mb-2">Gửi hóa đơn cho Khách</p>
-                                                    
-                                                    <a href="${zaloShareUrl}" target="_blank" class="btn btn-info btn-sm w-full text-white mb-2 no-underline normal-case">
-                                                        <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/91/Icon_of_Zalo.svg/1200px-Icon_of_Zalo.svg.png" 
-                                                             class="w-5 h-5 mr-1 bg-white rounded-full p-0.5">
-                                                        Gửi qua Zalo
-                                                    </a>
-                                                    
-                                                    <div class="join w-full">
-                                                        <input type="text" value="${invoiceUrl}" class="input input-xs input-bordered join-item w-full text-gray-500" readonly>
-                                                        <button onclick="navigator.clipboard.writeText('${invoiceUrl}'); this.innerHTML='<i class=\'fa-solid fa-check\'></i>'" class="btn btn-xs join-item btn-square">
-                                                            <i class="fa-regular fa-copy"></i>
-                                                        </button>
-                                                    </div>
-                                                </div>
+                Swal.fire({
+                    title: 'Đang xử lý...',
+                    text: 'Vui lòng đợi trong giây lát',
+                    allowOutsideClick: false,
+                    didOpen: () => Swal.showLoading()
+                });
 
-                                                <a href="/tech/jobs" class="btn btn-outline btn-sm w-full">
-                                                    <i class="fa-solid fa-home"></i> Về trang chủ
-                                                </a>
+                // Use 'action' attribute instead of 'hx-post'
+                fetch(form.getAttribute('action'), { method: 'POST', body: formData })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success) {
+                            const invoiceUrl = window.location.origin + "/invoice/" + data.invoice_hash;
+                            const zaloShareUrl = `https://zalo.me/share?url=${encodeURIComponent(invoiceUrl)}`;
+
+                            Swal.fire({
+                                title: 'Hoàn thành!',
+                                icon: 'success',
+                                html: `
+                                    <div class="space-y-4 mt-2">
+                                        <p class="text-sm text-gray-600">Đơn hàng đã được ghi nhận thành công.</p>
+                                        
+                                        <div class="bg-gray-50 rounded-lg p-3 border border-gray-100">
+                                            <p class="text-xs text-gray-400 font-bold uppercase mb-2">Gửi hóa đơn cho Khách</p>
+                                            
+                                            <a href="${zaloShareUrl}" target="_blank" class="btn btn-info btn-sm w-full text-white mb-2 no-underline normal-case">
+                                                <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/91/Icon_of_Zalo.svg/1200px-Icon_of_Zalo.svg.png" 
+                                                     class="w-5 h-5 mr-1 bg-white rounded-full p-0.5">
+                                                Gửi qua Zalo
+                                            </a>
+                                            
+                                            <div class="join w-full">
+                                                <input type="text" value="${invoiceUrl}" class="input input-xs input-bordered join-item w-full text-gray-500" readonly>
+                                                <button onclick="if(navigator.clipboard){navigator.clipboard.writeText('${invoiceUrl}'); this.innerHTML='<i class=\'fa-solid fa-check\'></i>'}" class="btn btn-xs join-item btn-square">
+                                                    <i class="fa-regular fa-copy"></i>
+                                                </button>
                                             </div>
-                                        `,
-                                        showConfirmButton: false,
-                                        allowOutsideClick: false
-                                    });
-                                } else {
-                                    Swal.fire('Lỗi', data.error || 'Có lỗi xảy ra', 'error');
-                                }
-                            })
-                            .catch(err => {
-                                Swal.fire('Lỗi kết nối', err.message, 'error');
+                                        </div>
+
+                                        <a href="/tech/jobs" class="btn btn-outline btn-sm w-full">
+                                            <i class="fa-solid fa-home"></i> Về trang chủ
+                                        </a>
+                                    </div>
+                                `,
+                                showConfirmButton: false,
+                                allowOutsideClick: false
                             });
+                        } else {
+                            Swal.fire('Lỗi', data.error || 'Có lỗi xảy ra', 'error');
+                        }
+                    })
+                    .catch(err => {
+                        Swal.fire('Lỗi kết nối', err.message, 'error');
                     });
             }
         }));

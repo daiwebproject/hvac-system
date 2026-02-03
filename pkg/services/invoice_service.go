@@ -55,29 +55,110 @@ func (s *InvoiceService) GenerateInvoice(bookingID string) (*core.Record, error)
 
 	// Get base service price (labor)
 	serviceID := booking.GetString("service_id")
-	service, err := s.app.FindRecordById("services", serviceID)
 	laborTotal := 0.0
-	if err == nil {
-		laborTotal = service.GetFloat("price")
+	serviceName := "Dịch vụ"
+
+	if serviceID == "" {
+		fmt.Printf("⚠️  INVOICEGEN: Booking %s has no service_id! Labor will be 0\n", bookingID)
+	} else {
+		service, err := s.app.FindRecordById("services", serviceID)
+		if err != nil {
+			fmt.Printf("❌ INVOICEGEN: Service %s not found for booking %s: %v\n", serviceID, bookingID, err)
+		} else {
+			laborTotal = service.GetFloat("price")
+			serviceName = service.GetString("name")
+			fmt.Printf("✅ INVOICEGEN: Found service '%s' with price %.2f\n", serviceName, laborTotal)
+		}
 	}
 
 	totalAmount := partsTotal + laborTotal
 	fmt.Printf("DEBUG INVOICEGEN: Booking=%s, ServiceID=%s, Labor=%.2f, Parts=%.2f, Total=%.2f\n",
 		bookingID, serviceID, laborTotal, partsTotal, totalAmount)
 
-	// Create Invoice
-	invoices, _ := s.app.FindCollectionByNameOrId("invoices")
-	invoice := core.NewRecord(invoices)
-	invoice.Set("booking_id", bookingID)
+	// Check for existing invoice
+	existingInvoices, _ := s.app.FindRecordsByFilter(
+		"invoices",
+		fmt.Sprintf("booking_id='%s'", bookingID),
+		"",
+		1,
+		0,
+		nil,
+	)
+
+	var invoice *core.Record
+	invoicesCollection, _ := s.app.FindCollectionByNameOrId("invoices")
+
+	if len(existingInvoices) > 0 {
+		invoice = existingInvoices[0]
+		// Retain existing status if valid, or reset? Typically retain.
+		// Retain public_hash
+		fmt.Printf("DEBUG INVOICEGEN: Updating existing invoice %s\n", invoice.Id)
+	} else {
+		invoice = core.NewRecord(invoicesCollection)
+		invoice.Set("booking_id", bookingID)
+		invoice.Set("status", "unpaid")
+		invoice.Set("public_hash", fmt.Sprintf("%x", time.Now().UnixNano()))
+		fmt.Printf("DEBUG INVOICEGEN: Creating new invoice\n")
+	}
+
 	invoice.Set("parts_total", partsTotal)
 	invoice.Set("labor_total", laborTotal)
 	invoice.Set("total_amount", totalAmount)
-	invoice.Set("status", "unpaid")
-	invoice.Set("public_hash", fmt.Sprintf("%x", time.Now().UnixNano()))
 
 	if err := s.app.Save(invoice); err != nil {
 		return nil, err
 	}
+
+	// [NEW] Generate invoice_items for detailed display
+	// Delete old items to prevent duplicates when recalculating
+	existingItems, _ := s.app.FindRecordsByFilter(
+		"invoice_items",
+		fmt.Sprintf("invoice_id='%s'", invoice.Id),
+		"",
+		100,
+		0,
+		nil,
+	)
+	for _, item := range existingItems {
+		s.app.Delete(item)
+	}
+	fmt.Printf("DEBUG INVOICEGEN: Deleted %d old invoice items\n", len(existingItems))
+
+	// Create items collection reference
+	itemsCollection, err := s.app.FindCollectionByNameOrId("invoice_items")
+	if err != nil {
+		fmt.Printf("WARNING: invoice_items collection not found: %v\n", err)
+		// Continue without items - invoice is still valid
+		return invoice, nil
+	}
+
+	// Create labor item
+	if laborTotal > 0 {
+		laborItem := core.NewRecord(itemsCollection)
+		laborItem.Set("invoice_id", invoice.Id)
+		laborItem.Set("item_name", serviceName)
+		laborItem.Set("quantity", 1)
+		laborItem.Set("unit_price", laborTotal)
+		laborItem.Set("total", laborTotal)
+		if err := s.app.Save(laborItem); err != nil {
+			fmt.Printf("WARNING: Failed to save labor item: %v\n", err)
+		}
+	}
+
+	// Create items for each part
+	for _, part := range jobParts {
+		partItem := core.NewRecord(itemsCollection)
+		partItem.Set("invoice_id", invoice.Id)
+		partItem.Set("item_name", part.GetString("part_name"))
+		partItem.Set("quantity", part.GetInt("quantity"))
+		partItem.Set("unit_price", part.GetFloat("unit_price"))
+		partItem.Set("total", part.GetFloat("total"))
+		if err := s.app.Save(partItem); err != nil {
+			fmt.Printf("WARNING: Failed to save part item: %v\n", err)
+		}
+	}
+
+	fmt.Printf("✅ INVOICEGEN: Created %d invoice items (1 labor + %d parts)\n", 1+len(jobParts), len(jobParts))
 
 	return invoice, nil
 }

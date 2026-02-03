@@ -100,21 +100,23 @@
             </select>
         </div>
 
-        <!-- Payment & Signature Section (Merged) -->
+        <!-- Tech Signature Section -->
         <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
             <h3 class="font-bold text-gray-800 mb-4 flex items-center">
-                <i class="fa-solid fa-file-signature text-blue-500 mr-2"></i> Xác nhận & Thanh toán
+                <i class="fa-solid fa-file-signature text-blue-500 mr-2"></i> Xác nhận hoàn thành công việc
             </h3>
 
-            <!-- Signature Pad -->
-            <div class="mb-6">
-                <label class="block text-sm font-medium text-gray-700 mb-2">Chữ ký khách hàng <span
-                        class="text-red-500">*</span></label>
+            <!-- Tech Signature Pad -->
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                    Chữ ký kỹ thuật viên <span class="text-red-500">*</span>
+                </label>
                 <div
                     class="border-2 border-gray-200 rounded-lg bg-[url('https://www.transparenttextures.com/patterns/graphy.png')] bg-gray-50 touch-none relative">
                     <canvas id="signature-pad" class="w-full h-48 block cursor-crosshair"></canvas>
-                    <div class="absolute bottom-2 right-2 text-[10px] text-gray-300 pointer-events-none select-none">Ký
-                        vào đây</div>
+                    <div class="absolute bottom-2 right-2 text-[10px] text-gray-300 pointer-events-none select-none">
+                        Ký xác nhận
+                    </div>
                 </div>
                 <div class="flex justify-end mt-2">
                     <button type="button" @click="clearSignature()"
@@ -122,37 +124,10 @@
                         <i class="fa-solid fa-eraser"></i> Xóa ký lại
                     </button>
                 </div>
-            </div>
-
-            <!-- Payment Method -->
-            <h4 class="font-bold text-sm text-gray-700 mb-2">Phương thức thanh toán:</h4>
-            <div class="flex p-1 bg-gray-100 rounded-xl mb-6">
-                <button type="button" class="flex-1 py-2 text-sm font-bold rounded-lg transition-all duration-200"
-                    :class="paymentMethod === 'transfer' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'"
-                    @click="paymentMethod = 'transfer'">
-                    <i class="fa-solid fa-qrcode mr-1"></i> Chuyển khoản
-                </button>
-                <button type="button" class="flex-1 py-2 text-sm font-bold rounded-lg transition-all duration-200"
-                    :class="paymentMethod === 'cash' ? 'bg-white text-green-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'"
-                    @click="paymentMethod = 'cash'">
-                    <i class="fa-solid fa-money-bill mr-1"></i> Tiền mặt
-                </button>
-            </div>
-
-            <!-- QR Code (Transfer) -->
-            <div x-show="paymentMethod === 'transfer'" x-transition class="text-center space-y-4 mb-4">
-                <div class="bg-white p-3 inline-block rounded-xl shadow-md border border-gray-100">
-                    <!-- Dynamic QR: Account info hardcoded for now or passed from backend -->
-                    <img :src="getQrUrl(grandTotal, 'Thanh toan Job {{.Booking.Id}}')"
-                        class="w-48 h-48 object-contain rounded-lg">
-                </div>
-                <p class="text-xs text-gray-500">Quét mã để thanh toán</p>
-            </div>
-
-            <!-- Cash Info -->
-            <div x-show="paymentMethod === 'cash'" x-transition
-                class="text-center p-4 bg-green-50 rounded-lg border border-green-100 mb-4">
-                <p class="text-green-700 text-sm font-bold">Thu tiền mặt trực tiếp từ khách</p>
+                <p class="text-xs text-gray-500 mt-2 italic">
+                    <i class="fa-solid fa-info-circle"></i> Chữ ký của bạn xác nhận rằng công việc đã hoàn thành đúng
+                    yêu cầu
+                </p>
             </div>
         </div>
 
@@ -177,7 +152,7 @@
 
                 <button type="submit" :disabled="loading || photos.length === 0"
                     class="btn btn-primary w-full text-lg shadow-lg">
-                    <span x-show="!loading"><i class="fas fa-check-circle mr-2"></i> HOÀN THÀNH CÔNG VIỆC</span>
+                    <span x-show="!loading"><i class="fas fa-check-circle mr-2"></i> HOÀN THÀNH & KÝ XÁC NHẬN</span>
                     <span x-show="loading" class="loading loading-spinner"></span>
                 </button>
             </div>
@@ -195,7 +170,6 @@
             parts: [], // {id, name, price, qty}
             selectedPartId: '',
             loading: false,
-            paymentMethod: 'transfer',
             signaturePad: null,
 
             init() {
@@ -265,13 +239,6 @@
                 if (this.signaturePad) this.signaturePad.clear();
             },
 
-            getQrUrl(amount, info) {
-                const bankBin = BANK_CONFIG.bin;
-                const accountNo = BANK_CONFIG.accountNo;
-                const template = BANK_CONFIG.template;
-                return `https://img.vietqr.io/image/${bankBin}-${accountNo}-${template}.png?amount=${amount}&addInfo=${encodeURIComponent(info)}`;
-            },
-
             async submitForm() {
                 if (this.photos.length === 0) {
                     alert('Vui lòng chụp ít nhất 1 ảnh nghiệm thu!');
@@ -279,7 +246,7 @@
                 }
 
                 if (this.signaturePad && this.signaturePad.isEmpty()) {
-                    alert('Vui lòng xin chữ ký khách hàng!');
+                    alert('Vui lòng ký xác nhận hoàn thành công việc!');
                     return;
                 }
 
@@ -289,13 +256,13 @@
 
                 const fd = new FormData();
                 fd.append('notes', this.notes);
-                fd.append('payment_method', this.paymentMethod);
 
+                // Tech signature (không phải customer signature)
                 if (this.signaturePad) {
                     const sigData = this.signaturePad.toDataURL();
                     const res = await fetch(sigData);
                     const blob = await res.blob();
-                    fd.append('signature_file', blob, 'signature.png');
+                    fd.append('tech_signature_file', blob, 'tech_signature.png');
                 }
 
                 for (let i = 0; i < this.photos.length; i++) {

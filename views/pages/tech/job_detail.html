@@ -1,7 +1,7 @@
 {{ define "content" }}
 <div x-data="JobDetailController({
         id: '{{.Job.Id}}',
-        lat: {{.Job.GetFloat " lat"}}, long: {{.Job.GetFloat "long" }}, address: {{printf "%q" (or
+        lat: {{.Job.GetFloat "lat"}}, long: {{.Job.GetFloat "long" }}, address: {{printf "%q" (or
     (.Job.GetString "address_details" ) (.Job.GetString "address" ))}}, status: '{{.Job.GetString "job_status"}}' })"
     class="bg-gray-50 min-h-screen pb-32">
 

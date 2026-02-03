@@ -321,6 +321,7 @@ func (h *TechHandler) ShowCompleteJob(e *core.RequestEvent) error {
 		"Inventory":  inventory,
 		"LaborPrice": laborPrice,
 		"IsTech":     true,
+		"PageType":   "job_detail", // Hide main nav
 	}
 
 	// Use layout inheritance - Form specific (V2 with parts and invoice recalculation)
@@ -389,29 +390,23 @@ func (h *TechHandler) SubmitCompleteJob(e *core.RequestEvent) error {
 	// Ensure public hash for sharing
 	if invoice.GetString("public_hash") == "" {
 		invoice.Set("public_hash", fmt.Sprintf("%x", time.Now().UnixNano()))
-		h.App.Save(invoice)
 	}
 
-	// 4. Update Booking Status to completed - MOVED TO PAYMENT
-	// job.Set("job_status", "completed")
-	// if err := h.App.Save(job); err != nil {
-	// 	return e.String(500, "Lỗi cập nhật trạng thái job")
-	// }
+	// [NEW] Save tech signature to invoice
+	techSigFiles, _ := e.FindUploadedFiles("tech_signature_file")
+	if len(techSigFiles) > 0 {
+		invoice.Set("tech_signature", techSigFiles[0])
+		invoice.Set("tech_signed_at", time.Now())
+		fmt.Printf("✅ Saved tech signature for invoice %s\n", invoice.Id)
+	}
 
-	// 5. Publish Events - MOVED TO PAYMENT
-	// h.Broker.Publish(broker.ChannelAdmin, "", broker.Event{
-	// 	Type:      "job.completed",
-	// 	Timestamp: time.Now().Unix(),
-	// 	Data: map[string]interface{}{
-	// 		"booking_id":  jobID,
-	// 		"tech_id":     e.Auth.Id,
-	// 		"parts_count": len(jobParts),
-	// 		"report_id":   report.Id,
-	// 	},
-	// })
+	// Save invoice with tech signature
+	if err := h.App.Save(invoice); err != nil {
+		return e.String(500, "Lỗi lưu hóa đơn: "+err.Error())
+	}
 
-	// Redirect to Invoice & Payment page instead of jobs list
-	return e.Redirect(http.StatusSeeOther, fmt.Sprintf("/tech/job/%s/invoice-payment", jobID))
+	// 4. Redirect to payment page (customer signs and pays)
+	return e.Redirect(http.StatusTemporaryRedirect, fmt.Sprintf("/tech/job/%s/invoice-payment", jobID))
 }
 
 // ShowInvoicePayment displays the invoice, signature canvas, and payment options
@@ -430,6 +425,19 @@ func (h *TechHandler) ShowInvoicePayment(e *core.RequestEvent) error {
 
 	if len(invoices) > 0 {
 		invoice = invoices[0]
+		fmt.Printf("📄 Found existing invoice %s for job %s\n", invoice.Id, jobID)
+
+		// [FIX] Check if items exist - if not, regenerate (migration fix)
+		items, _ := h.App.FindRecordsByFilter("invoice_items", fmt.Sprintf("invoice_id='%s'", invoice.Id), "", 1, 0, nil)
+		if len(items) == 0 {
+			fmt.Printf("⚠️  Invoice %s has no items, regenerating...\n", invoice.Id)
+			// Regenerate to create items
+			newInvoice, errRegen := h.InvoiceService.GenerateInvoice(jobID)
+			if errRegen == nil && newInvoice != nil {
+				invoice = newInvoice
+				fmt.Printf("✅ Regenerated invoice with items\n")
+			}
+		}
 	} else {
 		// Thử tạo mới
 		var errGen error
@@ -438,27 +446,25 @@ func (h *TechHandler) ShowInvoicePayment(e *core.RequestEvent) error {
 		// [FIX] NẾU LỖI -> ĐỪNG RENDER TRANG THANH TOÁN
 		if errGen != nil || invoice == nil {
 			// Log lỗi để debug
-			fmt.Printf("Cannot generate invoice for job %s: %v\n", jobID, errGen)
+			fmt.Printf("❌ Cannot generate invoice for job %s: %v\n", jobID, errGen)
 			// Redirect về trang nghiệm thu để thợ làm lại báo cáo
 			return e.Redirect(http.StatusTemporaryRedirect, fmt.Sprintf("/tech/job/%s/complete", jobID))
 		}
+		fmt.Printf("✅ Generated new invoice %s for job %s\n", invoice.Id, jobID)
 	}
 
 	// [FIX] Fetch Invoice Items for Detailed View
-	var items []interface{} // or []*core.Record
-	if invoice != nil {
-		records, _ := h.App.FindRecordsByFilter("invoice_items", fmt.Sprintf("invoice_id='%s'", invoice.Id), "", 100, 0, nil)
-		// Convert to interface slice or use directly if template accepts []*core.Record (it usually does)
-		for _, r := range records {
-			items = append(items, r)
-		}
-	}
+	// Items are now automatically created by InvoiceService.GenerateInvoice
+	items, _ := h.App.FindRecordsByFilter("invoice_items", fmt.Sprintf("invoice_id='%s'", invoice.Id), "", 100, 0, nil)
+	fmt.Printf("📋 Invoice %s has %d items\n", invoice.Id, len(items))
 
 	data := map[string]interface{}{
-		"Job":     job,
-		"Invoice": invoice,
-		"Items":   items, // Pass items to view
-		"IsTech":  true,
+		"Job":      job,
+		"Invoice":  invoice,
+		"Items":    items, // Pass items to view
+		"IsTech":   true,
+		"PageType": "job_detail", // Hide main nav
+		// Settings will be auto-injected by RenderPage from middleware
 	}
 
 	return RenderPage(h.Templates, e, "layouts/tech.html", "tech/invoice_payment.html", data)
