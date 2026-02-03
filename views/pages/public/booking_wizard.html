@@ -76,8 +76,9 @@
                                     <div
                                         class="w-14 h-14 md:w-16 md:h-16 rounded-lg bg-white shadow-sm border border-slate-100 flex items-center justify-center shrink-0 overflow-hidden group-hover:scale-105 transition-transform">
                                         {{ if .GetString "image" }}
-                                        <img src="/api/files/services/{{ .Id }}/{{ .GetString "image" }}"
-                                            class="w-full h-full object-cover">
+                                        <img src="/api/files/services/{{ .Id }}/{{ .GetString "image" }}?thumb=128x128"
+                                            loading="lazy" class="w-full h-full object-cover" alt="{{ .GetString "name"
+                                            }}">
                                         {{ else }}
                                         <i class="fa-solid fa-snowflake text-2xl md:text-3xl text-blue-500"></i>
                                         {{ end }}
@@ -138,7 +139,7 @@
                                     <div class="relative">
                                         <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"><i
                                                 class="fa-solid fa-user"></i></span>
-                                        <input type="text" x-model="formData.name"
+                                        <input type="text" x-model="formData.name" autocomplete="name"
                                             class="input input-bordered w-full pl-10 bg-slate-50 focus:bg-white"
                                             placeholder="VD: Nguyễn Văn A">
                                     </div>
@@ -150,7 +151,7 @@
                                     <div class="relative">
                                         <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"><i
                                                 class="fa-solid fa-phone"></i></span>
-                                        <input type="tel" x-model="formData.phone"
+                                        <input type="tel" x-model="formData.phone" autocomplete="tel"
                                             class="input input-bordered w-full pl-10 bg-slate-50 focus:bg-white"
                                             placeholder="VD: 0912 345 678">
                                     </div>
@@ -160,7 +161,7 @@
                                     <label class="label font-bold text-slate-700 pb-1">Địa chỉ <span
                                             class="text-red-500">*</span></label>
                                     <div class="join w-full shadow-sm">
-                                        <input type="text" x-model="formData.address"
+                                        <input type="text" x-model="formData.address" autocomplete="street-address"
                                             class="input input-bordered join-item w-full bg-slate-50 focus:bg-white"
                                             placeholder="Số nhà, tên đường...">
                                         <button type="button" @click="getLocation()"

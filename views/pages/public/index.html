@@ -126,7 +126,8 @@
                     <figure class="h-48 relative overflow-hidden group">
                         <a href="/services/{{.Id}}" class="block w-full h-full">
                             {{ if .GetString "image" }}
-                            <img src="/api/files/services/{{.Id}}/{{.GetString "image"}}" alt="{{.GetString "name"}}"
+                            <img src="/api/files/services/{{.Id}}/{{.GetString "image"}}?thumb=256x256" loading="lazy"
+                                alt="{{.GetString "name"}}"
                                 class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">
                             {{ else }}
                             <div class="w-full h-full bg-blue-50 flex items-center justify-center">
@@ -209,7 +210,8 @@
                                     <div
                                         class="w-16 h-16 rounded-xl bg-white shadow-sm border border-slate-100 flex items-center justify-center shrink-0 overflow-hidden">
                                         {{ if .GetString "image" }}
-                                        <img src="/api/files/services/{{ .Id }}/{{ .GetString "image" }}"
+                                        <img src="/api/files/services/{{ .Id }}/{{ .GetString "image" }}?thumb=128x128"
+                                            loading="lazy" alt="{{ .GetString "name" }}"
                                             class="w-full h-full object-cover">
                                         {{ else }}
                                         <i class="fa-solid fa-snowflake text-2xl text-blue-500"></i>
