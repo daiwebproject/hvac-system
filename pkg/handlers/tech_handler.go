@@ -114,12 +114,19 @@ func (h *TechHandler) getTechCommonData(techID string) map[string]interface{} {
 		}
 	}
 
+	// [NEW] Fetch Fresh Tech Record for Real-time Status
+	techRecord, err := h.App.FindRecordById("technicians", techID)
+	if err != nil {
+		fmt.Printf("Error fetching fresh tech record: %v\n", err)
+	}
+
 	return map[string]interface{}{
 		"ActiveCount":         activeCount,
 		"CompletedTodayCount": completedTodayCount,
 		"TodayEarnings":       todayEarnings,
 		"TotalEarnings":       totalEarnings,
 		"IsTech":              true,
+		"TechRecord":          techRecord, // Fresh data
 	}
 }
 

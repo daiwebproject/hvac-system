@@ -1,15 +1,25 @@
 {{define "content"}}
-<div class="max-w-2xl mx-auto pb-24 px-4 pt-6">
-    <div class="text-center mb-6">
-        <h2 class="text-2xl font-bold">Lịch sử công việc</h2>
-        <p class="text-gray-500">Các công việc đã hoàn thành</p>
-    </div>
+<div class="min-h-screen bg-gray-50 pb-24">
+    <!-- Navbar -->
+    <nav class="bg-white/90 backdrop-blur-md shadow-sm sticky top-0 z-40 border-b border-gray-100/50">
+        <div class="px-4 py-3 flex items-center gap-3">
+            <h1 class="font-bold text-gray-800 text-lg">Lịch sử công việc</h1>
+        </div>
+    </nav>
 
-    <!-- Placeholder for history list -->
-    <div class="card bg-base-100 shadow p-8 text-center text-gray-400">
-        <i class="fa-solid fa-clock-rotate-left text-4xl mb-4"></i>
-        <p>Tính năng đang phát triển...</p>
-        <p class="text-sm mt-2">Dữ liệu lịch sử sẽ hiển thị tại đây.</p>
+    <div class="max-w-2xl mx-auto px-4 pt-12 text-center">
+        <div class="inline-flex w-24 h-24 bg-gray-100 rounded-full items-center justify-center mb-6">
+            <i class="fa-solid fa-clock-rotate-left text-4xl text-gray-300"></i>
+        </div>
+
+        <h2 class="text-xl font-bold text-gray-800 mb-2">Tính năng đang phát triển</h2>
+        <p class="text-gray-500 max-w-xs mx-auto">
+            Bạn có thể xem lịch sử công việc đã hoàn thành trong tab "Lịch sử" tại trang chủ.
+        </p>
+
+        <a href="/tech/jobs" class="btn btn-primary btn-outline mt-6 rounded-[20px] px-8">
+            Về Trang Chủ
+        </a>
     </div>
 </div>
 {{end}}

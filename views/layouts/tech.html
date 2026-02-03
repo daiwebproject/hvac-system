@@ -15,10 +15,28 @@
     <link rel="apple-touch-icon" href="/assets/icons/icon-192x192.png">
     <link rel="icon" type="image/png" href="/assets/icons/icon-192x192.png">
 
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
     <link href="https://cdn.jsdelivr.net/npm/daisyui@4.4.19/dist/full.min.css" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: { primary: '#2563eb', secondary: '#4f46e5' }
+                }
+            }
+        }
+    </script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="/assets/style.css">
+
+    <style>
+        body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+        .glass-nav { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+        .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+        [x-cloak] { display: none !important; }
+    </style>
 
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
@@ -26,7 +44,6 @@
 
     <script src="/assets/qr-scanner.js"></script>
     <script src="/assets/offline-reporter.js"></script>
-    <!-- <script src="/assets/alpine-components.js"></script> -->
     <script src="/assets/htmx-sse.js"></script>
     <script src="/assets/js/utils.js"></script>
     <script src="/assets/js/tech.js?v=2"></script>
@@ -44,9 +61,10 @@
     <script src="/assets/js/toast-notification.js"></script>
 </head>
 
-<body class="bg-gray-50 pb-20 select-none" x-data="{...offlineIndicator(), ...toastNotification()}" x-init="init()"
-    hx-ext="sse" sse-connect="/tech/stream" @sse:job.assigned="handleJobAssigned"
-    @sse:job.cancelled="handleJobCancelled" @htmx:response-error="handleHtmxError">
+<body class="bg-gray-50 pb-24 min-h-screen text-gray-800 antialiased selection:bg-blue-100 selection:text-blue-900"
+    x-data="{...offlineIndicator(), ...toastNotification()}" x-init="init()" hx-ext="sse" sse-connect="/tech/stream"
+    @sse:job.assigned="handleJobAssigned" @sse:job.cancelled="handleJobCancelled"
+    @htmx:response-error="handleHtmxError">
 
     <div x-show="!isOnline" x-cloak x-transition
         class="fixed top-0 left-0 right-0 z-[100] bg-amber-500 text-white px-4 py-2 text-center text-sm font-bold shadow-md">
@@ -64,7 +82,6 @@
         {{ block "content" . }}{{ end }}
     </main>
 
-    <!-- Global Toast Container -->
     <div class="fixed top-4 left-4 right-4 z-[9999] flex flex-col gap-2 pointer-events-none">
         <template x-for="toast in toasts" :key="toast.id">
             <div x-show="toast.visible" x-transition:enter="transition ease-out duration-300"
@@ -91,22 +108,52 @@
         </template>
     </div>
 
-    {{ template "tech_nav" . }}
+    <div class="fixed bottom-0 left-0 right-0 z-50 pb-safe">
+        <div class="glass-nav border-t border-gray-200/50 shadow-[0_-8px_30px_rgba(0,0,0,0.04)] px-6 py-2 flex justify-between items-center text-gray-400">
+
+            <a href="/tech/jobs" class="flex flex-col items-center gap-1 p-2 transition-all duration-300 {{if eq .PageType "tech_jobs"}}text-primary scale-110{{else}}hover:text-gray-600{{end}}">
+                <div class="relative">
+                    <i class="fa-solid fa-clipboard-list text-xl {{if eq .PageType "tech_jobs"}}drop-shadow-md{{end}}"></i>
+                    {{if eq .PageType "tech_jobs"}}<span class="absolute -bottom-2 left-1/2 -translate-x-1/2 w-1 h-1 bg-primary rounded-full"></span>{{end}}
+                </div>
+                <span class="text-[10px] font-medium tracking-wide">Công việc</span>
+            </a>
+
+            <a href="/tech/history" class="flex flex-col items-center gap-1 p-2 transition-all duration-300 {{if eq .PageType "history"}}text-primary scale-110{{else}}hover:text-gray-600{{end}}">
+                <div class="relative">
+                    <i class="fa-solid fa-clock-rotate-left text-xl {{if eq .PageType "history"}}drop-shadow-md{{end}}"></i>
+                    {{if eq .PageType "history"}}<span class="absolute -bottom-2 left-1/2 -translate-x-1/2 w-1 h-1 bg-primary rounded-full"></span>{{end}}
+                </div>
+                <span class="text-[10px] font-medium tracking-wide">Lịch sử</span>
+            </a>
+
+            <a href="/tech/profile" class="flex flex-col items-center gap-1 p-2 transition-all duration-300 {{if eq .PageType "profile"}}text-primary scale-110{{else}}hover:text-gray-600{{end}}">
+                <div class="relative">
+                    <i class="fa-solid fa-user-gear text-xl {{if eq .PageType "profile"}}drop-shadow-md{{end}}"></i>
+                    {{if eq .PageType "profile"}}<span class="absolute -bottom-2 left-1/2 -translate-x-1/2 w-1 h-1 bg-primary rounded-full"></span>{{end}}
+                </div>
+                <span class="text-[10px] font-medium tracking-wide">Cá nhân</span>
+            </a>
+
+            <a href="/tech/logout" class="flex flex-col items-center gap-1 p-2 transition-all duration-300 hover:text-red-500 text-gray-400">
+                <i class="fa-solid fa-right-from-bracket text-xl"></i>
+                <span class="text-[10px] font-medium tracking-wide">Thoát</span>
+            </a>
+
+        </div>
+    </div>
 
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js"></script>
     <script src="/assets/firebase-messaging-client.js"></script>
 
     <script>
-        // Register SW globally
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('/assets/service-worker.js')
                 .then(() => console.log('SW Registered'))
                 .catch(err => console.error('SW Fail', err));
         }
     </script>
-
 </body>
-
 </html>
 {{ end }}

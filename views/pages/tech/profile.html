@@ -1,30 +1,74 @@
 {{define "content"}}
-<div class="max-w-2xl mx-auto pb-24 px-4 pt-6">
-    <div class="text-center mb-8">
-        <div class="avatar placeholder mb-4">
-            <div class="bg-neutral-focus text-neutral-content rounded-full w-24">
-                <span class="text-3xl">{{ slice .TechName 0 1 }}</span>
+<div class="min-h-screen bg-gray-50 pb-24">
+    <!-- Header -->
+    <div class="bg-white pb-6 pt-12 text-center rounded-b-[40px] shadow-sm relative overflow-hidden">
+        <div class="absolute top-0 w-full h-32 bg-gradient-to-br from-blue-600 to-blue-800 z-0"></div>
+
+        <div class="relative z-10 px-4">
+            <div class="avatar placeholder mb-4 inline-block shadow-xl rounded-full border-4 border-white bg-white">
+                <div
+                    class="bg-gradient-to-br from-blue-500 to-blue-700 text-white rounded-full w-24 h-24 flex items-center justify-center">
+                    <span class="text-3xl font-bold">{{ slice .TechName 0 1 }}</span>
+                </div>
+            </div>
+            <h2 class="text-2xl font-bold text-gray-800">{{ .TechName }}</h2>
+            <p class="text-gray-500 font-medium">{{ .TechEmail }}</p>
+            <div
+                class="mt-2 inline-flex items-center gap-1.5 px-3 py-1 bg-green-50 text-green-700 rounded-full text-xs font-bold uppercase tracking-wider">
+                <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span> Đang hoạt động
             </div>
         </div>
-        <h2 class="text-2xl font-bold">{{ .TechName }}</h2>
-        <p class="text-gray-500">{{ .TechEmail }}</p>
     </div>
 
-    <div class="grid grid-cols-2 gap-4 mb-6">
-        <div class="stat bg-base-100 shadow rounded-lg p-3 text-center">
-            <div class="text-xs text-gray-500">Đơn hoàn thành</div>
-            <div class="text-2xl font-bold text-success">{{ .TodayCount }}</div>
-        </div>
-        <div class="stat bg-base-100 shadow rounded-lg p-3 text-center">
-            <div class="text-xs text-gray-500">Đánh giá</div>
-            <div class="text-2xl font-bold text-warning">5.0 <i class="fa-solid fa-star text-sm"></i></div>
+    <!-- Stats -->
+    <div class="px-5 -mt-6 relative z-20">
+        <div class="grid grid-cols-2 gap-4">
+            <div class="card bg-white shadow-sm border border-gray-100 p-4 text-center rounded-2xl">
+                <div
+                    class="w-10 h-10 mx-auto bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mb-2">
+                    <i class="fa-solid fa-clipboard-check"></i>
+                </div>
+                <div class="text-xs text-gray-400 font-bold uppercase tracking-wider mb-0.5">Hôm nay</div>
+                <div class="text-2xl font-black text-gray-800">{{ .TodayCount }}</div>
+            </div>
+            <div class="card bg-white shadow-sm border border-gray-100 p-4 text-center rounded-2xl">
+                <div
+                    class="w-10 h-10 mx-auto bg-yellow-50 text-yellow-500 rounded-full flex items-center justify-center mb-2">
+                    <i class="fa-solid fa-star"></i>
+                </div>
+                <div class="text-xs text-gray-400 font-bold uppercase tracking-wider mb-0.5">Đánh giá</div>
+                <div class="text-2xl font-black text-gray-800">5.0</div>
+            </div>
         </div>
     </div>
 
-    <div class="menu bg-base-100 width-full rounded-box shadow">
-        <li><a><i class="fa-solid fa-gear"></i> Cài đặt</a></li>
-        <li><a><i class="fa-solid fa-circle-info"></i> Trợ giúp</a></li>
-        <li><a href="/tech/logout" class="text-error"><i class="fa-solid fa-right-from-bracket"></i> Đăng xuất</a></li>
+    <!-- Menu -->
+    <div class="px-5 mt-6 space-y-3">
+        <div class="bg-white rounded-[20px] shadow-sm border border-gray-100 overflow-hidden">
+            <a href="#" class="flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors border-b border-gray-50">
+                <div class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500">
+                    <i class="fa-solid fa-gear"></i>
+                </div>
+                <div class="flex-1 font-semibold text-gray-700">Cài đặt</div>
+                <i class="fa-solid fa-chevron-right text-gray-300 text-xs"></i>
+            </a>
+            <a href="#" class="flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors">
+                <div class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500">
+                    <i class="fa-solid fa-circle-question"></i>
+                </div>
+                <div class="flex-1 font-semibold text-gray-700">Trợ giúp & Hỗ trợ</div>
+                <i class="fa-solid fa-chevron-right text-gray-300 text-xs"></i>
+            </a>
+        </div>
+
+        <button onclick="window.location.href='/tech/logout'"
+            class="w-full flex items-center justify-center gap-2 p-4 text-red-500 font-bold hover:bg-red-50 rounded-[20px] transition-colors">
+            <i class="fa-solid fa-right-from-bracket"></i> Đăng xuất
+        </button>
+
+        <div class="text-center mt-6">
+            <p class="text-xs text-gray-300 font-mono">Phiên bản 2.5.0 (Build 2026.02)</p>
+        </div>
     </div>
 </div>
 {{end}}

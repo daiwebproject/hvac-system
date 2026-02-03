@@ -73,7 +73,7 @@ func InitTemplates() (*template.Template, error) {
 		log.Println("Warning: Admin Page Partials error:", err)
 	}
 
-	log.Println("✅ Loaded Templates:", t.DefinedTemplates())
+	log.Printf("✅ Loaded Templates: %q", t.DefinedTemplates())
 
 	// --- [QUAN TRỌNG] PHẢI COMMENT 2 DÒNG DƯỚI NÀY ---
 	// if _, err := t.ParseGlob("views/pages/*/*.html"); err != nil { ... }

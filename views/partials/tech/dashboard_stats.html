@@ -1,17 +1,24 @@
 {{/* Tech Dashboard Stats Cards */}}
 {{ define "tech/dashboard_stats" }}
 <div class="grid grid-cols-2 gap-4">
-    <!-- Completed Today -->
-    <div class="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/10">
-        <p class="text-xs text-blue-200 mb-1">Hoàn thành hôm nay</p>
-        <p class="text-2xl font-bold">{{.CompletedTodayCount}} <span class="text-sm font-normal">ca</span></p>
+    <div class="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/10 hover:bg-white/15 transition-colors group">
+        <div class="flex items-center gap-2 mb-2 text-blue-200 group-hover:text-white transition-colors">
+            <i class="fa-solid fa-check-circle text-sm"></i>
+            <p class="text-xs font-medium uppercase tracking-wider">Hôm nay</p>
+        </div>
+        <p class="text-2xl font-bold">
+            {{if .CompletedTodayCount}}{{.CompletedTodayCount}}{{else}}0{{end}} 
+            <span class="text-xs font-normal opacity-80">đơn</span>
+        </p>
     </div>
 
-    <!-- Estimated Earnings -->
-    <div class="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/10">
-        <p class="text-xs text-blue-200 mb-1">Thu nhập ước tính</p>
+    <div class="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/10 hover:bg-white/15 transition-colors group">
+        <div class="flex items-center gap-2 mb-2 text-blue-200 group-hover:text-yellow-300 transition-colors">
+            <i class="fa-solid fa-coins text-sm"></i>
+            <p class="text-xs font-medium uppercase tracking-wider">Thu nhập</p>
+        </div>
         <p class="text-2xl font-bold text-yellow-300">
-            {{if .TodayEarnings}}{{.TodayEarnings | printf "%.0f"}} đ{{else}}0{{end}}
+            {{if .TodayEarnings}}{{.TodayEarnings | printf "%.0f" | formatMoney}}₫{{else}}0₫{{end}}
         </p>
     </div>
 </div>
