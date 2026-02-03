@@ -1,25 +1,43 @@
-{{define "content"}}
-<div class="min-h-screen bg-gray-50 pb-24">
-    <!-- Navbar -->
-    <nav class="bg-white/90 backdrop-blur-md shadow-sm sticky top-0 z-40 border-b border-gray-100/50">
-        <div class="px-4 py-3 flex items-center gap-3">
-            <h1 class="font-bold text-gray-800 text-lg">Lịch sử công việc</h1>
+{{ define "content" }}
+<div class="p-6 pb-32">
+    <div class="flex justify-between items-end mb-6">
+        <div>
+            <h2 class="text-2xl font-bold text-gray-800">Lịch sử</h2>
+            <p class="text-xs text-gray-500">Các công việc đã hoàn tất</p>
         </div>
-    </nav>
-
-    <div class="max-w-2xl mx-auto px-4 pt-12 text-center">
-        <div class="inline-flex w-24 h-24 bg-gray-100 rounded-full items-center justify-center mb-6">
-            <i class="fa-solid fa-clock-rotate-left text-4xl text-gray-300"></i>
+        <div class="text-right">
+            <p class="text-[10px] text-gray-400 uppercase font-black">Tổng thu nhập</p>
+            <p class="text-xl font-black text-green-600">{{ .TotalEarnings | formatMoney }}₫</p>
         </div>
+    </div>
 
-        <h2 class="text-xl font-bold text-gray-800 mb-2">Tính năng đang phát triển</h2>
-        <p class="text-gray-500 max-w-xs mx-auto">
-            Bạn có thể xem lịch sử công việc đã hoàn thành trong tab "Lịch sử" tại trang chủ.
-        </p>
+    <div class="space-y-4">
+        {{ range .HistoryJobs }}
+        <div class="bg-white p-5 rounded-[2rem] shadow-sm border border-gray-100 relative overflow-hidden">
+            <div class="flex justify-between items-start mb-3">
+                <span class="text-[10px] font-mono text-gray-400">#{{ .Id }}</span>
+                <span class="badge badge-success badge-sm text-white font-bold">Thành công</span>
+            </div>
 
-        <a href="/tech/jobs" class="btn btn-primary btn-outline mt-6 rounded-[20px] px-8">
-            Về Trang Chủ
-        </a>
+            <div class="flex justify-between items-center">
+                <h3 class="font-bold text-gray-800 text-lg">{{ .GetString "service_name" }}</h3>
+                <span class="text-green-600 font-bold">+{{ .Get "final_amount" | formatMoney }}₫</span>
+            </div>
+            <p class="text-xs text-gray-500 mt-1"><i class="fa-solid fa-location-dot mr-1"></i>{{ .GetString
+                "customer_address" }}</p>
+
+            <div class="mt-4 pt-4 border-t border-dashed border-gray-100 flex justify-between items-center">
+                <div class="text-[10px] text-gray-400">
+                    <i class="fa-regular fa-clock mr-1"></i>{{ .GetDateTime "updated" }}
+                </div>
+                <a href="/tech/job/{{ .Id }}" class="btn btn-ghost btn-xs text-blue-600 font-bold">
+                    Chi tiết <i class="fa-solid fa-arrow-right ml-1"></i>
+                </a>
+            </div>
+        </div>
+        {{ else }}
+        {{ template "ui/empty_state" . }}
+        {{ end }}
     </div>
 </div>
-{{end}}
+{{ end }}

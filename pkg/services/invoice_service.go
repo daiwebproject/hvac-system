@@ -62,6 +62,8 @@ func (s *InvoiceService) GenerateInvoice(bookingID string) (*core.Record, error)
 	}
 
 	totalAmount := partsTotal + laborTotal
+	fmt.Printf("DEBUG INVOICEGEN: Booking=%s, ServiceID=%s, Labor=%.2f, Parts=%.2f, Total=%.2f\n",
+		bookingID, serviceID, laborTotal, partsTotal, totalAmount)
 
 	// Create Invoice
 	invoices, _ := s.app.FindCollectionByNameOrId("invoices")

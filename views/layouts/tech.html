@@ -32,10 +32,24 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <style>
-        body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
-        .glass-nav { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
-        .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
-        [x-cloak] { display: none !important; }
+        body {
+            font-family: 'Inter', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .glass-nav {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+
+        .pb-safe {
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+
+        [x-cloak] {
+            display: none !important;
+        }
     </style>
 
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -108,40 +122,44 @@
         </template>
     </div>
 
+    {{ if ne .PageType "job_detail" }}
     <div class="fixed bottom-0 left-0 right-0 z-50 pb-safe">
-        <div class="glass-nav border-t border-gray-200/50 shadow-[0_-8px_30px_rgba(0,0,0,0.04)] px-6 py-2 flex justify-between items-center text-gray-400">
+        <div
+            class="glass-nav border-t border-gray-200/50 shadow-[0_-8px_30px_rgba(0,0,0,0.04)] px-6 py-2 flex justify-between items-center text-gray-400">
 
-            <a href="/tech/jobs" class="flex flex-col items-center gap-1 p-2 transition-all duration-300 {{if eq .PageType "tech_jobs"}}text-primary scale-110{{else}}hover:text-gray-600{{end}}">
+            <a href="/tech/jobs"
+                class="flex flex-col items-center gap-1 p-2 transition-all duration-300 hover:text-primary hover:scale-110">
                 <div class="relative">
-                    <i class="fa-solid fa-clipboard-list text-xl {{if eq .PageType "tech_jobs"}}drop-shadow-md{{end}}"></i>
-                    {{if eq .PageType "tech_jobs"}}<span class="absolute -bottom-2 left-1/2 -translate-x-1/2 w-1 h-1 bg-primary rounded-full"></span>{{end}}
+                    <i class="fa-solid fa-clipboard-list text-xl"></i>
                 </div>
                 <span class="text-[10px] font-medium tracking-wide">Công việc</span>
             </a>
 
-            <a href="/tech/history" class="flex flex-col items-center gap-1 p-2 transition-all duration-300 {{if eq .PageType "history"}}text-primary scale-110{{else}}hover:text-gray-600{{end}}">
+            <a href="/tech/history"
+                class="flex flex-col items-center gap-1 p-2 transition-all duration-300 hover:text-primary hover:scale-110">
                 <div class="relative">
-                    <i class="fa-solid fa-clock-rotate-left text-xl {{if eq .PageType "history"}}drop-shadow-md{{end}}"></i>
-                    {{if eq .PageType "history"}}<span class="absolute -bottom-2 left-1/2 -translate-x-1/2 w-1 h-1 bg-primary rounded-full"></span>{{end}}
+                    <i class="fa-solid fa-clock-rotate-left text-xl"></i>
                 </div>
                 <span class="text-[10px] font-medium tracking-wide">Lịch sử</span>
             </a>
 
-            <a href="/tech/profile" class="flex flex-col items-center gap-1 p-2 transition-all duration-300 {{if eq .PageType "profile"}}text-primary scale-110{{else}}hover:text-gray-600{{end}}">
+            <a href="/tech/profile"
+                class="flex flex-col items-center gap-1 p-2 transition-all duration-300 hover:text-primary hover:scale-110">
                 <div class="relative">
-                    <i class="fa-solid fa-user-gear text-xl {{if eq .PageType "profile"}}drop-shadow-md{{end}}"></i>
-                    {{if eq .PageType "profile"}}<span class="absolute -bottom-2 left-1/2 -translate-x-1/2 w-1 h-1 bg-primary rounded-full"></span>{{end}}
+                    <i class="fa-solid fa-user-gear text-xl"></i>
                 </div>
                 <span class="text-[10px] font-medium tracking-wide">Cá nhân</span>
             </a>
 
-            <a href="/tech/logout" class="flex flex-col items-center gap-1 p-2 transition-all duration-300 hover:text-red-500 text-gray-400">
+            <a href="/tech/logout"
+                class="flex flex-col items-center gap-1 p-2 transition-all duration-300 hover:text-red-500 text-gray-400">
                 <i class="fa-solid fa-right-from-bracket text-xl"></i>
                 <span class="text-[10px] font-medium tracking-wide">Thoát</span>
             </a>
 
         </div>
     </div>
+    {{ end }}
 
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js"></script>
@@ -155,5 +173,6 @@
         }
     </script>
 </body>
+
 </html>
 {{ end }}

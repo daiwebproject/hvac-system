@@ -6,17 +6,18 @@
             <a href="javascript:history.back()" class="btn btn-sm btn-circle btn-ghost -ml-2 text-gray-600">
                 <i class="fa-solid fa-arrow-left text-lg"></i>
             </a>
-            <h1 class="font-bold text-gray-800 text-lg">Thanh toán & Nghiệm thu</h1>
+            <h1 class="font-bold text-gray-800 text-lg">Nghiệm thu & Thanh toán</h1>
         </div>
     </nav>
 
     <div class="flex-1 p-5 space-y-6 pb-32 max-w-lg mx-auto w-full">
-        <!-- Invoice Details -->
+        <!-- Unified Invoice Card -->
         <div class="card bg-white shadow-sm border border-gray-100 rounded-[24px]">
             <div class="p-5">
+                <!-- Header Info -->
                 <div class="flex justify-between items-center mb-4 border-b border-dashed border-gray-100 pb-4">
                     <div>
-                        <p class="text-xs text-gray-400 uppercase tracking-wider font-bold">Mã đơn</p>
+                        <p class="text-xs text-gray-400 uppercase tracking-wider font-bold">Mã HĐ</p>
                         <p
                             class="font-mono text-gray-600 font-bold bg-gray-100 px-2 py-0.5 rounded text-sm inline-block mt-1">
                             {{if .Invoice}}{{.Invoice.GetString "invoice_code"}}{{else}}PENDING{{end}}
@@ -28,10 +29,56 @@
                     </div>
                 </div>
 
-                <div class="bg-gray-50 rounded-2xl p-4 text-center border border-gray-100/50">
-                    <p class="text-xs text-gray-500 mb-1 font-medium uppercase">Tổng thanh toán</p>
+                <!-- Detailed Items List -->
+                <div class="space-y-3 mb-6">
+                    <h3 class="font-bold text-gray-800 text-sm uppercase tracking-wider flex items-center gap-2">
+                        <i class="fa-solid fa-list-check text-blue-500"></i> Chi tiết dịch vụ
+                    </h3>
+
+                    <div class="overflow-hidden rounded-xl border border-gray-100">
+                        <table class="table table-xs w-full">
+                            <thead class="bg-gray-50 text-gray-500">
+                                <tr>
+                                    <th class="pl-3 py-2">Hạng mục</th>
+                                    <th class="text-center py-2">SL</th>
+                                    <th class="text-right pr-3 py-2">Thành tiền</th>
+                                </tr>
+                            </thead>
+                            <tbody class="text-gray-700">
+                                <!-- Service Fee -->
+                                <tr class="border-b border-gray-50 last:border-none">
+                                    <td class="pl-3 py-2 font-medium">
+                                        {{.Job.GetString "device_type"}}
+                                        <div class="text-[10px] text-gray-400 font-normal">Phí dịch vụ</div>
+                                    </td>
+                                    <td class="text-center py-2">1</td>
+                                    <td class="text-right pr-3 py-2 font-mono">
+                                        {{.Job.GetFloat "estimated_cost" | printf "%.0f" | formatMoney}}
+                                    </td>
+                                </tr>
+
+                                <!-- Parts Items -->
+                                {{ range .Items }}
+                                <tr class="border-b border-gray-50 last:border-none">
+                                    <td class="pl-3 py-2">
+                                        <div class="font-medium">{{.GetString "item_name"}}</div>
+                                    </td>
+                                    <td class="text-center py-2">{{.GetInt "quantity"}}</td>
+                                    <td class="text-right pr-3 py-2 font-mono">
+                                        {{.GetFloat "total" | printf "%.0f" | formatMoney}}
+                                    </td>
+                                </tr>
+                                {{ end }}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Total Amount -->
+                <div class="bg-blue-50/50 rounded-2xl p-4 text-center border border-blue-100 mb-6">
+                    <p class="text-xs text-blue-500 mb-1 font-bold uppercase tracking-wide">Tổng thanh toán</p>
                     {{ if .Invoice }}
-                    <p class="text-3xl font-black text-blue-600 tracking-tight">
+                    <p class="text-3xl font-black text-blue-700 tracking-tight">
                         {{.Invoice.GetFloat "total_amount" | printf "%.0f" | formatMoney}} <span
                             class="text-lg text-blue-400 align-top">₫</span>
                     </p>
@@ -39,112 +86,101 @@
                     <p class="text-red-500 font-bold">Chưa có hóa đơn</p>
                     {{ end }}
                 </div>
-            </div>
-        </div>
 
-        <!-- Signature Pad -->
-        <div class="card bg-white shadow-sm border border-gray-100 rounded-[24px]">
-            <div class="p-5">
-                <div class="flex justify-between items-center mb-3">
-                    <h3 class="font-bold text-gray-800 text-sm uppercase tracking-wider flex items-center gap-2">
-                        <i class="fa-solid fa-pen-nib text-blue-500"></i> Chữ ký Khách hàng
-                    </h3>
-                    <button type="button" @click="clearSignature()"
-                        class="text-xs text-red-500 font-bold px-2 py-1 hover:bg-red-50 rounded transition-colors">
-                        Làm lại
-                    </button>
-                </div>
+                <!-- Signature Section -->
+                <div class="space-y-2">
+                    <div class="flex justify-between items-center px-1">
+                        <h3 class="font-bold text-gray-800 text-sm uppercase tracking-wider flex items-center gap-2">
+                            <i class="fa-solid fa-pen-nib text-orange-500"></i> Xác nhận & Ký tên
+                        </h3>
+                        <button type="button" @click="clearSignature()"
+                            class="text-[10px] font-bold text-red-500 bg-red-50 px-2 py-1 rounded-lg hover:bg-red-100 transition-colors">
+                            Ký lại
+                        </button>
+                    </div>
 
-                <div
-                    class="border-2 border-dashed border-gray-200 rounded-2xl bg-gray-50/50 touch-none relative overflow-hidden">
-                    <canvas id="signature-pad" class="w-full h-40 block cursor-crosshair"></canvas>
                     <div
-                        class="absolute inset-0 pointer-events-none flex items-center justify-center text-gray-200 font-bold text-4xl opacity-20 uppercase tracking-widest">
-                        Ký tên
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Payment Method -->
-        <div class="card bg-white shadow-sm border border-gray-100 rounded-[24px]">
-            <div class="p-5">
-                <h3 class="font-bold text-gray-800 text-sm uppercase tracking-wider mb-4 flex items-center gap-2">
-                    <i class="fa-solid fa-wallet text-green-500"></i> Phương thức thanh toán
-                </h3>
-
-                <div class="p-1 bg-gray-100 rounded-xl flex gap-1 mb-6">
-                    <button
-                        class="flex-1 py-3 text-sm font-bold rounded-lg transition-all shadow-sm flex flex-col items-center gap-1"
-                        :class="method === 'transfer' ? 'bg-white text-blue-600' : 'text-gray-400 hover:text-gray-600'"
-                        @click="method = 'transfer'">
-                        <i class="fa-solid fa-qrcode text-lg"></i> Chuyển khoản
-                    </button>
-                    <button
-                        class="flex-1 py-3 text-sm font-bold rounded-lg transition-all shadow-sm flex flex-col items-center gap-1"
-                        :class="method === 'cash' ? 'bg-white text-green-600' : 'text-gray-400 hover:text-gray-600'"
-                        @click="method = 'cash'">
-                        <i class="fa-solid fa-money-bill-wave text-lg"></i> Tiền mặt
-                    </button>
-                </div>
-
-                <!-- QR Section -->
-                <div x-show="method === 'transfer'" x-transition.opacity.duration.300ms class="space-y-6">
-                    <div class="flex justify-center">
-                        <div class="p-4 bg-white rounded-2xl shadow-sm border border-gray-100">
-                            <img :src="getQrUrl('{{.Invoice.GetFloat " total_amount" | printf "%.0f"
-                                }}', 'Thanh toan HD {{.Invoice.GetString "invoice_code"}}' )" alt="VietQR"
-                                class="w-48 h-48 object-contain rounded-lg">
+                        class="border-2 border-dashed border-gray-300 rounded-2xl bg-white touch-none relative overflow-hidden h-48 focus-within:border-blue-500 transition-colors">
+                        <canvas id="signature-pad"
+                            class="w-full h-full block cursor-crosshair active:cursor-grabbing"></canvas>
+                        <div
+                            class="absolute inset-0 pointer-events-none flex items-center justify-center text-gray-200 font-bold text-2xl opacity-30 uppercase tracking-widest select-none">
+                            Ký vào đây
                         </div>
                     </div>
-
-                    <div class="bg-blue-50/50 rounded-xl p-4 border border-blue-100 space-y-3">
-                        <div class="flex justify-between items-center text-sm">
-                            <span class="text-gray-500">Ngân hàng</span>
-                            <span class="font-bold text-gray-800">MB BANK</span>
-                        </div>
-                        <div class="flex justify-between items-center text-sm">
-                            <span class="text-gray-500">Số tài khoản</span>
-                            <div class="flex items-center gap-2">
-                                <span
-                                    class="font-mono font-bold text-lg text-blue-700 select-all">{{.Settings.BankAccount}}</span>
-                                <button class="btn btn-ghost btn-xs btn-square text-gray-400 hover:text-blue-600"
-                                    @click="navigator.clipboard.writeText('{{.Settings.BankAccount}}'); Swal.fire({toast:true,position:'top',icon:'success',title:'Đã sao chép',showConfirmButton:false,timer:1000})">
-                                    <i class="fa-regular fa-copy"></i>
-                                </button>
-                            </div>
-                        </div>
-                        <div class="flex justify-between items-center text-sm">
-                            <span class="text-gray-500">Chủ TK</span>
-                            <span class="font-bold text-gray-800 uppercase">{{.Settings.BankOwner}}</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Cash Section -->
-                <div x-show="method === 'cash'" x-transition.opacity.duration.300ms class="text-center py-6">
-                    <div
-                        class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4 text-green-600">
-                        <i class="fa-solid fa-hand-holding-dollar text-3xl"></i>
-                    </div>
-                    <p class="text-gray-500 text-sm">Vui lòng thu đủ số tiền</p>
-                    <p class="text-2xl font-bold text-gray-800 mt-1">
-                        {{.Invoice.GetFloat "total_amount" | printf "%.0f" | formatMoney}} đ
+                    <p class="text-[10px] text-gray-400 text-center italic mt-1">
+                        Bằng việc ký tên, khách hàng xác nhận nghiệm thu công việc và đồng ý thanh toán.
                     </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Payment Method Selection -->
+        <div class="card bg-white shadow-sm border border-gray-100 rounded-[24px]">
+            <div class="p-4">
+                <h3 class="font-bold text-gray-800 text-sm uppercase tracking-wider mb-3 px-1">
+                    Hình thức thanh toán
+                </h3>
+                <div class="grid grid-cols-2 gap-3 mb-4">
+                    <label class="cursor-pointer">
+                        <input type="radio" name="payment_method" value="transfer" class="peer sr-only"
+                            x-model="method">
+                        <div
+                            class="rounded-xl border-2 border-transparent bg-gray-50 p-3 text-center transition-all peer-checked:border-blue-500 peer-checked:bg-blue-50 peer-checked:text-blue-700 hover:bg-gray-100">
+                            <i class="fa-solid fa-qrcode text-xl mb-1 block"></i>
+                            <span class="text-xs font-bold">Chuyển khoản</span>
+                        </div>
+                    </label>
+                    <label class="cursor-pointer">
+                        <input type="radio" name="payment_method" value="cash" class="peer sr-only" x-model="method">
+                        <div
+                            class="rounded-xl border-2 border-transparent bg-gray-50 p-3 text-center transition-all peer-checked:border-green-500 peer-checked:bg-green-50 peer-checked:text-green-700 hover:bg-gray-100">
+                            <i class="fa-solid fa-money-bill-wave text-xl mb-1 block"></i>
+                            <span class="text-xs font-bold">Tiền mặt</span>
+                        </div>
+                    </label>
+                </div>
+
+                <!-- METHOD SPECIFIC INPUTS -->
+                <div x-show="method === 'transfer'" x-transition
+                    class="space-y-3 p-3 bg-blue-50 rounded-xl border border-blue-100">
+                    <div class="form-control">
+                        <label class="label py-1">
+                            <span class="label-text-alt text-blue-800 font-bold">Mã giao dịch / Nội dung CK (Bắt
+                                buộc)</span>
+                        </label>
+                        <input type="text" name="transaction_code" x-model="transactionCode"
+                            placeholder="VD: CK 150K..."
+                            class="input input-sm input-bordered w-full focus:input-primary bg-white">
+                    </div>
+                </div>
+
+                <div x-show="method === 'cash'" x-transition
+                    class="space-y-3 p-3 bg-green-50 rounded-xl border border-green-100">
+                    <label class="cursor-pointer flex items-start gap-3">
+                        <input type="checkbox" class="checkbox checkbox-success checkbox-sm mt-1"
+                            x-model="cashConfirmed">
+                        <span class="text-xs text-green-900 font-medium leading-tight">
+                            Tôi xác nhận đã nhận đủ
+                            <span class="font-bold">{{.Invoice.GetFloat "total_amount" | printf "%.0f" | formatMoney}}
+                                ₫</span>
+                            tiền mặt từ khách hàng.
+                        </span>
+                    </label>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- Fixed Bottom Action -->
-    <div class="fixed bottom-0 left-0 right-0 p-4 bg-white/90 backdrop-blur-md border-t border-gray-100 z-40 pb-safe">
-        <form id="payment-form" hx-post="/api/tech/job/{{.Job.Id}}/payment" hx-encoding="multipart/form-data"
-            hx-redirect="/tech/jobs">
+    <div class="fixed bottom-0 left-0 right-0 p-4 bg-white/90 backdrop-blur-md border-t border-gray-100 z-50 pb-safe">
+        <form id="payment-form" hx-post="/api/tech/job/{{.Job.Id}}/payment" hx-encoding="multipart/form-data">
             <input type="hidden" name="payment_method" x-model="method">
+            <!-- Included in form submit automatically by name attribute -->
 
-            <button type="button" @click="submitPayment()"
-                class="btn btn-primary w-full shadow-xl shadow-blue-600/20 text-lg font-bold rounded-2xl h-14">
-                Xác nhận thanh toán
+            <button type="button" @click="submitPayment()" :disabled="!canSubmit"
+                class="btn btn-primary w-full shadow-lg text-base font-bold rounded-xl h-12 normal-case tracking-wide disabled:bg-gray-300 disabled:text-gray-500 disabled:border-none">
+                <i class="fa-solid fa-check-circle"></i> Hoàn thành đơn hàng
             </button>
         </form>
     </div>
@@ -156,18 +192,39 @@
         Alpine.data('invoicePayment', () => ({
             method: 'transfer',
             transactionCode: '',
+            cashConfirmed: false,
             signaturePad: null,
+
+            get canSubmit() {
+                if (this.method === 'cash') {
+                    return this.cashConfirmed;
+                }
+                if (this.method === 'transfer') {
+                    // Require at least 3 chars for transaction code
+                    return this.transactionCode && this.transactionCode.trim().length >= 3;
+                }
+                return false;
+            },
 
             init() {
                 const canvas = document.getElementById('signature-pad');
-                // Adjust canvas resolution for retina displays
                 const ratio = Math.max(window.devicePixelRatio || 1, 1);
                 canvas.width = canvas.offsetWidth * ratio;
                 canvas.height = canvas.offsetHeight * ratio;
                 canvas.getContext("2d").scale(ratio, ratio);
 
                 this.signaturePad = new SignaturePad(canvas, {
-                    backgroundColor: 'rgba(255, 255, 255, 0)'
+                    backgroundColor: 'rgba(255, 255, 255, 0)',
+                    penColor: 'rgb(0, 0, 0)'
+                });
+
+                // Handle resize
+                window.addEventListener('resize', () => {
+                    // Simple resize reset - ideally would save data
+                    canvas.width = canvas.offsetWidth * ratio;
+                    canvas.height = canvas.offsetHeight * ratio;
+                    canvas.getContext("2d").scale(ratio, ratio);
+                    this.signaturePad.clear();
                 });
             },
 
@@ -175,21 +232,27 @@
                 this.signaturePad.clear();
             },
 
-            getQrUrl(amount, info) {
-                // VietQR QuickLink format
-                // https://img.vietqr.io/image/<BANK_ID>-<ACCOUNT_NO>-<TEMPLATE>.png?amount=<AMOUNT>&addInfo=<INFO>
-                const bankBin = '{{.Settings.BankBin}}';
-                const accountNo = '{{.Settings.BankAccount}}';
-                return `https://img.vietqr.io/image/${bankBin}-${accountNo}-compact.png?amount=${amount}&addInfo=${encodeURIComponent(info)}`;
-            },
-
             submitPayment() {
-                if (this.signaturePad.isEmpty()) {
-                    Swal.fire('Lỗi', 'Vui lòng xin chữ ký khách hàng!', 'warning');
+                // Double check validation logic just in case
+                if (!this.canSubmit) {
+                    let msg = 'Vui lòng kiểm tra lại thông tin.';
+                    if (this.method === 'cash') msg = 'Bạn chưa xác nhận đã nhận tiền.';
+                    if (this.method === 'transfer') msg = 'Vui lòng nhập mã giao dịch hợp lệ.';
+
+                    Swal.fire({ title: 'Thiếu thông tin!', text: msg, icon: 'warning' });
                     return;
                 }
 
-                // Convert signature to blob
+                if (this.signaturePad.isEmpty()) {
+                    Swal.fire({
+                        title: 'Thiếu chữ ký!',
+                        text: 'Vui lòng đưa khách hàng ký xác nhận nghiệm thu.',
+                        icon: 'warning',
+                        confirmButtonText: 'Đã hiểu'
+                    });
+                    return;
+                }
+
                 const dataURL = this.signaturePad.toDataURL();
                 fetch(dataURL)
                     .then(res => res.blob())
@@ -197,13 +260,11 @@
                         const form = document.getElementById('payment-form');
                         const formData = new FormData(form);
                         formData.append('signature_file', blob, 'signature.png');
-                        if (this.transactionCode) {
-                            formData.append('transaction_code', this.transactionCode);
-                        }
 
-                        // Show Loading
                         Swal.fire({
                             title: 'Đang xử lý...',
+                            text: 'Vui lòng đợi trong giây lát',
+                            allowOutsideClick: false,
                             didOpen: () => Swal.showLoading()
                         });
 
@@ -215,29 +276,31 @@
                                     const zaloShareUrl = `https://zalo.me/share?url=${encodeURIComponent(invoiceUrl)}`;
 
                                     Swal.fire({
-                                        title: 'Thanh toán thành công!',
+                                        title: 'Hoàn thành!',
                                         icon: 'success',
                                         html: `
-                                            <div class="flex flex-col gap-3 mt-4">
-                                                <p class="text-sm text-gray-600">Đơn hàng đã hoàn tất và lưu vào hệ thống bảo hành.</p>
+                                            <div class="space-y-4 mt-2">
+                                                <p class="text-sm text-gray-600">Đơn hàng đã được ghi nhận thành công.</p>
                                                 
-                                                <a href="${zaloShareUrl}" target="_blank" class="btn btn-info text-white w-full">
-                                                    <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/91/Icon_of_Zalo.svg/1200px-Icon_of_Zalo.svg.png" 
-                                                         class="w-6 h-6 mr-2 bg-white rounded-full p-0.5">
-                                                    Gửi Hóa đơn qua Zalo
-                                                </a>
-
-                                                <div class="divider text-xs">HOẶC</div>
-
-                                                <div class="join w-full">
-                                                    <input type="text" value="${invoiceUrl}" class="input input-bordered input-sm join-item w-full text-xs" readonly>
-                                                    <button onclick="navigator.clipboard.writeText('${invoiceUrl}'); Swal.showValidationMessage('Đã sao chép!')" class="btn btn-sm join-item">
-                                                        <i class="fa-regular fa-copy"></i>
-                                                    </button>
+                                                <div class="bg-gray-50 rounded-lg p-3 border border-gray-100">
+                                                    <p class="text-xs text-gray-400 font-bold uppercase mb-2">Gửi hóa đơn cho Khách</p>
+                                                    
+                                                    <a href="${zaloShareUrl}" target="_blank" class="btn btn-info btn-sm w-full text-white mb-2 no-underline normal-case">
+                                                        <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/91/Icon_of_Zalo.svg/1200px-Icon_of_Zalo.svg.png" 
+                                                             class="w-5 h-5 mr-1 bg-white rounded-full p-0.5">
+                                                        Gửi qua Zalo
+                                                    </a>
+                                                    
+                                                    <div class="join w-full">
+                                                        <input type="text" value="${invoiceUrl}" class="input input-xs input-bordered join-item w-full text-gray-500" readonly>
+                                                        <button onclick="navigator.clipboard.writeText('${invoiceUrl}'); this.innerHTML='<i class=\'fa-solid fa-check\'></i>'" class="btn btn-xs join-item btn-square">
+                                                            <i class="fa-regular fa-copy"></i>
+                                                        </button>
+                                                    </div>
                                                 </div>
-                                                
-                                                <a href="/tech/jobs" class="btn btn-outline btn-sm mt-2">
-                                                    <i class="fa-solid fa-house"></i> Về danh sách việc
+
+                                                <a href="/tech/jobs" class="btn btn-outline btn-sm w-full">
+                                                    <i class="fa-solid fa-home"></i> Về trang chủ
                                                 </a>
                                             </div>
                                         `,
@@ -255,30 +318,5 @@
             }
         }));
     });
-    // Global helpers for SweetAlert interactions
-    window.shareInvoice = function (url) {
-        if (navigator.share) {
-            navigator.share({
-                title: 'Hóa đơn dịch vụ',
-                text: 'Cảm ơn quý khách đã sử dụng dịch vụ. Dưới đây là hóa đơn điện tử của bạn:',
-                url: url
-            }).catch(console.error);
-        } else {
-            // Fallback to Zalo Share URL
-            window.open(`https://zalo.me/share?url=${encodeURIComponent(url)}`, '_blank');
-        }
-    };
-
-    window.copyToClipboard = function (text) {
-        navigator.clipboard.writeText(text).then(() => {
-            const Toast = Swal.mixin({
-                toast: true,
-                position: 'top-end',
-                showConfirmButton: false,
-                timer: 2000
-            });
-            Toast.fire({ icon: 'success', title: 'Đã sao chép link' });
-        });
-    };
 </script>
 {{ end }}

@@ -1,57 +1,38 @@
 {{ define "content" }}
 <script>
     window.TECH_INIT = {
-        // Sửa lỗi dấu ngoặc nhọn và tối ưu logic lồng nhau
+        // Cú pháp chuẩn để khởi tạo trạng thái từ Backend
         userActive: {{ if .TechRecord }}{{ if .TechRecord.GetBool "active" }}true{{ else }}false{{ end }}{{ else }}{{ if .Auth.GetBool "active" }}true{{ else }}false{{ end }}{{ end }}
     };
 </script>
 
 <div x-data="techDashboard()" x-init="initDashboard()" class="min-h-screen bg-gray-50 pb-28">
-
     <div class="bg-gradient-to-br from-blue-700 via-blue-800 to-blue-900 text-white rounded-b-[40px] shadow-xl relative overflow-hidden">
-        <div class="absolute top-0 right-0 opacity-10 pointer-events-none">
-            <i class="fa-solid fa-screwdriver-wrench text-9xl -mr-10 -mt-10 transform rotate-12"></i>
-        </div>
-        
-        <div class="px-6 pt-12 pb-8">
-            <div class="flex justify-between items-start mb-8">
-                <div>
-                    <p class="text-blue-200 text-xs font-medium mb-1 uppercase tracking-wider flex items-center gap-2">
-                        <span class="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
-                        Tech Portal
-                    </p>
-                    <h2 class="text-3xl font-bold tracking-tight text-white drop-shadow-sm">
-                        Chào, {{.Auth.Name}}
-                    </h2>
-
-                    <div class="mt-4 inline-flex bg-white/10 backdrop-blur-md rounded-full p-1 pl-1.5 pr-4 border border-white/20 shadow-inner">
-                        <label class="cursor-pointer flex items-center gap-3 relative select-none group">
-                            <input type="checkbox" class="sr-only" :checked="userActive"
-                                hx-post="/api/tech/status/toggle" 
-                                hx-swap="none"
-                                @htmx:after-request="if($event.detail.successful) { 
-                                    const res = JSON.parse($event.detail.xhr.response);
-                                    userActive = res.active; 
-                                }">
-
-                            <div class="w-11 h-6 rounded-full shadow-inner transition-colors duration-300 relative"
-                                :class="userActive ? 'bg-green-500' : 'bg-gray-600/50 group-hover:bg-gray-600'">
-                                <div class="absolute w-4 h-4 bg-white rounded-full shadow-sm transition-transform duration-300 top-1 left-1"
-                                    :class="userActive ? 'translate-x-5' : 'translate-x-0'"></div>
-                            </div>
-
-                            <span class="text-xs font-semibold uppercase tracking-wide"
-                                :class="userActive ? 'text-green-300' : 'text-gray-300'"
-                                x-text="userActive ? 'Đang trực tuyến' : 'Đang nghỉ'"></span>
-                        </label>
+        <div class="px-6 pt-10 pb-8">
+            <div class="flex justify-between items-center mb-6">
+                <div class="flex items-center gap-3">
+                    <div class="avatar online">
+                        <div class="w-14 h-14 rounded-2xl border-2 border-white/20 shadow-lg">
+                            <img src="{{if .Auth.Avatar}}{{.Auth.Avatar}}{{else}}/assets/icons/icon-192x192.png{{end}}" alt="Avatar" />
+                        </div>
+                    </div>
+                    <div>
+                        <p class="text-blue-200 text-[10px] uppercase tracking-widest font-medium">Kỹ thuật viên</p>
+                        <h2 class="text-xl font-bold tracking-tight">{{.Auth.Name}}</h2>
                     </div>
                 </div>
-
-                <button class="relative p-3 bg-white/10 rounded-2xl hover:bg-white/20 transition-all active:scale-95 border border-white/10 shadow-lg group">
-                    <i class="fa-regular fa-bell text-xl text-blue-100 group-hover:text-white transition-colors"></i>
-                    <span class="absolute top-2.5 right-3 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-blue-900 animate-ping"></span>
-                    <span class="absolute top-2.5 right-3 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-blue-900"></span>
-                </button>
+                
+                <div class="bg-white/10 backdrop-blur-md rounded-full p-1 pr-3 border border-white/10">
+                    <label class="cursor-pointer flex items-center gap-2">
+                        <input type="checkbox" class="sr-only" :checked="userActive" 
+                               hx-post="/api/tech/status/toggle" hx-swap="none"
+                               @htmx:after-request="if($event.detail.successful) { userActive = JSON.parse($event.detail.xhr.response).active }">
+                        <div class="w-9 h-5 rounded-full relative transition-colors" :class="userActive ? 'bg-green-500' : 'bg-gray-500'">
+                            <div class="absolute w-3 h-3 bg-white rounded-full top-1 left-1 transition-transform" :class="userActive ? 'translate-x-4' : ''"></div>
+                        </div>
+                        <span class="text-[10px] font-bold uppercase" x-text="userActive ? 'Online' : 'Off'"></span>
+                    </label>
+                </div>
             </div>
 
             {{template "tech/dashboard_stats" .}}
@@ -64,11 +45,9 @@
                 :class="activeTab === 'new' ? 'bg-blue-50 text-blue-700 shadow-sm' : 'text-gray-400'"
                 @click="activeTab = 'new'" 
                 hx-get="/api/tech/jobs/list?status=new" 
-                hx-target="#job-list-container">
-                <span class="indicator">
-                    <span x-show="activeTab !== 'new'" class="indicator-item badge badge-xs badge-primary"></span>
-                    <i class="fa-solid fa-clipboard-list text-lg"></i>
-                </span>
+                hx-target="#job-list-container"
+                hx-indicator="#main-loader">
+                <i class="fa-solid fa-clipboard-list text-lg"></i>
                 <span class="text-[10px] uppercase tracking-wide">Mới giao</span>
             </button>
 
@@ -76,25 +55,27 @@
                 :class="activeTab === 'active' ? 'bg-amber-50 text-amber-700 shadow-sm' : 'text-gray-400'"
                 @click="activeTab = 'active'" 
                 hx-get="/api/tech/jobs/list?status=active" 
-                hx-target="#job-list-container">
+                hx-target="#job-list-container"
+                hx-indicator="#main-loader">
                 <i class="fa-solid fa-person-digging text-lg"></i>
                 <span class="text-[10px] uppercase tracking-wide">Đang làm</span>
             </button>
 
             <button class="flex-1 py-3 rounded-xl text-sm font-bold transition-all flex flex-col items-center gap-1"
-                :class="activeTab === 'completed' ? 'bg-green-50 text-green-700 shadow-sm' : 'text-gray-400'"
-                @click="activeTab = 'completed'" 
-                hx-get="/api/tech/jobs/list?status=completed"
-                hx-target="#job-list-container">
-                <i class="fa-solid fa-clock-rotate-left text-lg"></i>
-                <span class="text-[10px] uppercase tracking-wide">Lịch sử</span>
+                :class="activeTab === 'schedule' ? 'bg-purple-50 text-purple-700 shadow-sm' : 'text-gray-400'"
+                @click="activeTab = 'schedule'" 
+                hx-get="/api/tech/schedule" 
+                hx-target="#job-list-container"
+                hx-indicator="#main-loader">
+                <i class="fa-solid fa-calendar-day text-lg"></i>
+                <span class="text-[10px] uppercase tracking-wide">Lịch trình</span>
             </button>
         </div>
     </div>
 
     <div class="px-6 mt-6">
-        <div class="htmx-indicator flex justify-center py-4" id="main-loader">
-            <span class="loading loading-dots loading-lg text-primary"></span>
+        <div id="main-loader" class="htmx-indicator flex justify-center py-4">
+            <span class="loading loading-dots loading-md text-primary"></span>
         </div>
 
         <div id="job-list-container" 
@@ -102,7 +83,8 @@
              hx-trigger="load, statusUpdated from:body"
              hx-indicator="#main-loader">
             <div class="space-y-4">
-                <div class="h-40 bg-gray-200 rounded-3xl animate-pulse"></div>
+                <div class="h-32 bg-gray-200 rounded-3xl animate-pulse"></div>
+                <div class="h-32 bg-gray-200 rounded-3xl animate-pulse"></div>
             </div>
         </div>
     </div>

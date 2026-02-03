@@ -120,6 +120,21 @@ func (h *TechHandler) getTechCommonData(techID string) map[string]interface{} {
 		fmt.Printf("Error fetching fresh tech record: %v\n", err)
 	}
 
+	// [FIX] Query for New Jobs (Assigned but not started)
+	newJobs, _ := h.App.FindRecordsByFilter(
+		"bookings",
+		fmt.Sprintf("technician_id='%s' && job_status='assigned'", techID),
+		"", 0, 0, nil,
+	)
+
+	// [FIX] Query for Total Completed Jobs (All time)
+	completedTotalRecords, _ := h.App.FindRecordsByFilter(
+		"bookings",
+		fmt.Sprintf("technician_id='%s' && job_status='completed'", techID),
+		"", 0, 0, nil,
+	)
+	completedTotal := len(completedTotalRecords)
+
 	return map[string]interface{}{
 		"ActiveCount":         activeCount,
 		"CompletedTodayCount": completedTodayCount,
@@ -127,6 +142,8 @@ func (h *TechHandler) getTechCommonData(techID string) map[string]interface{} {
 		"TotalEarnings":       totalEarnings,
 		"IsTech":              true,
 		"TechRecord":          techRecord, // Fresh data
+		"NewJobsCount":        len(newJobs),
+		"CompletedTotalCount": completedTotal, // Corrected key name to match template (CompletedTotalCount vs CompletedTotal)
 	}
 }
 
@@ -191,7 +208,8 @@ func (h *TechHandler) JobsList(e *core.RequestEvent) error {
 	if e.Request.Header.Get("HX-Target") == "job-list-container" {
 		e.Response.Header().Set("Content-Type", "text/html; charset=utf-8")
 		// Note: partials/tech/jobs_list.html defines "tech/partials/jobs_list"
-		return h.Templates.ExecuteTemplate(e.Response, "tech/partials/jobs_list", data)
+		// [FIX] Use renderPartial to safely Clone before Executing
+		return h.renderPartial(e, "tech/partials/jobs_list", data)
 	}
 
 	// Use layout inheritance
@@ -265,6 +283,7 @@ func (h *TechHandler) JobDetail(e *core.RequestEvent) error {
 		"Invoice":         invoice, // Dữ liệu hóa đơn (Tiền)
 		"ProgressPercent": progress,
 		"IsTech":          true,
+		"PageType":        "job_detail", // Used to hide main nav
 	}
 
 	// DEBUG
@@ -425,9 +444,20 @@ func (h *TechHandler) ShowInvoicePayment(e *core.RequestEvent) error {
 		}
 	}
 
+	// [FIX] Fetch Invoice Items for Detailed View
+	var items []interface{} // or []*core.Record
+	if invoice != nil {
+		records, _ := h.App.FindRecordsByFilter("invoice_items", fmt.Sprintf("invoice_id='%s'", invoice.Id), "", 100, 0, nil)
+		// Convert to interface slice or use directly if template accepts []*core.Record (it usually does)
+		for _, r := range records {
+			items = append(items, r)
+		}
+	}
+
 	data := map[string]interface{}{
 		"Job":     job,
 		"Invoice": invoice,
+		"Items":   items, // Pass items to view
 		"IsTech":  true,
 	}
 
@@ -484,8 +514,43 @@ func (h *TechHandler) Dashboard(e *core.RequestEvent) error {
 }
 
 func (h *TechHandler) ShowHistory(e *core.RequestEvent) error {
-	data := h.getTechCommonData(e.Auth.Id)
-	data["PageType"] = "history" // Corrected page type for nav highlighting
+	authRecord := e.Auth
+	if authRecord == nil {
+		return e.Redirect(http.StatusSeeOther, "/tech/login")
+	}
+
+	// 1. Lấy dữ liệu chung (Stats, TechRecord)
+	data := h.getTechCommonData(authRecord.Id)
+
+	// 2. Truy vấn 20 đơn gần nhất đã hoàn thành
+	historyJobs, err := h.App.FindRecordsByFilter(
+		"bookings",
+		fmt.Sprintf("technician_id='%s' && job_status='completed'", authRecord.Id),
+		"-updated", // Đơn mới hoàn thành hiện lên đầu
+		20, 0, nil,
+	)
+	if err != nil {
+		fmt.Printf("Error fetching history: %v\n", err)
+	}
+
+	// [NEW] Enrich with Invoice Amount
+	for _, job := range historyJobs {
+		invoices, _ := h.App.FindRecordsByFilter(
+			"invoices",
+			fmt.Sprintf("booking_id='%s'", job.Id),
+			"", 1, 0, nil,
+		)
+		if len(invoices) > 0 {
+			job.Set("final_amount", invoices[0].GetFloat("total_amount"))
+		} else {
+			job.Set("final_amount", 0)
+		}
+	}
+
+	data["HistoryJobs"] = historyJobs
+	data["PageType"] = "history"
+
+	// 3. Sử dụng RenderPage để render toàn bộ trang lịch sử
 	return RenderPage(h.Templates, e, "layouts/tech.html", "tech/history.html", data)
 }
 
@@ -564,6 +629,71 @@ func (h *TechHandler) TechStream(e *core.RequestEvent) error {
 			return nil
 		}
 	}
+}
+
+// GET /api/tech/schedule
+// GetSchedule xử lý yêu cầu hiển thị lịch trình làm việc (Timeline)
+// GET /api/tech/schedule
+func (h *TechHandler) GetSchedule(e *core.RequestEvent) error {
+	authRecord := e.Auth
+	if authRecord == nil {
+		return e.JSON(401, map[string]string{"error": "Unauthorized"})
+	}
+
+	// 1. Lấy dữ liệu chung (Stats, TechRecord)
+	data := h.getTechCommonData(authRecord.Id)
+
+	// 2. Truy vấn đơn hàng chưa hoàn thành, sắp xếp theo thời gian
+	jobs, err := h.App.FindRecordsByFilter(
+		"bookings",
+		fmt.Sprintf("technician_id='%s' && (job_status='assigned' || job_status='moving' || job_status='working')", authRecord.Id),
+		"+booking_time", // Sắp xếp tăng dần để tạo timeline
+		50, 0, nil,
+	)
+	if err != nil {
+		return e.String(500, "Lỗi truy vấn lịch trình")
+	}
+
+	// 3. Chuẩn bị dữ liệu hiển thị (ViewModel)
+	type ScheduleItem struct {
+		JobViewModel
+		StatusColor string
+		Icon        string
+	}
+
+	var scheduleItems []ScheduleItem
+	for _, job := range jobs {
+		vm := JobViewModel{Record: job}
+		// Logic parse thời gian giống JobsList
+		rawTime := job.GetString("booking_time")
+		parsedTime, _ := time.Parse("2006-01-02 15:04", rawTime)
+		if parsedTime.IsZero() {
+			parsedTime, _ = time.Parse("2006-01-02 15:04:05.000Z", rawTime)
+		}
+		vm.DisplayTime = parsedTime.Format("15:04")
+
+		item := ScheduleItem{JobViewModel: vm}
+		status := job.GetString("job_status")
+		switch status {
+		case "working":
+			item.StatusColor = "primary"
+			item.Icon = "fa-screwdriver-wrench"
+		case "moving":
+			item.StatusColor = "warning"
+			item.Icon = "fa-truck-fast"
+		default:
+			item.StatusColor = "info"
+			item.Icon = "fa-calendar-check"
+		}
+		scheduleItems = append(scheduleItems, item)
+	}
+
+	data["ScheduleItems"] = scheduleItems
+	e.Response.Header().Set("Content-Type", "text/html; charset=utf-8")
+
+	// TRẢ VỀ PARTIAL (Tránh lỗi Clone bằng cách gọi trực tiếp template name)
+	// [FIX] Use renderPartial
+	return h.renderPartial(e, "tech/partials/schedule_list", data)
 }
 
 // UpdateLocation updates the technician's current location

@@ -209,50 +209,49 @@ func RegisterRoutes(app *pocketbase.PocketBase, t *template.Template, eventBroke
 		adminGroup.POST("/categories/{id}/delete", admin.CategoryDelete)
 
 		// ---------------------------------------------------------
-		// 7. TECH ROUTES (Protected)
+		// 7. TECH ROUTES (Trang giao diện chính)
 		// ---------------------------------------------------------
 		techGroup := se.Router.Group("/tech")
 		techGroup.BindFunc(middleware.RequireTech(app))
 
 		techGroup.GET("/", func(e *core.RequestEvent) error {
-			return e.Redirect(http.StatusSeeOther, "/tech/jobs")
+			return e.Redirect(http.StatusSeeOther, "/tech/dashboard")
 		})
 		techGroup.GET("/dashboard", tech.Dashboard)
 		techGroup.GET("/jobs", tech.JobsList)
 		techGroup.GET("/job/{id}", tech.JobDetail)
-		techGroup.GET("/stream", tech.TechStream)
-		techGroup.POST("/location", tech.UpdateLocation)
 		techGroup.GET("/history", tech.ShowHistory)
 		techGroup.GET("/profile", tech.ShowProfile)
-		techGroup.POST("/job/{id}/evidence", tech.UploadEvidence)
+		techGroup.GET("/stream", tech.TechStream)
 
-		// Job Completion Flow
+		// Luồng hoàn thành công việc
 		techGroup.GET("/job/{id}/complete", tech.ShowCompleteJob)
 		techGroup.POST("/job/{id}/complete", tech.SubmitCompleteJob)
-		techGroup.GET("/job/{id}/invoice-payment", tech.ShowInvoicePayment) // Added missing route
-
-		// Quote & Report Stubs
-		techGroup.GET("/jobs/{id}/quote", tech.ShowQuote)
-		techGroup.POST("/jobs/{id}/quote", tech.SubmitQuote)
-		techGroup.GET("/jobs/{id}/report", tech.ShowReport)
-		techGroup.POST("/jobs/{id}/report", tech.SubmitReport)
+		techGroup.GET("/job/{id}/invoice-payment", tech.ShowInvoicePayment)
 
 		// ---------------------------------------------------------
-		// 8. TECH API ROUTES (HTMX/Fetch)
+		// 8. TECH API ROUTES (Dành cho HTMX và Xử lý dữ liệu)
 		// ---------------------------------------------------------
 		apiGroup := se.Router.Group("/api/tech")
 		apiGroup.BindFunc(middleware.RequireTech(app))
 
-		// Job Management & Status Updates
-		apiGroup.GET("/jobs/list", tech.GetJobsListHTMX)
-		apiGroup.POST("/bookings/{id}/status", tech.UpdateJobStatusHTMX) // Fixed route
-		apiGroup.POST("/bookings/{id}/cancel", tech.CancelBooking)       // New
+		// [QUAN TRỌNG] Route này phục vụ các Tab: Mới giao, Đang làm, Lịch sử trên Dashboard
+		apiGroup.GET("/jobs/list", tech.JobsList)
+
+		// [QUAN TRỌNG] Route phục vụ Tab Lịch trình (Timeline)
+		apiGroup.GET("/schedule", tech.GetSchedule)
+
+		// Quản lý trạng thái và thao tác
+		apiGroup.POST("/status/toggle", tech.ToggleOnlineStatus)        // Bật/tắt trực tuyến
+		apiGroup.POST("/bookings/{id}/checkin", tech.HandleTechCheckIn) // Check-in GPS
+		apiGroup.POST("/bookings/{id}/status", tech.UpdateJobStatusHTMX)
+		apiGroup.POST("/bookings/{id}/cancel", tech.CancelBooking)
+		apiGroup.POST("/location", tech.UpdateLocation)
+		apiGroup.POST("/fcm/token", fcm.RegisterDeviceToken)
+
+		// Hóa đơn và thanh toán
 		apiGroup.GET("/job/{id}/invoice", tech.GetJobInvoice)
 		apiGroup.POST("/job/{id}/payment", tech.ProcessPayment)
-		apiGroup.POST("/status/toggle", tech.ToggleOnlineStatus)        // New
-		apiGroup.POST("/bookings/{id}/checkin", tech.HandleTechCheckIn) // GPS Check-in
-		// Đường dẫn mới sẽ là: /api/tech/fcm/token
-		apiGroup.POST("/fcm/token", fcm.RegisterDeviceToken)
 
 		return se.Next()
 	})

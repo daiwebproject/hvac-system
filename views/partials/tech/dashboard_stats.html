@@ -1,25 +1,22 @@
-{{/* Tech Dashboard Stats Cards */}}
 {{ define "tech/dashboard_stats" }}
 <div class="grid grid-cols-2 gap-4">
-    <div class="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/10 hover:bg-white/15 transition-colors group">
-        <div class="flex items-center gap-2 mb-2 text-blue-200 group-hover:text-white transition-colors">
-            <i class="fa-solid fa-check-circle text-sm"></i>
-            <p class="text-xs font-medium uppercase tracking-wider">Hôm nay</p>
+    <div class="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/10">
+        <div class="flex items-center gap-2 mb-2 text-blue-200">
+            <i class="fa-solid fa-bell text-sm"></i>
+            <p class="text-[10px] font-medium uppercase tracking-wider">Việc mới hôm nay</p>
         </div>
-        <p class="text-2xl font-bold">
-            {{if .CompletedTodayCount}}{{.CompletedTodayCount}}{{else}}0{{end}} 
-            <span class="text-xs font-normal opacity-80">đơn</span>
-        </p>
+        <p class="text-2xl font-bold">{{if .NewJobsCount}}{{.NewJobsCount}}{{else}}0{{end}} <span class="text-xs font-normal opacity-80">đơn</span></p>
     </div>
 
-    <div class="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/10 hover:bg-white/15 transition-colors group">
-        <div class="flex items-center gap-2 mb-2 text-blue-200 group-hover:text-yellow-300 transition-colors">
-            <i class="fa-solid fa-coins text-sm"></i>
-            <p class="text-xs font-medium uppercase tracking-wider">Thu nhập</p>
+    <div class="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/10">
+        <div class="flex items-center gap-2 mb-2 text-yellow-300">
+            <i class="fa-solid fa-wallet text-sm"></i>
+            <p class="text-[10px] font-medium uppercase tracking-wider">Tổng thu nhập</p>
         </div>
-        <p class="text-2xl font-bold text-yellow-300">
-            {{if .TodayEarnings}}{{.TodayEarnings | printf "%.0f" | formatMoney}}₫{{else}}0₫{{end}}
+        <p class="text-2xl font-bold text-yellow-400">
+            {{if .TotalEarnings}}{{.TotalEarnings | formatMoney}}₫{{else}}0₫{{end}}
         </p>
+        <p class="text-[9px] opacity-70 mt-1">Từ {{.CompletedTotalCount}} đơn đã xong</p>
     </div>
 </div>
 {{ end }}
