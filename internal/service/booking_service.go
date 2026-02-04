@@ -60,6 +60,32 @@ func (s *BookingService) CreateBooking(req *core.BookingRequest) (*core.Booking,
 		return nil, err
 	}
 
+	// [CENTRALIZED NOTIFICATION]
+	// 1. SSE to Admin
+	if s.broker != nil {
+		s.broker.Publish(broker.ChannelAdmin, "", broker.Event{
+			Type:      "booking.created",
+			Timestamp: time.Now().Unix(),
+			Data: map[string]interface{}{
+				"booking_id":     booking.ID,
+				"customer_name":  booking.CustomerName,
+				"customer_phone": booking.CustomerPhone,
+				"service":        booking.DeviceType,
+				"booking_time":   booking.BookingTime,
+			},
+		})
+	}
+
+	// 2. FCM to Admin (Topic: admin_alerts)
+	if s.notifications != nil {
+		go func() {
+			err := s.notifications.NotifyNewBooking(context.Background(), booking.ID, booking.CustomerName)
+			if err != nil {
+				log.Printf("❌ [BOOKING_SERVICE] Failed to notify admins: %v", err)
+			}
+		}()
+	}
+
 	return booking, nil
 }
 
@@ -91,23 +117,38 @@ func (s *BookingService) AssignTechnician(bookingID, technicianID string) error 
 		return fmt.Errorf("failed to save assignment: %w", err)
 	}
 
-	// [NEW] Notify Technician
-	// 1. SSE Realtime Event
+	// [CENTRALIZED NOTIFICATION]
+	// 1. SSE Realtime Event (Tech & Admin)
 	if s.broker != nil {
+		// Notify Tech
 		s.broker.Publish(broker.ChannelTech, technicianID, broker.Event{
 			Type:      "job.assigned",
 			Timestamp: time.Now().Unix(),
 			Data: map[string]interface{}{
-				"job_id":        booking.ID,
-				"customer_name": booking.CustomerName,
-				"address":       booking.AddressDetails,
-				"booking_time":  booking.BookingTime,
+				"job_id":         booking.ID,
+				"booking_id":     booking.ID, // Compatible with old payload
+				"customer_name":  booking.CustomerName,
+				"customer_phone": booking.CustomerPhone,
+				"address":        booking.AddressDetails,
+				"booking_time":   booking.BookingTime,
+				"device_type":    booking.DeviceType,
 			},
 		})
 		log.Printf("📡 [BOOKING_SERVICE] Published SSE job.assigned to tech %s", technicianID)
+
+		// Notify Admin (Update Kanban/List)
+		s.broker.Publish(broker.ChannelAdmin, "", broker.Event{
+			Type:      "job.assigned",
+			Timestamp: time.Now().Unix(),
+			Data: map[string]interface{}{
+				"booking_id": bookingID,
+				"tech_id":    technicianID,
+				"customer":   booking.CustomerName,
+			},
+		})
 	}
 
-	// 2. FCM Push Notification
+	// 2. FCM Push Notification (Tech)
 	if s.notifications != nil && tech.FCMToken != "" {
 		log.Printf("👉 [BOOKING_SERVICE] Sending FCM to tech %s (TokenLen: %d)", tech.ID, len(tech.FCMToken))
 		go func() {
@@ -238,6 +279,29 @@ func (s *BookingService) CancelBooking(bookingID, reason, note string) error {
 	if err := s.bookingRepo.Update(booking); err != nil {
 		return fmt.Errorf("failed to cancel booking: %w", err)
 	}
+
+	// [CENTRALIZED NOTIFICATION]
+	if s.broker != nil {
+		// Notify Admin
+		s.broker.Publish(broker.ChannelAdmin, "", broker.Event{
+			Type:      "booking.cancelled",
+			Timestamp: time.Now().Unix(),
+			Data:      map[string]interface{}{"id": bookingID},
+		})
+
+		// Notify Tech
+		if booking.TechnicianID != "" {
+			s.broker.Publish(broker.ChannelTech, booking.TechnicianID, broker.Event{
+				Type:      "job.cancelled",
+				Timestamp: time.Now().Unix(),
+				Data: map[string]interface{}{
+					"booking_id": bookingID,
+					"reason":     reason,
+				},
+			})
+		}
+	}
+
 	return nil
 }
 
