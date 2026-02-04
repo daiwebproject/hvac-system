@@ -628,7 +628,7 @@ func (h *TechHandler) TechStream(e *core.RequestEvent) error {
 			if err != nil {
 				continue
 			}
-			fmt.Fprintf(e.Response, "data: %s\n\n", eventJSON)
+			fmt.Fprintf(e.Response, "event: %s\ndata: %s\n\n", event.Type, eventJSON)
 			e.Response.(http.Flusher).Flush()
 			fmt.Printf(" [SSE] Sent event %s to tech %s\n", event.Type, techID)
 

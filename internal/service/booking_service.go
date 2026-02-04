@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"hvac-system/internal/core"
+	"hvac-system/pkg/broker"
 	"log"
 	"math"
 	"time"
@@ -13,20 +14,23 @@ type BookingService struct {
 	bookingRepo   core.BookingRepository
 	techRepo      core.TechnicianRepository
 	slotControl   core.TimeSlotControl
-	notifications core.NotificationService // [NEW]
+	notifications core.NotificationService
+	broker        *broker.SegmentedBroker // [NEW] added field
 }
 
 func NewBookingService(
 	bookingRepo core.BookingRepository,
 	techRepo core.TechnicianRepository,
 	slotControl core.TimeSlotControl,
-	notifications core.NotificationService, // [NEW]
+	notifications core.NotificationService,
+	eventBroker *broker.SegmentedBroker, // [NEW]
 ) core.BookingService {
 	return &BookingService{
 		bookingRepo:   bookingRepo,
 		techRepo:      techRepo,
 		slotControl:   slotControl,
 		notifications: notifications,
+		broker:        eventBroker,
 	}
 }
 
@@ -88,6 +92,22 @@ func (s *BookingService) AssignTechnician(bookingID, technicianID string) error 
 	}
 
 	// [NEW] Notify Technician
+	// 1. SSE Realtime Event
+	if s.broker != nil {
+		s.broker.Publish(broker.ChannelTech, technicianID, broker.Event{
+			Type:      "job.assigned",
+			Timestamp: time.Now().Unix(),
+			Data: map[string]interface{}{
+				"job_id":        booking.ID,
+				"customer_name": booking.CustomerName,
+				"address":       booking.AddressDetails,
+				"booking_time":  booking.BookingTime,
+			},
+		})
+		log.Printf("📡 [BOOKING_SERVICE] Published SSE job.assigned to tech %s", technicianID)
+	}
+
+	// 2. FCM Push Notification
 	if s.notifications != nil && tech.FCMToken != "" {
 		log.Printf("👉 [BOOKING_SERVICE] Sending FCM to tech %s (TokenLen: %d)", tech.ID, len(tech.FCMToken))
 		go func() {

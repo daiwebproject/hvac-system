@@ -16,19 +16,13 @@
     <link rel="icon" type="image/png" href="/assets/icons/icon-192x192.png">
 
     <!-- Performance: DNS Prefetch & Preconnect -->
-    <link rel="dns-prefetch" href="https://fonts.googleapis.com">
-    <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
-    <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
-    <link rel="dns-prefetch" href="https://unpkg.com">
-    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
-    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
-
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Performance: Local Assets -->
+    <!-- <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"> -->
 
     <!-- Local Tailwind CSS -->
+    <!-- Local Tailwind CSS -->
     <link href="/assets/css/app.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/assets/vendor/fontawesome/css/all.min.css">
 
     <style>
         body {
@@ -51,16 +45,16 @@
         }
     </style>
 
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
-    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    <script src="/assets/vendor/sweetalert2/sweetalert2.all.min.js"></script>
+    <script src="/assets/vendor/htmx/htmx.min.js"></script>
+    <script src="/assets/vendor/html5-qrcode/html5-qrcode.min.js" type="text/javascript"></script>
 
     <script src="/assets/qr-scanner.js"></script>
     <script src="/assets/offline-reporter.js"></script>
     <script src="/assets/htmx-sse.js"></script>
     <script src="/assets/js/utils.js"></script>
     <script src="/assets/js/tech.js?v=2"></script>
-    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <script src="/assets/vendor/alpine/alpine.min.js" defer></script>
 
     <script>
         window.FIREBASE_CONFIG = {
@@ -161,8 +155,8 @@
     </div>
     {{ end }}
 
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js"></script>
+    <script src="/assets/vendor/firebase/firebase-app-compat.js"></script>
+    <script src="/assets/vendor/firebase/firebase-messaging-compat.js"></script>
     <script src="/assets/firebase-messaging-client.js"></script>
 
     <script>

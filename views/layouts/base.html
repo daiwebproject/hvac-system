@@ -28,22 +28,17 @@
     <link rel="icon" type="image/png" href="/api/files/settings/{{.Settings.Id}}/{{.Settings.Logo}}">
     {{ end }}
 
-    <!-- Performance: DNS Prefetch & Preconnect -->
-    <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
-    <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
-    <link rel="dns-prefetch" href="https://unpkg.com">
-    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <!-- Performance: Local Assets -->
 
     <!-- Local Tailwind CSS -->
     <link href="/assets/css/app.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/assets/vendor/fontawesome/css/all.min.css">
 
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="/assets/vendor/sweetalert2/sweetalert2.all.min.js"></script>
     <script src="/assets/js/utils.js"></script>
     <script src="/assets/js/public.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <script src="/assets/vendor/alpine/alpine.min.js" defer></script>
+    <script src="/assets/vendor/htmx/htmx.min.js"></script>
 </head>
 
 <body class="bg-base-100 font-sans text-base-content flex flex-col min-h-screen" hx-boost="true">

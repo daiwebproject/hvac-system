@@ -8,39 +8,32 @@
     <title>{{ block "title" . }}Admin | {{if .Settings}}{{.Settings.CompanyName}}{{else}}ĐẠI ĐIỆN LẠNH{{end}}{{ end }}
     </title>
 
-    <!-- Performance: DNS Prefetch & Preconnect -->
-    <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
-    <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
-    <link rel="dns-prefetch" href="https://unpkg.com">
-    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <!-- Performance: Local Assets -->
 
     <!-- Local Tailwind CSS -->
     <link href="/assets/css/app.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <link rel="stylesheet" href="/assets/vendor/fontawesome/css/all.min.css">
+    <script src="/assets/vendor/htmx/htmx.min.js"></script>
     <!-- <script src="/assets/alpine-components.js"></script> -->
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="/assets/vendor/sweetalert2/sweetalert2.all.min.js"></script>
     <script src="/assets/js/utils.js"></script>
     <script src="/assets/js/admin.js"></script>
 
     <!-- TinyMCE (same as PocketBase) -->
-    <script src="https://cdn.jsdelivr.net/npm/tinymce@6/tinymce.min.js" referrerpolicy="origin"></script>
+    <script src="/assets/vendor/tinymce/tinymce.min.js" referrerpolicy="origin"></script>
 
     <!-- Firebase SDK & FCM Client -->
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js"></script>
+    <script src="/assets/vendor/firebase/firebase-app-compat.js"></script>
+    <script src="/assets/vendor/firebase/firebase-messaging-compat.js"></script>
     <script src="/assets/firebase-messaging-client.js"></script>
 
 
-    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="/assets/vendor/alpine/alpine.min.js" defer></script>
+    <script src="/assets/vendor/chartjs/chart.min.js"></script>
 
     <!-- Leaflet CSS & JS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <link rel="stylesheet" href="/assets/vendor/leaflet/leaflet.css" />
+    <script src="/assets/vendor/leaflet/leaflet.js"></script>
 
     <style>
         /* Loading Bar - Youtube style */

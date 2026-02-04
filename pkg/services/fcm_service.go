@@ -178,8 +178,8 @@ func (s *FCMService) NotifyNewJobAssignment(ctx context.Context, techToken strin
 			"action": "open_job",
 			"jobUrl": fmt.Sprintf("/tech/job/%s", jobID),
 		},
-		Icon:  "/assets/icon.png",
-		Badge: "/assets/badge.png",
+		Icon:  "https://192.168.1.12/assets/icons/icon-192x192.png",
+		Badge: "https://192.168.1.12/assets/icons/icon-96x96.png", // Use small icon as badge fallback
 	}
 
 	_, err := s.SendNotification(ctx, payload)
@@ -210,8 +210,8 @@ func (s *FCMService) NotifyJobStatusChange(ctx context.Context, techToken string
 			"action": "open_job",
 			"jobUrl": fmt.Sprintf("/tech/job/%s", jobID),
 		},
-		Icon:  "/assets/icon.png",
-		Badge: "/assets/badge.png",
+		Icon:  "https://192.168.1.12/assets/icons/icon-192x192.png",
+		Badge: "https://192.168.1.12/assets/icons/icon-96x96.png", // Use small icon as badge fallback
 	}
 
 	_, err := s.SendNotification(ctx, payload)
@@ -228,8 +228,8 @@ func (s *FCMService) NotifyPendingReviewsSync(ctx context.Context, techToken str
 			"count":  fmt.Sprintf("%d", pendingCount),
 			"action": "open_app",
 		},
-		Icon:  "/assets/icon.png",
-		Badge: "/assets/badge.png",
+		Icon:  "https://192.168.1.12/assets/icons/icon-192x192.png",
+		Badge: "https://192.168.1.12/assets/icons/icon-96x96.png", // Use small icon as badge fallback
 	}
 
 	_, err := s.SendNotification(ctx, payload)
@@ -246,8 +246,8 @@ func (s *FCMService) NotifyPaymentProcessed(ctx context.Context, techToken strin
 			"amount": fmt.Sprintf("%.2f", amount),
 			"action": "open_app",
 		},
-		Icon:  "/assets/icon.png",
-		Badge: "/assets/badge.png",
+		Icon:  "https://192.168.1.12/assets/icons/icon-192x192.png",
+		Badge: "https://192.168.1.12/assets/icons/icon-96x96.png", // Use small icon as badge fallback
 	}
 
 	_, err := s.SendNotification(ctx, payload)

@@ -6,9 +6,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hóa Đơn Dịch Vụ - #{{.Invoice.GetString "invoice_code"}}</title>
-    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.4.19/dist/full.min.css" rel="stylesheet">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="/assets/css/app.css" rel="stylesheet">
+    <link rel="stylesheet" href="/assets/vendor/fontawesome/css/all.min.css">
     <style>
         /* CSS in ấn & hiển thị */
         @media print {
@@ -74,11 +73,11 @@
                             <i class="fa-solid fa-location-dot text-red-500 mr-2 w-4"></i>
                             {{.Job.GetString "address"}}
                             {{ if and (.Job.GetFloat "lat") (.Job.GetFloat "long") }}
-                            <a href="https://www.google.com/maps?q={{.Job.GetFloat "lat"}},{{.Job.GetFloat "long"
+                            <a href="https://www.google.com/maps?q={{.Job.GetFloat " lat"}},{{.Job.GetFloat "long"
                                 }}&z=17" target="_blank"
                                 class="text-blue-500 text-xs ml-1 hover:underline no-print">(Xem bản đồ)</a>
                             {{ else }}
-                            <a href="https://www.google.com/maps/search/?api=1&query={{.Job.GetString "address"}}"
+                            <a href="https://www.google.com/maps/search/?api=1&query={{.Job.GetString " address"}}"
                                 target="_blank" class="text-blue-500 text-xs ml-1 hover:underline no-print">(Xem bản
                                 đồ)</a>
                             {{ end }}
