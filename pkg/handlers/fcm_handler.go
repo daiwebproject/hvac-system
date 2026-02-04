@@ -57,6 +57,16 @@ func (h *FCMHandler) RegisterDeviceToken(e *core.RequestEvent) error {
 	// 2. Handle Technician
 	// Continued below...
 
+	// [FIX] Prevent Token Leakage: Remove this token from ANY other technician
+	// This ensures that if Tech A logs out and Tech B logs in on the same device,
+	// Tech A will no longer receive notifications on this device.
+	otherTechs, _ := h.App.FindRecordsByFilter("technicians", fmt.Sprintf("fcm_token='%s' && id!='%s'", req.Token, authRecord.Id), "", 100, 0, nil)
+	for _, other := range otherTechs {
+		other.Set("fcm_token", "")
+		h.App.Save(other)
+		fmt.Printf("⚠️ Cleared stale FCM token from tech %s (%s)\n", other.GetString("name"), other.Id)
+	}
+
 	// Find technician record
 	tech, err := h.App.FindRecordById("technicians", authRecord.Id)
 	if err != nil {

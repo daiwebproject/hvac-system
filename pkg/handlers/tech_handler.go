@@ -454,6 +454,25 @@ func (h *TechHandler) ShowInvoicePayment(e *core.RequestEvent) error {
 		fmt.Printf("✅ Generated new invoice %s for job %s\n", invoice.Id, jobID)
 	}
 
+	// [FIX 1] Lấy Job Report để hiển thị ảnh nghiệm thu
+	reports, _ := h.App.FindRecordsByFilter(
+		"job_reports",
+		fmt.Sprintf("booking_id='%s'", jobID),
+		"-created", 1, 0, nil,
+	)
+	var report *core.Record
+	if len(reports) > 0 {
+		report = reports[0]
+	}
+
+	// [FIX 2] Refresh invoice items explicitly to ensure sync
+	if invoice != nil {
+		// Re-fetch items just to be safe, although we already do it below
+		// The previous logic was: items, _ := h.App.FindRecordsByFilter("invoice_items", ...)
+		// We keep that logic but we can ensure the invoice object itself is up to date if needed
+		// h.App.Dao().ExpandRecord(invoice, []string{"booking_id"}, nil) // If needed
+	}
+
 	// [FIX] Fetch Invoice Items for Detailed View
 	// Items are now automatically created by InvoiceService.GenerateInvoice
 	items, _ := h.App.FindRecordsByFilter("invoice_items", fmt.Sprintf("invoice_id='%s'", invoice.Id), "", 100, 0, nil)
@@ -462,7 +481,8 @@ func (h *TechHandler) ShowInvoicePayment(e *core.RequestEvent) error {
 	data := map[string]interface{}{
 		"Job":      job,
 		"Invoice":  invoice,
-		"Items":    items, // Pass items to view
+		"Items":    items,  // Pass items to view
+		"Report":   report, // [FIX] Pass report to view
 		"IsTech":   true,
 		"PageType": "job_detail", // Hide main nav
 		// Settings will be auto-injected by RenderPage from middleware

@@ -60,8 +60,21 @@ window.kanbanBoard = function (initialData) {
                     }
                     // Handle Cancellations
                     else if (event.type === 'booking.cancelled' || event.type === 'job.cancelled') {
-                        const { id, booking_id } = event.data;
+                        const { id, booking_id, reason, note } = event.data;
                         this.removeJobLocally(id || booking_id);
+
+                        // [NEW] Notify Admin
+                        if (reason) {
+                            Swal.fire({
+                                title: 'Thông báo',
+                                text: `Đơn hàng đã hủy. Lý do: ${reason} ${note ? '(' + note + ')' : ''}`,
+                                icon: 'warning',
+                                toast: true,
+                                position: 'top-end',
+                                showConfirmButton: false,
+                                timer: 5000
+                            });
+                        }
                     }
                     // Handle New Bookings
                     else if (event.type === 'booking.created') {
@@ -135,11 +148,63 @@ window.kanbanBoard = function (initialData) {
 
             if (!sourceCol || sourceCol === targetCol) return;
 
+            // Helper function to execute the drop logic
+            const executeDrop = () => {
+                // 3. Cập nhật UI (Optimistic)
+                this.columns[sourceCol].splice(jobIndex, 1);
+
+                // [FIX] Cập nhật thuộc tính Job ngay lập tức
+                job.status = targetCol;
+                job.status_label = targetCol;
+
+                // Nếu kéo về Pending -> Xóa thông tin thợ
+                if (targetCol === 'pending') {
+                    job.staff_id = null;
+                    job.technician_id = null;
+                }
+
+                this.columns[targetCol].push(job);
+
+                // 4. Gọi API
+                let newStatus = targetCol;
+                if (targetCol === 'working') newStatus = 'moving'; // Default working status start
+
+                fetch(`/admin/api/bookings/${jobId}/status`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: `status=${newStatus}`
+                }).then(res => {
+                    if (!res.ok) {
+                        Swal.fire({
+                            title: 'Lỗi',
+                            text: 'Không thể cập nhật trạng thái',
+                            icon: 'error'
+                        });
+                        window.location.reload();
+                    }
+                    // Success
+                });
+            };
+
             // Xử lý logic nghiệp vụ
 
             // 1. Kéo về Pending (Hủy giao việc)
             if (targetCol === 'pending') {
-                if (!confirm(`⚠️ HỦY GIAO VIỆC?\n\nĐơn "${job.customer}" sẽ quay lại hàng chờ.`)) return;
+                Swal.fire({
+                    title: 'Hủy giao việc?',
+                    text: `Đơn "${job.customer}" sẽ quay lại hàng chờ.`,
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#d33',
+                    cancelButtonColor: '#3085d6',
+                    confirmButtonText: 'Đồng ý hủy',
+                    cancelButtonText: 'Không'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        executeDrop();
+                    }
+                });
+                return; // Wait for async confirmation
             }
 
             // 2. Kéo vào Assigned (Giao việc) -> Mở Modal
@@ -152,27 +217,8 @@ window.kanbanBoard = function (initialData) {
                 return; // Dừng tại đây, Modal sẽ lo việc submit
             }
 
-            // 3. Cập nhật UI (Optimistic)
-            this.columns[sourceCol].splice(jobIndex, 1);
-            this.columns[targetCol].push(job);
-
-            // 4. Gọi API
-            let newStatus = targetCol;
-            if (targetCol === 'working') newStatus = 'moving'; // Default working status start
-
-            fetch(`/admin/api/bookings/${jobId}/status`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: `status=${newStatus}`
-            }).then(res => {
-                if (!res.ok) {
-                    alert('Lỗi cập nhật trạng thái');
-                    window.location.reload();
-                } else if (targetCol === 'pending') {
-                    // Reload để đảm bảo data sạch (xóa tên thợ)
-                    setTimeout(() => window.location.reload(), 500);
-                }
-            });
+            // 3. Các trường hợp khác -> Thực hiện ngay
+            executeDrop();
         },
 
         // --- Modal Logic ---
@@ -189,13 +235,39 @@ window.kanbanBoard = function (initialData) {
         },
 
         cancelJob(id) {
-            if (confirm('Bạn có chắc chắn muốn HỦY đơn hàng này?')) {
-                fetch('/admin/bookings/' + id + '/cancel', { method: 'POST' })
-                    .then(res => {
-                        if (res.ok) window.location.reload();
-                        else alert('Lỗi khi hủy đơn');
-                    });
-            }
+            Swal.fire({
+                title: 'Hủy đơn hàng?',
+                text: "Bạn có chắc chắn muốn hủy đơn hàng này không? Hành động này không thể hoàn tác.",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: 'Đồng ý hủy',
+                cancelButtonText: 'Không'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    fetch('/admin/bookings/' + id + '/cancel', { method: 'POST' })
+                        .then(res => {
+                            if (res.ok) {
+                                this.removeJobLocally(id);
+                                Swal.fire({
+                                    title: 'Đã hủy',
+                                    text: 'Đơn hàng đã được hủy thành công',
+                                    icon: 'success',
+                                    toast: true,
+                                    position: 'top-end',
+                                    showConfirmButton: false,
+                                    timer: 3000
+                                });
+                            } else {
+                                Swal.fire('Lỗi', 'Lỗi khi hủy đơn', 'error');
+                            }
+                        })
+                        .catch(() => {
+                            Swal.fire('Lỗi', 'Lỗi kết nối', 'error');
+                        });
+                }
+            });
         },
 
         createJob(event) {

@@ -147,11 +147,19 @@ func (s *InvoiceService) GenerateInvoice(bookingID string) (*core.Record, error)
 
 	// Create items for each part
 	for _, part := range jobParts {
+		// Expand item to get name
+		s.app.ExpandRecord(part, []string{"item_id"}, nil)
+		inventoryItem := part.ExpandedOne("item_id")
+		itemName := "Vật tư không tên"
+		if inventoryItem != nil {
+			itemName = inventoryItem.GetString("name")
+		}
+
 		partItem := core.NewRecord(itemsCollection)
 		partItem.Set("invoice_id", invoice.Id)
-		partItem.Set("item_name", part.GetString("part_name"))
-		partItem.Set("quantity", part.GetInt("quantity"))
-		partItem.Set("unit_price", part.GetFloat("unit_price"))
+		partItem.Set("item_name", itemName)
+		partItem.Set("quantity", part.GetFloat("quantity"))         // Use GetFloat for quantity as it can be decimal
+		partItem.Set("unit_price", part.GetFloat("price_per_unit")) // Fix: read price_per_unit
 		partItem.Set("total", part.GetFloat("total"))
 		if err := s.app.Save(partItem); err != nil {
 			fmt.Printf("WARNING: Failed to save part item: %v\n", err)

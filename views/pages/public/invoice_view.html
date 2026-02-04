@@ -51,7 +51,7 @@
                         <div
                             class="bg-white/20 p-2 rounded text-center backdrop-blur-sm print:bg-transparent print:border print:border-gray-300">
                             <span class="block text-xs uppercase opacity-75">Mã Hồ Sơ</span>
-                            <span class="font-mono font-bold text-lg">#{{.Invoice.GetString "invoice_code"}}</span>
+                            <span class="font-mono font-bold text-lg">#{{.Invoice.GetString "public_hash"}}</span>
                         </div>
                         <div class="mt-2 text-xs opacity-75 print:text-gray-500">
                             Ngày tạo: {{ .Invoice.GetString "created" | printf "%.10s" }}
@@ -73,11 +73,11 @@
                             <i class="fa-solid fa-location-dot text-red-500 mr-2 w-4"></i>
                             {{.Job.GetString "address"}}
                             {{ if and (.Job.GetFloat "lat") (.Job.GetFloat "long") }}
-                            <a href="https://www.google.com/maps?q={{.Job.GetFloat " lat"}},{{.Job.GetFloat "long"
+                            <a href="https://www.google.com/maps?q={{.Job.GetFloat "lat"}},{{.Job.GetFloat "long"
                                 }}&z=17" target="_blank"
                                 class="text-blue-500 text-xs ml-1 hover:underline no-print">(Xem bản đồ)</a>
                             {{ else }}
-                            <a href="https://www.google.com/maps/search/?api=1&query={{.Job.GetString " address"}}"
+                            <a href="https://www.google.com/maps/search/?api=1&query={{.Job.GetString "address"}}"
                                 target="_blank" class="text-blue-500 text-xs ml-1 hover:underline no-print">(Xem bản
                                 đồ)</a>
                             {{ end }}
@@ -91,7 +91,8 @@
                             Kỹ thuật viên thực hiện</h3>
                         <p class="font-bold text-gray-800">{{ .Tech.GetString "name" }}</p>
                         <p class="text-gray-600 text-sm">Mã NV: {{ .Tech.GetString "username" }}</p>
-                        <span class="badge badge-success badge-outline badge-sm mt-1">Đã xác thực tay nghề</span>
+                        <span class="badge badge-success badge-outline badge-sm mt-1">{{ .Tech.GetString "verified"
+                            }}</span>
                     </div>
                     {{ end }}
                 </div>
@@ -102,15 +103,57 @@
                     <i class="fa-solid fa-clock-rotate-left text-blue-600 mr-2"></i> Tiến độ thực hiện
                 </h3>
                 <ul class="steps steps-vertical lg:steps-horizontal w-full text-sm">
-                    {{ range .Timeline }}
-                    <li class="step {{ if .active }}step-primary{{ end }}"
-                        data-content="{{ if .active }}✓{{ else }}●{{ end }}">
+                    <!-- Step 1: Đặt dịch vụ -->
+                    <li class="step step-primary">
                         <div class="flex flex-col items-start lg:items-center">
-                            <span class="font-bold">{{ .label }}</span>
-                            <span class="text-[10px] text-gray-500 font-mono">{{ .time }}</span>
+                            <span class="font-bold">Đặt dịch vụ</span>
+                            <span class="text-xs text-gray-500 font-mono">{{.Job.GetString "created" | substr 11 5}}
+                                {{.Job.GetString "created" | substr 8 2}}/{{.Job.GetString "created" | substr 5
+                                2}}</span>
                         </div>
                     </li>
-                    {{ end }}
+
+                    <!-- Step 2: Kỹ thuật đến -->
+                    <li class="step {{if .Job.GetString " arrived_start_at"}}step-primary{{end}}">
+                        <div class="flex flex-col items-start lg:items-center">
+                            <span class="font-bold">Kỹ thuật đến</span>
+                            {{ if .Job.GetString "arrived_start_at" }}
+                            <span class="text-xs text-gray-500 font-mono">
+                                {{.Job.GetString "arrived_start_at" | substr 11 5}}
+                            </span>
+                            {{ else }}
+                            <span class="text-[10px] text-gray-400 italic">---</span>
+                            {{ end }}
+                        </div>
+                    </li>
+
+                    <!-- Step 3: Hoàn thành -->
+                    <li class="step {{if .Invoice.GetString " tech_signed_at"}}step-primary{{end}}">
+                        <div class="flex flex-col items-start lg:items-center">
+                            <span class="font-bold">Hoàn thành</span>
+                            {{ if .Invoice.GetString "tech_signed_at" }}
+                            <span class="text-xs text-gray-500 font-mono">
+                                {{.Invoice.GetString "tech_signed_at" | substr 11 5}}
+                            </span>
+                            {{ else }}
+                            <span class="text-[10px] text-gray-400 italic">---</span>
+                            {{ end }}
+                        </div>
+                    </li>
+
+                    <!-- Step 4: Thanh toán -->
+                    <li class="step {{if .Invoice.GetString " customer_signed_at"}}step-primary{{end}}">
+                        <div class="flex flex-col items-start lg:items-center">
+                            <span class="font-bold">Thanh toán</span>
+                            {{ if .Invoice.GetString "customer_signed_at" }}
+                            <span class="text-xs text-gray-500 font-mono">
+                                {{.Invoice.GetString "customer_signed_at" | substr 11 5}}
+                            </span>
+                            {{ else }}
+                            <span class="text-[10px] text-gray-400 italic">---</span>
+                            {{ end }}
+                        </div>
+                    </li>
                 </ul>
             </div>
 
@@ -122,7 +165,7 @@
 
                 <div class="bg-yellow-50 p-3 rounded-lg border border-yellow-100 mb-4 text-sm">
                     <span class="font-bold text-yellow-800">Ghi chú của thợ:</span>
-                    <p class="italic text-gray-700 mt-1">"{{ .Report.GetString "tech_notes" }}"</p>
+                    <p class="italic text-gray-700 mt-1">"{{ .Report.GetString "photo_notes" }}"</p>
                 </div>
 
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -160,24 +203,13 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <tr class="border-b">
-                                <td>
-                                    <span class="font-semibold text-gray-800">{{.Job.GetString "device_type"}}</span>
-                                    <div class="badge badge-ghost badge-xs ml-2">Phí dịch vụ</div>
-                                </td>
-                                <td class="text-center">1</td>
-                                <td class="text-right font-mono">{{.Job.GetFloat "estimated_cost" | printf "%.0f"}}</td>
-                                <td class="text-right font-bold font-mono">{{.Job.GetFloat "estimated_cost" | printf
-                                    "%.0f"}}</td>
-                            </tr>
-
                             {{ range .Items }}
                             <tr class="border-b hover:bg-gray-50">
                                 <td>
                                     <span class="text-gray-700">{{.GetString "item_name"}}</span>
                                 </td>
-                                <td class="text-center">{{.GetInt "quantity"}}</td>
-                                <td class="text-right font-mono">{{.GetFloat "price" | printf "%.0f"}}</td>
+                                <td class="text-center">{{.GetFloat "quantity" | printf "%g"}}</td>
+                                <td class="text-right font-mono">{{.GetFloat "unit_price" | printf "%.0f"}}</td>
                                 <td class="text-right font-bold font-mono">{{.GetFloat "total" | printf "%.0f"}}</td>
                             </tr>
                             {{ end }}
@@ -227,9 +259,9 @@
                     <h4 class="font-bold text-gray-800 text-sm mb-2">Đại diện Khách hàng</h4>
                     <p class="text-xs text-gray-500 mb-8">(Ký và ghi rõ họ tên)</p>
 
-                    {{ if .Job.GetString "signature_url" }}
-                    <img src="{{ .Job.GetString " signature_url" }}" class="h-16 object-contain"
-                        alt="Chữ ký khách hàng">
+                    {{ if .Invoice.GetString "customer_signature" }}
+                    <img src="/api/files/invoices/{{.Invoice.Id}}/{{.Invoice.GetString "customer_signature"}}"
+                        class="h-16 object-contain" alt="Chữ ký khách hàng">
                     {{ else }}
                     <div class="h-16"></div>
                     {{ end }}
@@ -240,7 +272,12 @@
                     <h4 class="font-bold text-gray-800 text-sm mb-2">Đại diện {{.Settings.CompanyName}}</h4>
                     <p class="text-xs text-gray-500 mb-8">(Xác nhận hoàn thành)</p>
                     <div class="h-16 flex items-end">
+                        {{ if .Invoice.GetString "tech_signature" }}
+                        <img src="/api/files/invoices/{{.Invoice.Id}}/{{.Invoice.GetString "tech_signature"}}"
+                            class="h-16 object-contain" alt="Chữ ký kỹ thuật">
+                        {{ else }}
                         <span class="text-blue-600 font-bold font-mono">e-Signed by System</span>
+                        {{ end }}
                     </div>
                     <p class="font-bold text-sm uppercase mt-2">{{ if .Tech }}{{ .Tech.GetString "name" }}{{ else
                         }}Admin{{ end }}</p>

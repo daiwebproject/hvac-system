@@ -60,12 +60,17 @@ func (h *PublicHandler) ShowInvoice(e *core.RequestEvent) error {
 		return e.String(500, "Booking data mismatched")
 	}
 
-	// 3. Fetch Job Report (Photos) - SKIPPED (Not used in current Invoice View)
-	// var report *core.Record
-	// reports, _ := h.App.FindRecordsByFilter("job_reports", fmt.Sprintf("booking_id='%s'", bookingID), "", 1, 0, nil)
-	// if len(reports) > 0 {
-	// 	report = reports[0]
-	// }
+	var report *core.Record
+	reports, _ := h.App.FindRecordsByFilter("job_reports", fmt.Sprintf("booking_id='%s'", bookingID), "-created", 1, 0, nil)
+	if len(reports) > 0 {
+		report = reports[0]
+		fmt.Printf("DEBUG INVOICEVIEW: Found Report ID=%s, Photos=%d, Notes=%s\n",
+			report.Id,
+			len(report.GetStringSlice("after_images")),
+			report.GetString("photo_notes"))
+	} else {
+		fmt.Printf("DEBUG INVOICEVIEW: No Report found for booking %s\n", bookingID)
+	}
 
 	// 4. Fetch Job Parts (Materials)
 	// [FIX] User needs invoice items, assuming they are stored in 'invoice_items' collection or similar.
@@ -91,6 +96,7 @@ func (h *PublicHandler) ShowInvoice(e *core.RequestEvent) error {
 		"Tech":     tech,
 		"Parts":    items, // Mapping 'Items' to 'Parts' in template or vice versa. Template uses .Items
 		"Items":    items,
+		"Report":   report,
 		"Settings": settingsRecord,
 	}
 

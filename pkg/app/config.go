@@ -42,6 +42,19 @@ func InitTemplates() (*template.Template, error) {
 			}
 			return a / b
 		},
+		"substr": func(start, length int, s string) string {
+			if start < 0 {
+				start = 0
+			}
+			if start >= len(s) {
+				return ""
+			}
+			end := start + length
+			if end > len(s) {
+				end = len(s)
+			}
+			return s[start:end]
+		},
 	}
 
 	t := template.New("").Funcs(funcMap)

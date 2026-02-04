@@ -63,6 +63,7 @@ type AnalyticsService interface {
 type NotificationService interface {
 	NotifyNewJobAssignment(ctx context.Context, techToken string, jobID string, customerName string) error
 	NotifyNewBooking(ctx context.Context, bookingID string, customerName string) error
+	NotifyBookingCancelled(ctx context.Context, bookingID, customerName, reason, note string) error // [NEW]
 }
 
 // BookingService defines business logic methods

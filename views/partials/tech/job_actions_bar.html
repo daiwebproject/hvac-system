@@ -40,7 +40,7 @@ Used in job_detail.html
                     </span>
                     <span x-show="loading" class="loading loading-spinner"></span>
                 </button>
-                <button @click="reportIssue('customer_not_home')" :disabled="loading"
+                <button @click="cancelReason = 'customer_not_home'; showCancelModal = true" :disabled="loading"
                     class="btn btn-error btn-outline shadow-none rounded-2xl h-14 aspect-square flex items-center justify-center p-0"
                     title="Khách vắng nhà">
                     <i class="fa-solid fa-user-xmark text-xl"></i>

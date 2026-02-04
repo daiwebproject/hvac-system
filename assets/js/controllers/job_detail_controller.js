@@ -153,46 +153,7 @@ window.JobDetailController = function (data) {
             );
         },
 
-        async reportIssue(type) {
-            if (type === 'customer_not_home') {
-                const result = await Swal.fire({
-                    title: 'Xác nhận khách vắng nhà?',
-                    text: "Hệ thống sẽ ghi nhận và thông báo cho Admin.",
-                    icon: 'warning',
-                    showCancelButton: true,
-                    confirmButtonText: 'Xác nhận',
-                    cancelButtonText: 'Quay lại',
-                    buttonsStyling: false,
-                    customClass: {
-                        confirmButton: 'btn btn-error ml-2',
-                        cancelButton: 'btn btn-ghost mr-2'
-                    }
-                });
 
-                if (!result.isConfirmed) return;
-
-                this.loading = true;
-                const fd = new FormData();
-                fd.append('status', 'failed');
-                fd.append('reason', 'customer_not_home');
-
-                try {
-                    const res = await fetch(`/api/tech/bookings/${this.id}/status`, { method: 'POST', body: fd });
-                    if (res.ok) {
-                        this.status = 'failed'; // Update local status
-                        Swal.fire('Đã báo cáo', 'Đã ghi nhận khách vắng nhà', 'success');
-                        window.location.reload();
-                    } else {
-                        const txt = await res.text();
-                        Swal.fire('Lỗi', txt, 'error');
-                    }
-                } catch (e) {
-                    Swal.fire('Lỗi', 'Lỗi kết nối', 'error');
-                } finally {
-                    this.loading = false;
-                }
-            }
-        },
 
         async cancelJob() {
             if (!this.cancelReason) {
@@ -223,6 +184,19 @@ window.JobDetailController = function (data) {
 
             if (this.$refs.evidenceInput && this.$refs.evidenceInput.files.length > 0) {
                 fd.append('evidence', this.$refs.evidenceInput.files[0]);
+            }
+
+            // Get GPS for Verification
+            if (navigator.geolocation) {
+                try {
+                    const pos = await new Promise((resolve, reject) => {
+                        navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 5000 });
+                    });
+                    fd.append('lat', pos.coords.latitude);
+                    fd.append('long', pos.coords.longitude);
+                } catch (e) {
+                    console.warn("Could not get GPS for cancellation");
+                }
             }
 
             try {

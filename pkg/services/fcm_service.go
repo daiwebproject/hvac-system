@@ -273,6 +273,30 @@ func (s *FCMService) NotifyNewBooking(ctx context.Context, bookingID string, cus
 	return err
 }
 
+// NotifyBookingCancelled notifies admins that a booking was cancelled
+func (s *FCMService) NotifyBookingCancelled(ctx context.Context, bookingID, customerName, reason, note string) error {
+	title := "⚠️ Đơn hàng bị hủy"
+	body := fmt.Sprintf("Đơn %s đã bị hủy. Lý do: %s", customerName, reason)
+	if note != "" {
+		body += fmt.Sprintf(" (%s)", note)
+	}
+
+	payload := &NotificationPayload{
+		Title: title,
+		Body:  body,
+		Data: map[string]string{
+			"type":       "booking_cancelled",
+			"booking_id": bookingID,
+			"reason":     reason,
+		},
+		Icon:  "/assets/icon.png",
+		Badge: "/assets/badge.png",
+	}
+
+	_, err := s.SendToTopic(ctx, "admin_alerts", payload)
+	return err
+}
+
 // Helper function to convert int to *int
 func intPtr(i int) *int {
 	return &i

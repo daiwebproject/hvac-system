@@ -240,7 +240,7 @@ func (s *BookingService) TechCheckIn(bookingID string, techLat, techLong float64
 	if booking.Lat != 0 && booking.Long != 0 {
 		dist := Haversine(techLat, techLong, booking.Lat, booking.Long)
 		if dist > 0.5 {
-			return fmt.Errorf("bạn đang cách khách hàng %.2f km, vui lòng đến gần hơn để check-in", dist)
+			return fmt.Errorf("bạn đang cách khách hàng %.2f km (yêu cầu < 0.5 km). Vui lòng đến gần hơn để check-in.", dist)
 		}
 	}
 
@@ -286,7 +286,11 @@ func (s *BookingService) CancelBooking(bookingID, reason, note string) error {
 		s.broker.Publish(broker.ChannelAdmin, "", broker.Event{
 			Type:      "booking.cancelled",
 			Timestamp: time.Now().Unix(),
-			Data:      map[string]interface{}{"id": bookingID},
+			Data: map[string]interface{}{
+				"id":     bookingID,
+				"reason": reason,
+				"note":   note,
+			},
 		})
 
 		// Notify Tech
@@ -300,6 +304,16 @@ func (s *BookingService) CancelBooking(bookingID, reason, note string) error {
 				},
 			})
 		}
+	}
+
+	// [NEW] FCM to Admin (Topic: admin_alerts)
+	if s.notifications != nil {
+		go func() {
+			err := s.notifications.NotifyBookingCancelled(context.Background(), bookingID, booking.CustomerName, reason, note)
+			if err != nil {
+				log.Printf("❌ [BOOKING_SERVICE] Failed to notify admins of cancellation: %v", err)
+			}
+		}()
 	}
 
 	return nil
