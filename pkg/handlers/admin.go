@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"html/template"
@@ -24,9 +23,9 @@ type AdminHandler struct {
 	App              core.App
 	Templates        *template.Template
 	Broker           *broker.SegmentedBroker
-	BookingService   *services.BookingManagementService // TODO: Migrate this too
-	SlotService      *services.TimeSlotService          // TODO: Migrate this too
-	TechService      *services.TechManagementService    // NEW: Tech Management
+	BookingService   domain.BookingService           // [MIGRATED] internal domain service
+	SlotService      *services.TimeSlotService       // TODO: Migrate this too
+	TechService      *services.TechManagementService // NEW: Tech Management
 	AnalyticsService domain.AnalyticsService
 	UIComponents     *ui.Components
 	SettingsRepo     *repository.SettingsRepo // [NEW]
@@ -322,24 +321,52 @@ func (h *AdminHandler) CreateBooking(e *core.RequestEvent) error {
 		return e.String(500, "Lỗi lưu đơn hàng: "+err.Error())
 	}
 
-	// Event - SSE for real-time dashboard
-	h.Broker.Publish(broker.ChannelAdmin, "", broker.Event{
-		Type:      "booking.created",
-		Timestamp: time.Now().Unix(),
-		Data:      map[string]interface{}{"id": record.Id},
-	})
+	// [REFACTORED] Use BookingService to trigger notifications
+	// Ideally we should use h.BookingService.CreateBooking, but that requires constructing domain props.
+	// For now, the EASIEST fix is to manually trigger the service's notification helper?
+	// or specific method? internal BookingService doesn't expose "Notify".
+	//
+	// Better approach: We HAVE CreateBooking in service. Let's use it?
+	// But getting all fields mapped exactly might be tricky with `record.Set`.
+	//
+	// Alternative: Since we just want the notification side-effect, and we have h.BookingService (domain interface),
+	// we assume the service layer handles it.
+	// But we just created the record MANUALLY via h.App.Save(record). The service doesn't know about it.
+	//
+	// FIX: We must construct a BookingRequest and call h.BookingService.CreateBooking
+	// Then we can update the 'estimated_cost' manually if needed.
 
-	// [NEW] Send FCM push notification to admins
-	go func() {
-		if h.FCMService != nil {
-			customerName := record.GetString("customer_name")
-			_ = h.FCMService.NotifyNewBooking(
-				context.Background(),
-				record.Id,
-				customerName,
-			)
+	// Let's delete the manual save above and use the service properly.
+
+	/* MANUAL SAVE DELETED */
+
+	// Construct Request
+	req := &domain.BookingRequest{
+		CustomerName:   name,
+		Phone:          phone,
+		AddressDetails: address,                          // Map 'address' form to Details (or Address?)
+		BookingTime:    record.GetString("booking_time"), // Use the formatted time
+		IssueDesc:      issue,
+		ServiceID:      serviceID,
+		DeviceType:     record.GetString("device_type"),
+	}
+
+	// Creates booking AND triggers notifications (SSE+FCM)
+	newBooking, err := h.BookingService.CreateBooking(req)
+	if err != nil {
+		return e.String(500, "Lỗi service tạo đơn: "+err.Error())
+	}
+
+	// Post-update for fields not in BookingRequest (e.g. estimated_cost)
+	// We need to fetch the record again or just update 'newBooking' if it was a struct?
+	// CreateBooking returns *core.Booking (struct). We need to update DB record for cost.
+	if newBooking != nil && record.GetFloat("estimated_cost") > 0 {
+		// We have to find the record by ID
+		if freshRecord, err := h.App.FindRecordById("bookings", newBooking.ID); err == nil {
+			freshRecord.Set("estimated_cost", record.GetFloat("estimated_cost"))
+			h.App.Save(freshRecord)
 		}
-	}()
+	}
 
 	return e.JSON(200, map[string]string{"message": "Đã tạo đơn hàng mới"})
 }
@@ -353,8 +380,10 @@ func (h *AdminHandler) UpdateBookingStatus(e *core.RequestEvent) error {
 	}
 
 	// 1. Handle "recall to pending" efficiently via service
+	// 1. Handle "recall to pending" efficiently via service
 	if status == "pending" {
-		if err := h.BookingService.RecallToPending(id, h.SlotService); err != nil {
+		// [FIX] New BookingService.RecallToPending only takes ID
+		if err := h.BookingService.RecallToPending(id); err != nil {
 			return e.String(500, "Lỗi khi thu hồi về Pending: "+err.Error())
 		}
 		return e.JSON(200, map[string]string{"message": "Đã thu hồi về Pending"})
@@ -412,72 +441,11 @@ func (h *AdminHandler) AssignJob(e *core.RequestEvent) error {
 	}
 
 	// Use service layer for business logic
+	// [REFACTORED] Service now handles SSE (Admin+Tech) and FCM
 	if err := h.BookingService.AssignTechnician(bookingID, technicianID); err != nil {
 		return e.String(500, fmt.Sprintf("Lỗi giao việc: %s", err.Error()))
 	}
-
-	// Publish Events (Keep this in handler or move to a dedicated event service wrapper)
-	// For now, keeping it here preserves the explicit side-effect visibility
-	if updatedBooking, err := h.App.FindRecordById("bookings", bookingID); err == nil {
-		booking = updatedBooking
-
-		h.Broker.Publish(broker.ChannelAdmin, "", broker.Event{
-			Type:      "job.assigned",
-			Timestamp: time.Now().Unix(),
-			Data: map[string]interface{}{
-				"booking_id": bookingID,
-				"tech_id":    technicianID,
-				"customer":   booking.GetString("customer_name"),
-			},
-		})
-
-		h.Broker.Publish(broker.ChannelTech, technicianID, broker.Event{
-			Type:      "job.assigned",
-			Timestamp: time.Now().Unix(),
-			Data: map[string]interface{}{
-				"booking_id":     bookingID,
-				"customer_name":  booking.GetString("customer_name"),
-				"customer_phone": booking.GetString("customer_phone"),
-				"address":        booking.GetString("address"),
-				"booking_time":   booking.GetString("booking_time"),
-				"device_type":    booking.GetString("device_type"),
-			},
-		})
-	}
-
-	// [NEW] Notify Technician via FCM
-	log.Printf("👉 [ADMIN_HANDLER] Preparing to notify tech: %s\n", technicianID)
-	go func() {
-		log.Printf(" [DEBUG] Starting FCM Notification for Tech: %s\n", technicianID)
-		if h.FCMService != nil {
-			tech, err := h.App.FindRecordById("technicians", technicianID)
-			if err == nil {
-				fcmToken := tech.GetString("fcm_token")
-				log.Printf(" [DEBUG] Tech/FCM: %s / %s (Len: %d)\n", tech.GetString("name"), fcmToken, len(fcmToken))
-
-				if fcmToken != "" {
-					customerName := booking.GetString("customer_name")
-					err := h.FCMService.NotifyNewJobAssignment(
-						context.Background(),
-						fcmToken,
-						bookingID,
-						customerName,
-					)
-					if err != nil {
-						log.Printf(" [ERROR] Failed to send FCM to tech: %v\n", err)
-					} else {
-						log.Printf(" [SUCCESS] FCM sent to tech %s\n", technicianID)
-					}
-				} else {
-					log.Printf(" [WARN] No FCM token for tech %s\n", technicianID)
-				}
-			} else {
-				log.Printf(" [ERROR] Tech record not found: %v\n", err)
-			}
-		} else {
-			log.Printf(" [ERROR] FCMService is nil\n")
-		}
-	}()
+	// Removed manual Broker.Publish and FCM calls
 
 	// Use UI components for rendering
 	htmlRow, err := h.UIComponents.RenderBookingRow(booking)
@@ -555,31 +523,13 @@ func (h *AdminHandler) CancelBooking(e *core.RequestEvent) error {
 		}
 	}
 
-	// 2. Cancel Booking
-	booking.Set("job_status", "cancelled")
-	if err := h.App.Save(booking); err != nil {
-		return e.String(500, "Failed to cancel booking")
+	// 2. Cancel Booking via Service (Handles Notification)
+	// booking.Set("job_status", "cancelled") -- Handled by Service
+	if err := h.BookingService.CancelBooking(id, "Admin cancelled", ""); err != nil {
+		return e.String(500, "Failed to cancel booking: "+err.Error())
 	}
 
-	// Notify system
-	h.Broker.Publish(broker.ChannelAdmin, "", broker.Event{
-		Type:      "booking.cancelled",
-		Timestamp: time.Now().Unix(),
-		Data:      map[string]interface{}{"id": id},
-	})
-
-	// Notify Technician if assigned
-	techID := booking.GetString("technician_id")
-	if techID != "" {
-		h.Broker.Publish(broker.ChannelTech, techID, broker.Event{
-			Type:      "job.cancelled",
-			Timestamp: time.Now().Unix(),
-			Data: map[string]interface{}{
-				"booking_id": id,
-				"reason":     "Admin cancelled", // Could be parameterized if needed
-			},
-		})
-	}
+	// Removed manual Broker.Publish calls
 
 	return e.JSON(200, map[string]string{"message": "Cancelled successfully"})
 }

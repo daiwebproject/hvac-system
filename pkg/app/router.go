@@ -56,7 +56,7 @@ func RegisterRoutes(app *pocketbase.PocketBase, t *template.Template, eventBroke
 		// ---------------------------------------------------------
 		// 2. SERVICES SETUP
 		// ---------------------------------------------------------
-		bookingService := services.NewBookingManagementService(app)
+		// bookingService := services.NewBookingManagementService(app) // [REMOVED] Unused
 		slotService := services.NewTimeSlotService(app)
 		inventoryService := services.NewInventoryService(app)
 		invoiceService := services.NewInvoiceService(app)
@@ -83,7 +83,7 @@ func RegisterRoutes(app *pocketbase.PocketBase, t *template.Template, eventBroke
 			App:              app,
 			Templates:        t,
 			Broker:           eventBroker,
-			BookingService:   bookingService,
+			BookingService:   bookingServiceInternal, // [Refactored] Use internal service
 			SlotService:      slotService,
 			TechService:      techService,
 			AnalyticsService: analytics,
@@ -117,11 +117,12 @@ func RegisterRoutes(app *pocketbase.PocketBase, t *template.Template, eventBroke
 		}
 
 		web := &handlers.WebHandler{
-			App:          app,
-			Templates:    t,
-			Broker:       eventBroker,
-			SettingsRepo: settingsRepo, // Injected for Public pages
-			FCMService:   fcmService,   // [NEW]
+			App:            app,
+			Templates:      t,
+			Broker:         eventBroker,
+			SettingsRepo:   settingsRepo,           // Injected for Public pages
+			FCMService:     fcmService,             // [NEW]
+			BookingService: bookingServiceInternal, // [NEW] Injected
 		}
 
 		// --- [MỚI] FCM HANDLER ---

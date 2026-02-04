@@ -38,17 +38,13 @@
                         var swapEvents = sseSwap.split(',');
                         swapEvents.forEach(function (eventName) {
                             var cleanName = eventName.trim();
-
                             eventSource.addEventListener(cleanName, function (event) {
-                                // [NEW] Trigger event để Alpine/JS bên ngoài có thể xử lý Data trước khi Swap
                                 var allowSwap = api.triggerEvent(element, "htmx:sseMessage", {
                                     event: cleanName,
                                     data: event.data
                                 });
+                                if (!allowSwap) return;
 
-                                if (!allowSwap) return; // Nếu preventDefault() thì không swap HTML
-
-                                // Xử lý Swap HTML tiêu chuẩn
                                 var swapSpec = api.getSwapSpecification(element);
                                 var target = api.getTarget(element);
                                 var settlement = api.makeSettleInfo(target);
@@ -59,6 +55,25 @@
                                     if (elt.classList) elt.classList.add(htmx.config.addedClass);
                                     api.triggerEvent(elt, "htmx:load");
                                 });
+                            });
+                        });
+                    }
+
+                    // [NEW] Handle Plain Events (sse-events) - For JSON data triggering Alpine/JS
+                    var sseEvents = api.getAttributeValue(element, "sse-events");
+                    if (sseEvents) {
+                        sseEvents.split(',').forEach(function (eventName) {
+                            var cleanName = eventName.trim();
+                            eventSource.addEventListener(cleanName, function (event) {
+                                console.log("[SSE] Received event: " + cleanName);
+                                // Dispatch custom event: "sse:eventname"
+                                // Detail contains parsed JSON if possible, else string
+                                var detailData = event.data;
+                                try {
+                                    detailData = JSON.parse(event.data);
+                                } catch (e) { }
+
+                                api.triggerEvent(element, "sse:" + cleanName, detailData);
                             });
                         });
                     }

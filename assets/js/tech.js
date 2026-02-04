@@ -255,3 +255,31 @@ window.jobCompletion = function () {
         }
     };
 };
+
+// --- Global Event Handlers for SSE ---
+window.handleJobAssigned = function (e) {
+    console.log('⚡ SSE Event: Job Assigned', e.detail);
+    // 1. Trigger HTMX to reload the list immediately
+    htmx.trigger(document.body, 'statusUpdated');
+
+    // 2. Play sound (optional)
+    // const audio = new Audio('/assets/notification.mp3'); audio.play();
+
+    // 3. Show Toast
+    if (window.pushToast) {
+        window.pushToast('success', 'Bạn có công việc mới!', e.detail.customer_name);
+    }
+};
+
+window.handleJobCancelled = function (e) {
+    console.log('⚡ SSE Event: Job Cancelled', e.detail);
+    htmx.trigger(document.body, 'statusUpdated');
+    if (window.pushToast) {
+        window.pushToast('warning', 'Đã hủy công việc', 'Lý do: ' + e.detail.reason);
+    }
+};
+
+window.handleHtmxError = function (e) {
+    console.warn('HTMX Error:', e.detail);
+    // Silent fail or show toast if critical
+};

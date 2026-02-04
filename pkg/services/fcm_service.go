@@ -240,7 +240,7 @@ func (s *FCMService) NotifyPendingReviewsSync(ctx context.Context, techToken str
 func (s *FCMService) NotifyPaymentProcessed(ctx context.Context, techToken string, amount float64) error {
 	payload := &NotificationPayload{
 		Title: "💰 Thanh toán được xác nhận",
-		Body:  fmt.Sprintf("Bạn được trả: %,.0f VND", amount),
+		Body:  fmt.Sprintf("Bạn được trả: %.0f VND", amount),
 		Data: map[string]string{
 			"type":   "payment",
 			"amount": fmt.Sprintf("%.2f", amount),

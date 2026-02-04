@@ -1,13 +1,12 @@
 package handlers
 
 import (
-	"context"
 	"fmt"
 	"html/template"
 	"strconv"
-	"time"
 
 	"hvac-system/internal/adapter/repository"
+	domain "hvac-system/internal/core"
 	"hvac-system/pkg/broker"
 	"hvac-system/pkg/models"
 	"hvac-system/pkg/services"
@@ -17,11 +16,12 @@ import (
 )
 
 type WebHandler struct {
-	App          *pocketbase.PocketBase
-	Templates    *template.Template
-	Broker       *broker.SegmentedBroker
-	SettingsRepo *repository.SettingsRepo // [NEW]
-	FCMService   *services.FCMService     // [NEW]
+	App            *pocketbase.PocketBase
+	Templates      *template.Template
+	Broker         *broker.SegmentedBroker
+	SettingsRepo   *repository.SettingsRepo // [NEW]
+	FCMService     *services.FCMService     // [NEW]
+	BookingService domain.BookingService    // [NEW] Internal Service
 }
 
 // 1. Trang chủ - Landing Page
@@ -72,75 +72,35 @@ func (h *WebHandler) BookService(e *core.RequestEvent) error {
 	// Handle File Uploads
 	files, _ := e.FindUploadedFiles("client_images")
 
-	// Use BookingService
-	bookingService := services.NewBookingService(h.App)
-	booking, err := bookingService.CreateBooking(services.BookingRequest{
-		ServiceID:    serviceID,
-		CustomerName: customerName,
-		Phone:        customerPhone,
-		Address:      address,
-		IssueDesc:    issueDesc,
-		DeviceType:   deviceType,
-		Brand:        brand,
-		SlotID:       slotID,      // NEW: Time slot
-		BookingTime:  bookingTime, // Legacy fallback
-		Lat:          lat,
-		Long:         long,
-		Files:        files,
+	// Use BookingService (Centralized)
+	// [REFACTORED] Switched to internal domain service which handles SSE/FCM
+	booking, err := h.BookingService.CreateBooking(&domain.BookingRequest{
+		ServiceID:      serviceID,
+		CustomerName:   customerName,
+		Phone:          customerPhone,
+		AddressDetails: address, // Map to Details as per Admin implementation
+		IssueDesc:      issueDesc,
+		DeviceType:     deviceType,
+		Brand:          brand,
+		SlotID:         slotID,      // NEW: Time slot
+		BookingTime:    bookingTime, // Legacy fallback
+		Lat:            lat,
+		Long:           long,
+		Files:          files,
 	})
 	if err != nil {
 		return e.String(500, "Lỗi tạo booking: "+err.Error())
 	}
 
-	// Publish event to Admin channel
-	h.Broker.Publish(broker.ChannelAdmin, "", broker.Event{
-		Type:      "booking.created",
-		Timestamp: time.Now().Unix(),
-		Data: map[string]interface{}{
-			"booking_id":     booking.Id,
-			"customer_name":  booking.GetString("customer_name"),
-			"customer_phone": booking.GetString("customer_phone"),
-			"service":        booking.GetString("device_type"),
-			"booking_time":   booking.GetString("booking_time"),
-		},
-	})
-
-	// Publish event to Customer channel
-	h.Broker.Publish(broker.ChannelCustomer, booking.Id, broker.Event{
-		Type:      "booking.confirmed",
-		Timestamp: time.Now().Unix(),
-		Data: map[string]interface{}{
-			"booking_id": booking.Id,
-			"status":     "pending",
-			"message":    "Booking đã được tạo thành công",
-		},
-	})
-
-	// [NEW] Send Push Notification to Admin (Topic: admin_alerts)
-	if h.FCMService != nil {
-		go func() {
-			payload := &services.NotificationPayload{
-				Title: "🔥 Đơn hàng mới!",
-				Body:  fmt.Sprintf("Khách %s vừa đặt dịch vụ %s", customerName, deviceType),
-				Data: map[string]string{
-					"type":       "new_booking",
-					"booking_id": booking.Id,
-					"action":     "open_dashboard",
-				},
-				Icon:  "/assets/icon.png",
-				Badge: "/assets/badge.png",
-			}
-			h.FCMService.SendToTopic(context.Background(), "admin_alerts", payload)
-		}()
-	}
+	// [REMOVED] Duplicate SSE and FCM logic - handled by Service
 
 	// If slot was selected, book it
 	if slotID != "" {
 		slotService := services.NewTimeSlotService(h.App)
-		if err := slotService.BookSlot(slotID, booking.Id); err != nil {
+		if err := slotService.BookSlot(slotID, booking.ID); err != nil {
 			// Slot booking failed, but booking exists - log error or handle
 			// For now,continue since booking is created
-			fmt.Printf("Error booking slot %s for booking %s: %v\n", slotID, booking.Id, err)
+			fmt.Printf("Error booking slot %s for booking %s: %v\n", slotID, booking.ID, err)
 		}
 	}
 
