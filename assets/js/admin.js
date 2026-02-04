@@ -50,6 +50,14 @@ window.kanbanBoard = function (initialData) {
                         const { booking_id, tech_id } = event.data;
                         this.moveJobLocally(booking_id, 'assigned', { staff_id: tech_id });
                     }
+                    // Handle Job Completion (Payment)
+                    else if (event.type === 'job.completed') {
+                        const { booking_id, invoice_amount } = event.data;
+                        this.moveJobLocally(booking_id, 'completed', {
+                            status_label: 'completed',
+                            invoice_amount: invoice_amount
+                        });
+                    }
                     // Handle Cancellations
                     else if (event.type === 'booking.cancelled' || event.type === 'job.cancelled') {
                         const { id, booking_id } = event.data;

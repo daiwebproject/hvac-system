@@ -60,7 +60,7 @@ func (s *FCMService) SendNotification(ctx context.Context, payload *Notification
 				Badge: payload.Badge,
 			},
 			FCMOptions: &messaging.WebpushFCMOptions{
-				Link: "/tech/jobs",
+				Link: "https://192.168.1.12/tech/jobs",
 			},
 		},
 		Android: &messaging.AndroidConfig{
@@ -169,8 +169,9 @@ func (s *FCMService) UnsubscribeFromTopic(ctx context.Context, deviceTokens []st
 // NotifyNewJobAssignment notifies technician of new job assignment
 func (s *FCMService) NotifyNewJobAssignment(ctx context.Context, techToken string, jobID string, customerName string) error {
 	payload := &NotificationPayload{
-		Title: "🚀 Công việc mới được giao",
-		Body:  fmt.Sprintf("Khách hàng: %s", customerName),
+		DeviceToken: techToken, // [FIX] Must assign token to payload
+		Title:       "🚀 Công việc mới được giao",
+		Body:        fmt.Sprintf("Khách hàng: %s", customerName),
 		Data: map[string]string{
 			"job_id": jobID,
 			"type":   "job_assignment",
@@ -250,6 +251,25 @@ func (s *FCMService) NotifyPaymentProcessed(ctx context.Context, techToken strin
 	}
 
 	_, err := s.SendNotification(ctx, payload)
+	return err
+}
+
+// NotifyNewBooking sends notification to all admins about a new booking
+func (s *FCMService) NotifyNewBooking(ctx context.Context, bookingID string, customerName string) error {
+	payload := &NotificationPayload{
+		Title: "🔔 Đơn hàng mới",
+		Body:  fmt.Sprintf("Khách hàng %s vừa đặt lịch", customerName),
+		Data: map[string]string{
+			"booking_id": bookingID,
+			"type":       "new_booking",
+			"action":     "open_booking",
+			"bookingUrl": fmt.Sprintf("/admin/bookings/%s", bookingID),
+		},
+		Icon:  "/assets/icon.png",
+		Badge: "/assets/badge.png",
+	}
+
+	_, err := s.SendToTopic(ctx, "admin_alerts", payload)
 	return err
 }
 

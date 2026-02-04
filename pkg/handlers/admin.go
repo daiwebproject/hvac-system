@@ -1,9 +1,11 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"html/template"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -28,6 +30,7 @@ type AdminHandler struct {
 	AnalyticsService domain.AnalyticsService
 	UIComponents     *ui.Components
 	SettingsRepo     *repository.SettingsRepo // [NEW]
+	FCMService       *services.FCMService     // [NEW] FCM Push Notifications
 }
 
 func (h *AdminHandler) ShowLogin(e *core.RequestEvent) error {
@@ -319,12 +322,24 @@ func (h *AdminHandler) CreateBooking(e *core.RequestEvent) error {
 		return e.String(500, "Lỗi lưu đơn hàng: "+err.Error())
 	}
 
-	// Event
+	// Event - SSE for real-time dashboard
 	h.Broker.Publish(broker.ChannelAdmin, "", broker.Event{
 		Type:      "booking.created",
 		Timestamp: time.Now().Unix(),
 		Data:      map[string]interface{}{"id": record.Id},
 	})
+
+	// [NEW] Send FCM push notification to admins
+	go func() {
+		if h.FCMService != nil {
+			customerName := record.GetString("customer_name")
+			_ = h.FCMService.NotifyNewBooking(
+				context.Background(),
+				record.Id,
+				customerName,
+			)
+		}
+	}()
 
 	return e.JSON(200, map[string]string{"message": "Đã tạo đơn hàng mới"})
 }
@@ -355,6 +370,7 @@ func (h *AdminHandler) UpdateBookingStatus(e *core.RequestEvent) error {
 
 func (h *AdminHandler) AssignJob(e *core.RequestEvent) error {
 	bookingID := e.Request.PathValue("id")
+	log.Printf("👉 [ADMIN_HANDLER] AssignJob Called. BookingID: %s\n", bookingID)
 
 	if bookingID == "" {
 		return e.String(400, "Lỗi: Không tìm thấy ID trên URL")
@@ -428,6 +444,40 @@ func (h *AdminHandler) AssignJob(e *core.RequestEvent) error {
 			},
 		})
 	}
+
+	// [NEW] Notify Technician via FCM
+	log.Printf("👉 [ADMIN_HANDLER] Preparing to notify tech: %s\n", technicianID)
+	go func() {
+		log.Printf(" [DEBUG] Starting FCM Notification for Tech: %s\n", technicianID)
+		if h.FCMService != nil {
+			tech, err := h.App.FindRecordById("technicians", technicianID)
+			if err == nil {
+				fcmToken := tech.GetString("fcm_token")
+				log.Printf(" [DEBUG] Tech/FCM: %s / %s (Len: %d)\n", tech.GetString("name"), fcmToken, len(fcmToken))
+
+				if fcmToken != "" {
+					customerName := booking.GetString("customer_name")
+					err := h.FCMService.NotifyNewJobAssignment(
+						context.Background(),
+						fcmToken,
+						bookingID,
+						customerName,
+					)
+					if err != nil {
+						log.Printf(" [ERROR] Failed to send FCM to tech: %v\n", err)
+					} else {
+						log.Printf(" [SUCCESS] FCM sent to tech %s\n", technicianID)
+					}
+				} else {
+					log.Printf(" [WARN] No FCM token for tech %s\n", technicianID)
+				}
+			} else {
+				log.Printf(" [ERROR] Tech record not found: %v\n", err)
+			}
+		} else {
+			log.Printf(" [ERROR] FCMService is nil\n")
+		}
+	}()
 
 	// Use UI components for rendering
 	htmlRow, err := h.UIComponents.RenderBookingRow(booking)

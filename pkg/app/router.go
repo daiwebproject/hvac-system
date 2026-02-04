@@ -89,6 +89,7 @@ func RegisterRoutes(app *pocketbase.PocketBase, t *template.Template, eventBroke
 			AnalyticsService: analytics,
 			UIComponents:     uiComponents,
 			SettingsRepo:     settingsRepo, // Injected
+			FCMService:       fcmService,   // [NEW] Injected for push notifications
 		}
 
 		tech := &handlers.TechHandler{

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"hvac-system/pkg/broker"
+	"hvac-system/pkg/services"
 
 	"github.com/pocketbase/pocketbase/core"
 )
@@ -83,18 +84,37 @@ func (h *TechHandler) UpdateJobStatusHTMX(e *core.RequestEvent) error {
 	// [NEW] Send Push Notification
 	if h.FCMService != nil {
 		go func() {
-			// Reload tech to get fresh token if needed
+			// 1. Notify Technician (Self update confirmation, optional but good for multi-device)
 			tech, err := h.App.FindRecordById("technicians", e.Auth.Id)
 			if err == nil {
 				token := tech.GetString("fcm_token")
 				if token != "" {
-					h.FCMService.NotifyJobStatusChange(
-						context.Background(), // Fixed: context.Background()
-						token,
-						jobID,
-						newStatus,
-					)
+					h.FCMService.NotifyJobStatusChange(context.Background(), token, jobID, newStatus)
 				}
+			}
+
+			// 2. Notify Admin (Only for key events: Completed or Cancelled)
+			if newStatus == "completed" || newStatus == "cancelled" {
+				var title, body string
+				if newStatus == "completed" {
+					title = "✅ Đơn hàng hoàn thành"
+					body = fmt.Sprintf("KTV %s đã hoàn thành đơn %s", e.Auth.GetString("name"), job.GetString("customer_name"))
+				} else {
+					title = "⚠️ Đơn hàng bị hủy"
+					body = fmt.Sprintf("KTV %s đã hủy đơn %s", e.Auth.GetString("name"), job.GetString("customer_name"))
+				}
+
+				payload := &services.NotificationPayload{
+					Title: title,
+					Body:  body,
+					Data: map[string]string{
+						"type":       "job_update",
+						"booking_id": jobID,
+						"status":     newStatus,
+					},
+				}
+				// Send to 'admin_alerts' topic
+				h.FCMService.SendToTopic(context.Background(), "admin_alerts", payload)
 			}
 		}()
 	}
@@ -295,6 +315,21 @@ func (h *TechHandler) ProcessPayment(e *core.RequestEvent) error {
 			"status":          "completed",
 		},
 	})
+
+	// [NEW] Send Push Notification to Admin (Payment Received)
+	if h.FCMService != nil {
+		go func() {
+			payload := &services.NotificationPayload{
+				Title: "💰 Đã nhận thanh toán",
+				Body:  fmt.Sprintf("Đơn %s đã hoàn thành - %s", job.GetString("customer_name"), paymentMethod),
+				Data: map[string]string{
+					"type":       "job_completed",
+					"booking_id": jobID,
+				},
+			}
+			h.FCMService.SendToTopic(context.Background(), "admin_alerts", payload)
+		}()
+	}
 
 	fmt.Printf("✅ PAYMENT: Successfully processed for job %s, invoice %s\n", jobID, invoice.Id)
 

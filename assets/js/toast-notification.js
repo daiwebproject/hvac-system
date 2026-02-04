@@ -18,7 +18,8 @@ function toastNotification() {
         },
 
         handleJobAssigned(event) {
-            const data = JSON.parse(event.detail.data);
+            const wrapper = JSON.parse(event.detail.data);
+            const data = wrapper.Data || wrapper; // Fallback
             console.log('Job Assigned:', data);
 
             // 1. Play sound (optional)

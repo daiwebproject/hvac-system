@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"hvac-system/internal/core"
+	"log"
 	"math"
 	"time"
 )
@@ -88,16 +89,22 @@ func (s *BookingService) AssignTechnician(bookingID, technicianID string) error 
 
 	// [NEW] Notify Technician
 	if s.notifications != nil && tech.FCMToken != "" {
-		// Use a goroutine to not block the response? Or sync?
-		// Sync is safer for error handling but let's just log error if fails
+		log.Printf("👉 [BOOKING_SERVICE] Sending FCM to tech %s (TokenLen: %d)", tech.ID, len(tech.FCMToken))
 		go func() {
-			_ = s.notifications.NotifyNewJobAssignment(
+			err := s.notifications.NotifyNewJobAssignment(
 				context.Background(),
 				tech.FCMToken,
 				booking.ID,
 				booking.CustomerName,
 			)
+			if err != nil {
+				log.Printf("❌ [BOOKING_SERVICE] FCM Failed: %v", err)
+			} else {
+				log.Printf("✅ [BOOKING_SERVICE] FCM Sent Successfully to %s", tech.ID)
+			}
 		}()
+	} else {
+		log.Printf("⚠️ [BOOKING_SERVICE] Skipped FCM. Service: %v, Token: %s", s.notifications, tech.FCMToken)
 	}
 
 	return nil

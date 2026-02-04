@@ -630,6 +630,7 @@ func (h *TechHandler) TechStream(e *core.RequestEvent) error {
 			}
 			fmt.Fprintf(e.Response, "data: %s\n\n", eventJSON)
 			e.Response.(http.Flusher).Flush()
+			fmt.Printf(" [SSE] Sent event %s to tech %s\n", event.Type, techID)
 
 		case <-e.Request.Context().Done():
 			// Client disconnected
