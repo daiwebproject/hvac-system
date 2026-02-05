@@ -2,6 +2,18 @@
 
 {{template "admin/stats_cards" .}}
 
+<!-- iOS Notification Panel -->
+<div class="bg-white p-3 rounded-xl shadow-sm border border-gray-100 mb-4 flex justify-between items-center">
+    <div>
+        <h3 class="font-bold text-sm text-gray-700"><i class="fa-solid fa-bell text-blue-500 mr-2"></i>Thông Báo Push
+        </h3>
+        <p class="text-xs text-gray-500 mt-1">Nhận thông báo đơn hàng mới ngay trên điện thoại</p>
+    </div>
+    <button id="btn-enable-notify" onclick="requestAdminPermission()" class="btn btn-sm btn-primary hidden gap-2">
+        <i class="fa-solid fa-bell"></i> Bật thông báo
+    </button>
+</div>
+
 {{ if or (not .Settings.CompanyName) (eq .Settings.CompanyName "HVAC SaaS System") }}
 <div class="alert alert-error shadow-sm mb-6 rounded-lg border border-red-200">
     <i class="fa-solid fa-triangle-exclamation text-2xl"></i>

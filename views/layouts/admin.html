@@ -44,6 +44,7 @@
     <script src="/assets/vendor/firebase/firebase-app-compat.js"></script>
     <script src="/assets/vendor/firebase/firebase-messaging-compat.js"></script>
     <script src="/assets/firebase-messaging-client.js"></script>
+    <script src="/assets/js/admin-fcm.js"></script>
 
 
     <script src="/assets/vendor/alpine/alpine.min.js" defer></script>
@@ -137,7 +138,10 @@
                 })
                 .catch(err => {
                     console.error('Admin SW Registration failed:', err);
+                    alert('Lỗi: Không thể đăng ký Service Worker. \nNguyên nhân: ' + err.message + '\n(Lưu ý: iOS bắt buộc phải dùng HTTPS hoặc Localhost)');
                 });
+        } else {
+            alert('Lỗi: Trình duyệt không hỗ trợ Service Worker (Có thể do chưa bật HTTPS)');
         }
     </script>
 </body>

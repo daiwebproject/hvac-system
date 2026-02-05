@@ -68,8 +68,10 @@ class FirebaseMessagingClient {
 
   async getToken() {
     try {
+      console.log('FCM: Getting Token...');
       // WAITING FOR SERVICE WORKER READY
       const registration = await navigator.serviceWorker.ready;
+      console.log('FCM: SW Ready. Scope:', registration.scope);
 
       const currentToken = await this.messaging.getToken({
         vapidKey: "BM0Uvapd87utXwp2bBC_23HMT3LjtSwWGq6rUU8FnK6DvnJnTDCR_Kj4mGAC-HLgoia-tgjobgSWDpDJkKX_DBk",
@@ -77,13 +79,15 @@ class FirebaseMessagingClient {
       });
 
       if (currentToken) {
-        console.log('FCM Token:', currentToken.substring(0, 10) + "...");
+        console.log('FCM Token generated:', currentToken.substring(0, 10) + "...");
         await this.sendTokenToServer(currentToken);
       } else {
-        console.log('No token available.');
+        console.warn('No token available from FCM.');
+        alert('Lỗi: FCM không trả về Token nào.');
       }
     } catch (error) {
       console.error('Get Token Error:', error);
+      alert('Lỗi khi lấy Token: ' + error.message);
     }
   }
 

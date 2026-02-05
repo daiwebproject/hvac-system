@@ -1,5 +1,5 @@
 // Service Worker for Offline-First Support
-// [Updated: Version v8 - FIX LỖI 401]
+// [Updated: Version v9 - Force Update]
 
 const CACHE_VERSION = 'hvac-tech-v9'; // <--- TĂNG LÊN v9 ĐỂ ÉP CẬP NHẬT
 const CACHE_NAME = `static-${CACHE_VERSION}`;
