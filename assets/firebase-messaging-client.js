@@ -102,30 +102,27 @@ class FirebaseMessagingClient {
       let endpoint = '/api/tech/fcm/token';
       if (window.location.pathname.startsWith('/admin')) {
         endpoint = '/admin/fcm/token';
+        console.log('🔵 [ADMIN] Sending FCM token to:', endpoint);
+      } else {
+        console.log('🟢 [TECH] Sending FCM token to:', endpoint);
       }
 
       const response = await fetch(endpoint, {
         method: 'POST',
-        // [QUAN TRỌNG] Thêm Header báo là gửi JSON
         headers: {
           'Content-Type': 'application/json'
         },
-        // [QUAN TRỌNG] Gói dữ liệu thành chuỗi JSON
         body: JSON.stringify({ token: token }),
-
-        credentials: 'include' // Giữ nguyên để gửi Cookie
+        credentials: 'include'
       });
-      // --- [HẾT PHẦN SỬA] ---
 
       if (response.ok) {
         console.log('Token sent to server successfully');
-        // Uncomment below to debug on iOS if needed, but for now console is cleaner for PC
-        // alert('Đã gửi Token lên Server thành công!'); 
+        const data = await response.json();
+        console.log('Server response:', data);
       } else {
-        // Log text lỗi ra để dễ debug
         const errText = await response.text();
-        console.error('Failed to send token:', errText);
-        // Show alert for iOS debugging
+        console.error('Failed to send token:', response.status, errText);
         alert('Lỗi gửi Token: ' + errText + '\n(Vui lòng báo cho Admin/Dev)');
       }
     } catch (error) {

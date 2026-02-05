@@ -41,24 +41,22 @@
 
         try {
             console.log('Requesting permission...');
-            const permission = await window.fcmClient.requestPermission();
+            await window.fcmClient.manualRequestPermission();
 
-            if (permission === 'granted') {
-                console.log('Permission granted. Getting token...');
-                await window.fcmClient.getToken();
+            // After successful permission, the token is automatically fetched
+            // Ẩn nút sau khi thành công
 
-                // Ẩn nút sau khi thành công
-                const btn = document.getElementById('btn-enable-notify');
-                if (btn) btn.classList.add('hidden');
+            const btn = document.getElementById('btn-enable-notify');
+            if (btn) btn.classList.add('hidden');
 
-                alert('✅ Đã bật thông báo thành công!');
-            } else {
-                console.error('Permission denied');
-                alert('⚠️ Bạn đã từ chối quyền thông báo.\n\nVui lòng vào Cài đặt trình duyệt để bật lại.');
-            }
+            alert('✅ Đã bật thông báo thành công!');
         } catch (error) {
             console.error('Registration error:', error.message);
-            alert('Lỗi: ' + error.message + '\n\nNếu đang dùng iOS, cần truy cập qua HTTPS (không phải IP)\nVui lòng kiểm tra:\n- Đã Add to Home Screen chưa?\n- Đã bật HTTPS chưa?');
+            if (error.code === 'messaging/permission-blocked' || error.code === 'messaging/permission-denied') {
+                alert('⚠️ Bạn đã từ chối quyền thông báo.\n\nVui lòng vào Cài đặt trình duyệt để bật lại.');
+            } else {
+                alert('Lỗi: ' + error.message + '\n\nNếu đang dùng iOS, cần truy cập qua HTTPS (không phải IP)\nVui lòng kiểm tra:\n- Đã Add to Home Screen chưa?\n- Đã bật HTTPS chưa?');
+            }
         }
     };
 
@@ -66,34 +64,48 @@
     document.addEventListener('DOMContentLoaded', async function () {
         console.log('Admin FCM: DOMContentLoaded');
 
-        // Chờ FCM Client khởi tạo (có thể load chậm hơn)
-        const waitForFCMClient = setInterval(function () {
-            if (window.fcmClient) {
-                clearInterval(waitForFCMClient);
-                console.log('FCM Client found');
+        // Auto-register token if permission already granted
+        if (Notification.permission === 'granted') {
+            console.log('[ADMIN] Permission granted, getting token directly...');
 
-                // Nếu permission đã granted từ trước, tự động sync token
-                if (Notification.permission === 'granted') {
-                    console.log('Permission already granted. Auto-syncing token...');
-                    window.fcmClient.getToken()
-                        .then(() => console.log('Auto-sync completed'))
-                        .catch(e => console.error('Auto-sync failed:', e));
-                } else if (Notification.permission === 'default') {
-                    console.log('Permission not granted yet. Waiting for event...');
-                } else {
-                    console.warn('Permission denied by user');
-                    showNotificationButton(); // Vẫn hiện nút để user có thể thử lại
+            try {
+                // Check Firebase availability
+                if (typeof firebase === 'undefined' || !firebase.messaging) {
+                    throw new Error('Firebase not loaded');
                 }
-            }
-        }, 100);
 
-        // Timeout sau 5s nếu không tìm thấy FCM Client
-        setTimeout(function () {
-            clearInterval(waitForFCMClient);
-            if (!window.fcmClient) {
-                console.error('FCM Client not found after 5s');
+                const messaging = firebase.messaging();
+
+                // Get token directly from Firebase
+                const token = await messaging.getToken({ vapidKey: window.VAPID_PUBLIC_KEY });
+
+                if (!token) {
+                    throw new Error('No token received from Firebase');
+                }
+
+                console.log('[ADMIN] Got FCM token:', token.substring(0, 30) + '...');
+
+                // Send to server directly
+                const response = await fetch('/admin/fcm/token', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token: token }),
+                    credentials: 'include'
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('[ADMIN] Token sent successfully:', data);
+                } else {
+                    const errText = await response.text();
+                    console.error('[ADMIN] Server error:', response.status, errText);
+                }
+            } catch (error) {
+                console.error('[ADMIN] Error registering FCM token:', error);
             }
-        }, 5000);
+        } else {
+            console.log('[ADMIN] Permission not granted, waiting for user action');
+        }
     });
 
 })();

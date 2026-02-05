@@ -187,6 +187,8 @@ func RegisterRoutes(app *pocketbase.PocketBase, t *template.Template, eventBroke
 
 		// [NEW] FCM Token
 		adminGroup.POST("/fcm/token", fcm.RegisterDeviceToken)
+		// [DEBUG] Check admin FCM tokens
+		adminGroup.GET("/debug/fcm-tokens", admin.DebugAdminTokens)
 
 		// Admin Tools
 		adminGroup.GET("/tools/slots", adminTools.ShowSlotManager)

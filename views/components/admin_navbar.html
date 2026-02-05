@@ -75,6 +75,15 @@
                 </ul>
             </div>
 
+            <!-- iOS Notification Button (Desktop) -->
+            <div id="btn-enable-notify" class="hidden flex-none items-center mr-2">
+                <button onclick="requestAdminPermission()"
+                    class="btn btn-sm btn-error text-white animate-pulse shadow-lg border-none gap-2">
+                    <i class="fa-solid fa-bell"></i>
+                    <span class="hidden sm:inline">Bật thông báo</span>
+                </button>
+            </div>
+
             <!-- User Dropdown (Desktop) -->
             <div class="flex-none hidden lg:block ml-3 pl-3 border-l border-gray-200">
                 <div class="dropdown dropdown-end">

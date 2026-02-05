@@ -1,7 +1,7 @@
 // Service Worker for Offline-First Support
 // [Updated: Version v9 - Force Update]
 
-const CACHE_VERSION = 'hvac-tech-v9'; // <--- TĂNG LÊN v9 ĐỂ ÉP CẬP NHẬT
+const CACHE_VERSION = 'hvac-tech-v10'; // <--- TĂNG LÊN v10 ĐỂ ÉP CẬP NHẬT
 const CACHE_NAME = `static-${CACHE_VERSION}`;
 const DYNAMIC_CACHE = `dynamic-${CACHE_VERSION}`;
 const OFFLINE_DB = 'hvac_offline_db';
