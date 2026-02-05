@@ -38,19 +38,32 @@ func RegisterRoutes(app *pocketbase.PocketBase, t *template.Template, eventBroke
 		// ---------------------------------------------------------
 
 		// A. Service Worker chính (PWA) - Cho phép scope toàn domain
-		se.Router.GET("/assets/service-worker.js", func(e *core.RequestEvent) error {
+		se.Router.GET("/service-worker.js", func(e *core.RequestEvent) error {
 			e.Response.Header().Set("Service-Worker-Allowed", "/")
 			e.Response.Header().Set("Content-Type", "application/javascript")
 			return e.FileFS(os.DirFS("./assets"), "service-worker.js")
 		})
 
-		// B. Firebase Messaging Service Worker - Phải nằm ở root
+		// B. Service Main Manifests (from root)
+		se.Router.GET("/manifest.json", func(e *core.RequestEvent) error {
+			e.Response.Header().Set("Content-Type", "application/json")
+			e.Response.Header().Set("Cache-Control", "no-cache")
+			return e.FileFS(os.DirFS("./assets"), "manifest.json")
+		})
+
+		se.Router.GET("/manifest-admin.json", func(e *core.RequestEvent) error {
+			e.Response.Header().Set("Content-Type", "application/json")
+			e.Response.Header().Set("Cache-Control", "no-cache")
+			return e.FileFS(os.DirFS("./assets"), "manifest-admin.json")
+		})
+
+		// C. Firebase Messaging Service Worker - Phải nằm ở root
 		se.Router.GET("/firebase-messaging-sw.js", func(e *core.RequestEvent) error {
 			e.Response.Header().Set("Content-Type", "application/javascript")
 			return e.FileFS(os.DirFS("./assets"), "firebase-messaging-sw.js")
 		})
 
-		// C. Các file tĩnh khác
+		// D. Các file tĩnh khác - Catch all assets
 		se.Router.GET("/assets/{path...}", apis.Static(os.DirFS("./assets"), false))
 
 		// ---------------------------------------------------------
@@ -147,6 +160,7 @@ func RegisterRoutes(app *pocketbase.PocketBase, t *template.Template, eventBroke
 		se.Router.POST("/book", web.BookService)
 		se.Router.GET("/api/slots/available", slot.GetAvailableSlots)
 		se.Router.GET("/api/public/reverse-geocode", public.ReverseGeocode) // [NEW] Proxy
+		se.Router.GET("/api/public/geocode", public.Geocode)                // [NEW] Forward Proxy
 
 		// Super Invoice Public Routes
 		se.Router.GET("/invoice/{hash}", public.ShowInvoice)

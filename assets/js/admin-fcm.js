@@ -66,42 +66,54 @@
 
         // Auto-register token if permission already granted
         if (Notification.permission === 'granted') {
-            console.log('[ADMIN] Permission granted, getting token directly...');
+            console.log('[ADMIN] Permission granted. Waiting for SW ready...');
 
-            try {
-                // Check Firebase availability
-                if (typeof firebase === 'undefined' || !firebase.messaging) {
-                    throw new Error('Firebase not loaded');
+            if ('serviceWorker' in navigator) {
+                try {
+                    // Wait for Service Worker to be ready
+                    const registration = await navigator.serviceWorker.ready;
+                    console.log('[ADMIN] SW Ready. Scope:', registration.scope);
+
+                    // Check Firebase availability
+                    if (typeof firebase === 'undefined' || !firebase.messaging) {
+                        throw new Error('Firebase not loaded');
+                    }
+
+                    const messaging = firebase.messaging();
+
+                    // Get token directly from Firebase, specifying the Service Worker registration
+                    const token = await messaging.getToken({
+                        vapidKey: window.VAPID_PUBLIC_KEY,
+                        serviceWorkerRegistration: registration
+                    });
+
+                    if (!token) {
+                        throw new Error('No token received from Firebase');
+                    }
+
+                    console.log('[ADMIN] Got FCM token:', token.substring(0, 30) + '...');
+
+                    // Send to server directly
+                    const response = await fetch('/admin/fcm/token', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ token: token }),
+                        credentials: 'include'
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        console.log('[ADMIN] Token sent successfully:', data);
+                    } else {
+                        const errText = await response.text();
+                        console.error('[ADMIN] Server error:', response.status, errText);
+                    }
+
+                } catch (error) {
+                    console.error('[ADMIN] Error registering FCM token:', error);
                 }
-
-                const messaging = firebase.messaging();
-
-                // Get token directly from Firebase
-                const token = await messaging.getToken({ vapidKey: window.VAPID_PUBLIC_KEY });
-
-                if (!token) {
-                    throw new Error('No token received from Firebase');
-                }
-
-                console.log('[ADMIN] Got FCM token:', token.substring(0, 30) + '...');
-
-                // Send to server directly
-                const response = await fetch('/admin/fcm/token', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ token: token }),
-                    credentials: 'include'
-                });
-
-                if (response.ok) {
-                    const data = await response.json();
-                    console.log('[ADMIN] Token sent successfully:', data);
-                } else {
-                    const errText = await response.text();
-                    console.error('[ADMIN] Server error:', response.status, errText);
-                }
-            } catch (error) {
-                console.error('[ADMIN] Error registering FCM token:', error);
+            } else {
+                console.error('[ADMIN] Service Worker not supported in this browser');
             }
         } else {
             console.log('[ADMIN] Permission not granted, waiting for user action');

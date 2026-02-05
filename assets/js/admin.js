@@ -11,6 +11,8 @@ window.kanbanBoard = function (initialActive, initialCompleted) {
         editingJob: {},
         selectedJob: null,
         searchQuery: '',
+        showMapModal: false,
+        fullscreenMapInstance: null,
 
         init() {
             // 1. Setup Active Jobs (Kanban)
@@ -347,6 +349,128 @@ window.kanbanBoard = function (initialActive, initialCompleted) {
                         });
                 }
             });
+        },
+
+        // --- Fullscreen Map Modal ---
+        openMapModal() {
+            this.showMapModal = true;
+            // Wait for modal CSS transition to complete (typically 200-300ms)
+            setTimeout(() => {
+                this.drawFullscreenMap();
+            }, 350);
+        },
+
+        closeMapModal() {
+            this.showMapModal = false;
+            if (this.fullscreenMapInstance) {
+                this.fullscreenMapInstance.remove();
+                this.fullscreenMapInstance = null;
+            }
+        },
+
+        drawFullscreenMap() {
+            const container = document.getElementById('fullscreen-map');
+            if (!container || typeof L === 'undefined') return;
+
+            // Check if container has valid dimensions
+            const rect = container.getBoundingClientRect();
+            if (rect.width === 0 || rect.height === 0) {
+                console.warn('Map container has no size, retrying...');
+                setTimeout(() => this.drawFullscreenMap(), 200);
+                return;
+            }
+
+            // Cleanup existing
+            if (this.fullscreenMapInstance) {
+                this.fullscreenMapInstance.remove();
+                this.fullscreenMapInstance = null;
+            }
+
+            // Create map centered on Hanoi (disable zoom animation initially)
+            this.fullscreenMapInstance = L.map('fullscreen-map', {
+                zoomAnimation: false
+            }).setView([21.0285, 105.8542], 10);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap'
+            }).addTo(this.fullscreenMapInstance);
+
+            // Status color mapping
+            const statusColors = {
+                pending: '#eab308',   // yellow-500
+                assigned: '#3b82f6', // blue-500
+                working: '#a855f7',  // purple-500
+                completed: '#22c55e', // green-500
+                cancelled: '#ef4444' // red-500
+            };
+
+            const statusLabels = {
+                pending: 'Chờ xử lý',
+                assigned: 'Đã giao',
+                working: 'Đang làm',
+                completed: 'Hoàn thành',
+                cancelled: 'Đã hủy'
+            };
+
+            const bounds = [];
+
+            // Add markers for all jobs
+            for (const status in this.columns) {
+                this.columns[status].forEach(job => {
+                    if (job.lat && job.long) {
+                        const color = statusColors[status] || '#6b7280';
+                        const label = statusLabels[status] || status;
+
+                        // Create colored circle marker
+                        const marker = L.circleMarker([job.lat, job.long], {
+                            radius: 10,
+                            fillColor: color,
+                            color: '#ffffff',
+                            weight: 2,
+                            opacity: 1,
+                            fillOpacity: 0.9
+                        }).addTo(this.fullscreenMapInstance);
+
+                        // Create popup with job details
+                        const popupContent = `
+                            <div style="min-width: 200px;">
+                                <div style="font-weight: bold; font-size: 14px; margin-bottom: 4px;">${job.customer || 'Khách hàng'}</div>
+                                <div style="font-size: 12px; color: #6b7280; margin-bottom: 4px;">
+                                    <i class="fa-solid fa-phone"></i> ${job.phone || 'N/A'}
+                                </div>
+                                <div style="font-size: 12px; color: #6b7280; margin-bottom: 4px;">
+                                    <i class="fa-solid fa-wrench"></i> ${job.service || 'Dịch vụ'}
+                                </div>
+                                <div style="font-size: 12px; color: #6b7280; margin-bottom: 8px;">
+                                    <i class="fa-solid fa-clock"></i> ${job.time || ''}
+                                </div>
+                                <div style="display: inline-block; padding: 2px 8px; border-radius: 4px; background: ${color}; color: white; font-size: 11px; font-weight: bold;">
+                                    ${label}
+                                </div>
+                                ${job.staff_id ? `<div style="margin-top: 4px; font-size: 11px;"><i class="fa-solid fa-user-gear"></i> Thợ: ${job.staff_id}</div>` : ''}
+                            </div>
+                        `;
+
+                        marker.bindPopup(popupContent);
+                        bounds.push([job.lat, job.long]);
+                    }
+                });
+            }
+
+            // Store bounds for later use
+            const savedBounds = bounds;
+
+            // Force resize after modal animation, then fit bounds
+            setTimeout(() => {
+                if (this.fullscreenMapInstance) {
+                    this.fullscreenMapInstance.invalidateSize();
+
+                    // Fit bounds after map is fully initialized
+                    if (savedBounds.length > 0) {
+                        this.fullscreenMapInstance.fitBounds(savedBounds, { padding: [50, 50] });
+                    }
+                }
+            }, 400);
         },
 
         createJob(event) {
@@ -722,10 +846,20 @@ function addTechMarker(tech, lat, lng) {
 
 // Hàm Geocode (Tìm tọa độ từ địa chỉ)
 async function geocodeAndDraw(job) {
+    if (!job.address || job.address.length < 5) return;
+
+    // [VALIDATION] Skip if address is mostly numbers (likely a phone number or ID)
+    if (/^\d+$/.test(job.address.replace(/\s|[,\.]/g, ''))) {
+        console.warn(`[Geocode] Skipping invalid address (looks like phone/ID): ${job.address}`);
+        return;
+    }
+
     try {
         // Thêm "Vietnam" để tìm chính xác hơn
         const query = `${job.address}, Vietnam`;
-        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`;
+
+        // [FIX] Use Backend Proxy to avoid CORS & Header issues
+        const url = `/api/public/geocode?q=${encodeURIComponent(query)}`;
 
         const res = await fetch(url);
         const data = await res.json();
@@ -740,9 +874,11 @@ async function geocodeAndDraw(job) {
             // [TODO]: Gửi tọa độ này về Backend để lưu lại (đỡ phải tìm lần sau)
             // saveCoordinatesToBackend(job.id, lat, lon);
             console.log(`Đã tìm thấy vị trí cho đơn ${job.id}: ${lat}, ${lon}`);
+        } else {
+            console.warn(`[Geocode] Không tìm thấy địa chỉ: ${job.address}`);
         }
     } catch (err) {
-        console.warn(`Không tìm thấy địa chỉ: ${job.address}`);
+        console.error(`[Geocode] Lỗi khi tìm địa chỉ:`, err);
     }
 }
 

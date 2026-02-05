@@ -1,7 +1,7 @@
 // Service Worker for Offline-First Support
 // [Updated: Version v9 - Force Update]
 
-const CACHE_VERSION = 'hvac-tech-v10'; // <--- TĂNG LÊN v10 ĐỂ ÉP CẬP NHẬT
+const CACHE_VERSION = 'hvac-tech-v11'; // <--- TĂNG LÊN v11 ĐỂ ÉP CẬP NHẬT
 const CACHE_NAME = `static-${CACHE_VERSION}`;
 const DYNAMIC_CACHE = `dynamic-${CACHE_VERSION}`;
 const OFFLINE_DB = 'hvac_offline_db';
@@ -12,9 +12,8 @@ const STATIC_ASSETS = [
   '/tech/jobs',
   '/tech/dashboard',
   '/assets/style.css',
-  '/assets/manifest.json',
-  '/assets/manifest-admin.json',
-  // '/assets/alpine-components.js',
+  // '/assets/manifest.json', // Network First tốt hơn cho Manifest
+  // '/assets/manifest-admin.json',
   '/assets/js/utils.js',
   '/assets/js/tech.js',
   '/assets/js/admin.js',
@@ -23,7 +22,6 @@ const STATIC_ASSETS = [
   '/assets/qr-scanner.js',
   '/assets/offline-reporter.js',
   '/assets/cart.js',
-  // '/assets/icons/icon-192x192.png' // Đảm bảo file tồn tại nếu bật dòng này
 ];
 
 // 1. INSTALL
@@ -51,10 +49,30 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// 3. FETCH - NETWORK ONLY (No Cache)
+// 3. FETCH - NETWORK FIRST, FALLBACK TO CACHE
 self.addEventListener('fetch', (event) => {
-  // Pass through everything
-  return;
+  const url = new URL(event.request.url);
+
+  // Bỏ qua request không phải GET hoặc là API/Manifest
+  if (event.request.method !== 'GET' || url.pathname.startsWith('/api') || url.pathname.includes('manifest')) {
+    return;
+  }
+
+  event.respondWith(
+    fetch(event.request)
+      .then((networkResponse) => {
+        return caches.open(DYNAMIC_CACHE).then((cache) => {
+          // Cache lại các tài nguyên tĩnh mới (trừ API)
+          if (event.request.url.startsWith('http')) {
+            cache.put(event.request, networkResponse.clone());
+          }
+          return networkResponse;
+        });
+      })
+      .catch(() => {
+        return caches.match(event.request);
+      })
+  );
 });
 
 // ... (Các phần Sync và Notification giữ nguyên)

@@ -1,6 +1,6 @@
 // assets/js/public.js
 
-console.log('✅ Public JS Loaded');
+console.log('✅ Public JS Loaded (v14) - Simplified GPS');
 
 /**
  * 1. BOOKING WIZARD CONTROLLER
@@ -10,6 +10,10 @@ window.bookingWizard = function () {
     return {
         step: 1,
         locationStatus: '',
+        showMapModal: false,
+        mapInstance: null,
+        mapMarker: null,
+        mapCenter: { lat: 21.0285, lng: 105.8542 }, // Hanoi default
         selectedDate: '',
         minDate: '',
         loadingSlots: false,
@@ -101,29 +105,177 @@ window.bookingWizard = function () {
                 return;
             }
 
+            const options = {
+                enableHighAccuracy: true, // Ép dùng GPS (quan trọng cho Safari)
+                timeout: 10000,           // Chờ tối đa 10 giây
+                maximumAge: 0             // Không dùng cache cũ
+            };
+
             navigator.geolocation.getCurrentPosition(
                 async (position) => {
                     this.formData.lat = position.coords.latitude;
                     this.formData.long = position.coords.longitude;
+                    this.reverseGeocode(this.formData.lat, this.formData.long);
+                },
+                (err) => {
+                    console.warn(`Geolocation Error (${err.code}): ${err.message}`);
+                    if (err.code === 1) { // PERMISSION_DENIED
+                        this.locationStatus = 'Bạn đã chặn quyền vị trí. Vui lòng dùng Bản đồ bên cạnh!';
+                    } else if (err.code === 3) { // TIMEOUT
+                        this.locationStatus = 'Không tìm thấy GPS. Hãy thử dùng nút Bản đồ!';
+                    } else {
+                        this.locationStatus = 'Lỗi định vị. Vui lòng dùng nút Bản đồ để chọn.';
+                    }
+                },
+                options
+            );
+        },
 
-                    // Gọi API Proxy (Backend) để tránh CORS và bảo mật
-                    try {
-                        const res = await fetch(`/api/public/reverse-geocode?lat=${this.formData.lat}&lon=${this.formData.long}`);
-                        const data = await res.json();
-                        if (data && data.display_name) {
-                            this.formData.address = data.display_name;
-                            this.locationStatus = 'Đã định vị thành công!';
-                        } else {
-                            this.locationStatus = 'Đã lấy tọa độ. Vui lòng nhập thêm số nhà.';
-                        }
-                    } catch (e) {
-                        this.locationStatus = 'Đã ghim tọa độ. Vui lòng nhập địa chỉ cụ thể.';
+        // Mở bản đồ chọn vị trí thủ công
+        showMap() {
+            this.showMapModal = true;
+            this.$nextTick(() => {
+                this.initMap();
+            });
+        },
+
+        closeMap() {
+            this.showMapModal = false;
+            // [Cleanup] Destroy map to prevent memory leaks and state issues
+            if (this.mapInstance) {
+                this.mapInstance.remove();
+                this.mapInstance = null;
+            }
+        },
+
+        initMap() {
+            // [Safety Check] Ensure Leaflet is loaded
+            if (typeof L === 'undefined') {
+                console.warn('Leaflet (L) is not defined. Using fallback or waiting for reload.');
+                return;
+            }
+
+            // Cleanup existing instance if any (though closeMap handles it)
+            if (this.mapInstance) {
+                this.mapInstance.remove();
+                this.mapInstance = null;
+            }
+
+            // Default center or current formData
+            const lat = this.formData.lat || this.mapCenter.lat;
+            const lng = this.formData.long || this.mapCenter.lng;
+
+            console.log('🗺️ Initializing Map at:', lat, lng);
+
+            this.mapInstance = L.map('booking-map').setView([lat, lng], 15);
+
+            const tiles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap'
+            });
+
+            tiles.addTo(this.mapInstance);
+
+            // Debug Tile Loading
+            tiles.on('loading', () => console.log('🗺️ Tiles loading...'));
+            tiles.on('load', () => console.log('🗺️ Tiles loaded'));
+            tiles.on('tileerror', (err) => console.error('🗺️ Tile Error:', err));
+
+            // Add center icon behavior
+            this.mapInstance.on('moveend', () => {
+                const center = this.mapInstance.getCenter();
+                this.mapCenter = center;
+            });
+
+            // [Fix] Force resize after modal animation
+            setTimeout(() => {
+                this.mapInstance.invalidateSize();
+                const size = this.mapInstance.getSize();
+                console.log(`🗺️ Force Resize (v11) - Size: ${size.x}x${size.y}`);
+            }, 300);
+
+            // Double check
+            setTimeout(() => {
+                this.mapInstance.invalidateSize();
+            }, 800);
+        },
+
+        async confirmLocation() {
+            const center = this.mapInstance.getCenter();
+            this.formData.lat = center.lat;
+            this.formData.long = center.lng;
+
+            await this.reverseGeocode(center.lat, center.lng);
+            this.closeMap();
+        },
+
+        // Locate GPS and fly map to current position
+        locateOnMap() {
+            if (!navigator.geolocation) {
+                Swal.fire('Không hỗ trợ', 'Trình duyệt không hỗ trợ định vị GPS. Vui lòng dùng Google Chrome để có độ chính xác cao nhất.', 'warning');
+                return;
+            }
+
+            Swal.fire({
+                title: 'Đang định vị...',
+                text: 'Vui lòng chờ',
+                allowOutsideClick: false,
+                didOpen: () => Swal.showLoading()
+            });
+
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    Swal.close();
+                    const lat = position.coords.latitude;
+                    const lng = position.coords.longitude;
+
+                    // Fly to position with animation
+                    if (this.mapInstance) {
+                        this.mapInstance.flyTo([lat, lng], 16);
+                        console.log('🗺️ Flew to GPS:', lat, lng);
                     }
                 },
                 (err) => {
-                    this.locationStatus = 'Không thể lấy vị trí. Vui lòng nhập tay.';
-                }
+                    Swal.close();
+                    let title = 'Lỗi GPS';
+                    let msg = 'Không thể lấy vị trí.';
+                    let icon = 'error';
+
+                    if (err.code === 1) {
+                        // Permission denied
+                        title = 'Quyền GPS bị chặn';
+                        msg = 'Trình duyệt này không cho phép định vị chính xác. Vui lòng dùng <b>Google Chrome</b> để có độ chính xác cao nhất, hoặc kéo bản đồ để chọn vị trí thủ công.';
+                        icon = 'warning';
+                    } else if (err.code === 2) {
+                        msg = 'Không tìm thấy tín hiệu GPS. Vui lòng thử lại hoặc kéo bản đồ để chọn vị trí.';
+                    } else if (err.code === 3) {
+                        msg = 'Hết thời gian chờ định vị. Vui lòng kiểm tra kết nối mạng hoặc kéo bản đồ để chọn vị trí.';
+                    }
+
+                    Swal.fire({
+                        title: title,
+                        html: msg,
+                        icon: icon
+                    });
+                },
+                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
             );
+        },
+
+        async reverseGeocode(lat, lon) {
+            this.locationStatus = 'Đang tìm địa chỉ...';
+            // Gọi API Proxy (Backend) để tránh CORS và bảo mật
+            try {
+                const res = await fetch(`/api/public/reverse-geocode?lat=${lat}&lon=${lon}`);
+                const data = await res.json();
+                if (data && data.display_name) {
+                    this.formData.address = data.display_name;
+                    this.locationStatus = 'Đã định vị thành công!';
+                } else {
+                    this.locationStatus = 'Đã lấy tọa độ. Vui lòng nhập thêm số nhà.';
+                }
+            } catch (e) {
+                this.locationStatus = 'Đã ghim tọa độ. Vui lòng nhập địa chỉ cụ thể.';
+            }
         },
 
         // Chuyển bước tiếp theo với Validate

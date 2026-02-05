@@ -11,7 +11,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Tech Portal | {{if .Settings}}{{.Settings.CompanyName}}{{else}}HVAC System{{end}}</title>
 
-    <link rel="manifest" href="/assets/manifest.json">
+    <link rel="manifest" href="/assets/manifest.json?v=12">
     <link rel="apple-touch-icon" href="/assets/icons/icon-192x192.png">
     <link rel="icon" type="image/png" href="/assets/icons/icon-192x192.png">
 
@@ -161,7 +161,7 @@
 
     <script>
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/assets/service-worker.js')
+            navigator.serviceWorker.register('/service-worker.js')
                 .then(() => console.log('SW Registered'))
                 .catch(err => console.error('SW Fail', err));
         }

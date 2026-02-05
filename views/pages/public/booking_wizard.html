@@ -164,10 +164,12 @@
                                         <input type="text" x-model="formData.address" autocomplete="street-address"
                                             class="input input-bordered join-item w-full bg-slate-50 focus:bg-white"
                                             placeholder="Số nhà, tên đường...">
-                                        <button type="button" @click="getLocation()"
-                                            class="btn btn-square join-item border-slate-300 hover:bg-white"
-                                            title="Lấy vị trí">
-                                            <i class="fa-solid fa-location-crosshairs text-blue-500 text-lg"></i>
+                                        <button type="button" @click="showMap()"
+                                            class="btn join-item border-slate-300 hover:bg-white tooltip gap-2"
+                                            data-tip="Chọn trên bản đồ">
+                                            <i class="fa-solid fa-map-location-dot text-blue-500 text-lg"></i>
+                                            <span class="hidden sm:inline text-sm font-medium text-slate-600">Bản
+                                                đồ</span>
                                         </button>
                                     </div>
                                     <div x-show="locationStatus" class="mt-2 text-xs md:text-sm animate-fade-in"
@@ -355,5 +357,44 @@
                 thông tin 100%</span>
         </div>
     </div>
+    <!-- MAP MODAL -->
+    <div class="modal" :class="showMapModal ? 'modal-open' : ''">
+        <div class="modal-box w-11/12 max-w-3xl p-0 overflow-hidden" style="height: 80vh;">
+            <div class="p-4 bg-white border-b flex justify-between items-center shadow-sm" style="height: 60px;">
+                <h3 class="font-bold text-lg text-slate-800"><i class="fa-solid fa-map-pin text-red-500 mr-2"></i> Ghim
+                    vị trí chính xác</h3>
+                <button class="btn btn-sm btn-circle btn-ghost" @click="closeMap()">✕</button>
+            </div>
+
+            <!-- Map Container with explicit height -->
+            <div class="relative bg-slate-100" style="height: calc(80vh - 60px - 72px);">
+                <div id="booking-map" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0;"></div>
+                <!-- Center Pin Indicator (Visual Aid) -->
+                <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-full pointer-events-none"
+                    style="z-index: 1000;" x-show="!mapMarker">
+                    <i class="fa-solid fa-location-dot text-4xl text-red-500 drop-shadow-md"></i>
+                </div>
+                <!-- GPS Locate Button -->
+                <button type="button" @click="locateOnMap()"
+                    class="absolute bottom-20 left-4 w-12 h-12 bg-white rounded-full shadow-lg border border-slate-200 flex items-center justify-center hover:bg-blue-50 transition-colors tooltip tooltip-right"
+                    style="z-index: 1000;" data-tip="Về vị trí của tôi">
+                    <i class="fa-solid fa-location-crosshairs text-xl text-blue-600"></i>
+                </button>
+                <div class="absolute bottom-6 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur px-4 py-2 rounded-full shadow-lg text-xs font-bold text-slate-600 border border-slate-200"
+                    style="z-index: 1000;">
+                    <i class="fa-solid fa-hand-pointer mr-1"></i> Di chuyển bản đồ để ghim vị trí
+                </div>
+            </div>
+
+            <div class="p-4 bg-white border-t flex justify-end gap-3" style="height: 72px;">
+                <button class="btn btn-ghost" @click="closeMap()">Hủy</button>
+                <button class="btn btn-primary text-white shadow-lg shadow-blue-500/30" @click="confirmLocation()">
+                    <i class="fa-solid fa-check mr-2"></i> Xác nhận vị trí
+                </button>
+            </div>
+        </div>
+        <div class="modal-backdrop bg-slate-900/50 backdrop-blur-sm" @click="closeMap()"></div>
+    </div>
+
 </div>
 {{ end }}

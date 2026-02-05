@@ -208,3 +208,48 @@ func (h *PublicHandler) ReverseGeocode(e *core.RequestEvent) error {
 	fmt.Println("✅ [REVERSE_GEO] Success")
 	return e.JSON(200, result)
 }
+
+// Geocode proxies forward geocoding requests to Nominatim
+// GET /api/public/geocode?q=...
+func (h *PublicHandler) Geocode(e *core.RequestEvent) error {
+	query := e.Request.URL.Query().Get("q")
+	if query == "" {
+		return e.JSON(400, map[string]string{"error": "Missing query parameter"})
+	}
+
+	// Construct Nominatim URL
+	url := fmt.Sprintf("https://nominatim.openstreetmap.org/search?format=json&q=%s", query)
+
+	// Create Request
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return e.JSON(500, map[string]string{"error": "Failed to create request"})
+	}
+
+	// IMPORTANT: Set User-Agent as required by Nominatim usage policy
+	req.Header.Set("User-Agent", "HVAC-Service/1.0")
+	req.Header.Set("Referer", "https://hvac-system.local")
+
+	// Execute Request
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		fmt.Printf("❌ [GEOCODE] Failed to contact Nominatim: %v\n", err)
+		return e.JSON(502, map[string]string{"error": "Failed to contact Nominatim"})
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		fmt.Printf("❌ [GEOCODE] Nominatim returned status: %d\n", resp.StatusCode)
+		return e.JSON(resp.StatusCode, map[string]string{"error": "Nominatim error"})
+	}
+
+	// Decode and Proxy Response
+	var result interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		fmt.Printf("❌ [GEOCODE] Invalid JSON: %v\n", err)
+		return e.JSON(500, map[string]string{"error": "Invalid JSON from Nominatim"})
+	}
+
+	return e.JSON(200, result)
+}
