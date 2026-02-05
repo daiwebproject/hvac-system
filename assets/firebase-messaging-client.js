@@ -115,9 +115,14 @@ class FirebaseMessagingClient {
 
       if (response.ok) {
         console.log('Token sent to server successfully');
+        // Uncomment below to debug on iOS if needed, but for now console is cleaner for PC
+        // alert('Đã gửi Token lên Server thành công!'); 
       } else {
         // Log text lỗi ra để dễ debug
-        console.error('Failed to send token:', await response.text());
+        const errText = await response.text();
+        console.error('Failed to send token:', errText);
+        // Show alert for iOS debugging
+        alert('Lỗi gửi Token: ' + errText + '\n(Vui lòng báo cho Admin/Dev)');
       }
     } catch (error) {
       console.error('Send token error:', error);

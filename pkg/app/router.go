@@ -24,14 +24,14 @@ func RegisterRoutes(app *pocketbase.PocketBase, t *template.Template, eventBroke
 
 		// [SECURITY] Protect PocketBase Admin UI (/_/)
 		// Only allow access if special header is present
-		// se.Router.BindFunc(func(e *core.RequestEvent) error {
-		// 	if len(e.Request.URL.Path) >= 3 && e.Request.URL.Path[:3] == "/_/" {
-		// 		if e.Request.Header.Get("X-Super-Admin") != "mat-khau-cua-toi" {
-		// 			return e.String(http.StatusForbidden, "⛔ Super Admin Access Required")
-		// 		}
-		// 	}
-		// 	return e.Next()
-		// })
+		se.Router.BindFunc(func(e *core.RequestEvent) error {
+			if len(e.Request.URL.Path) >= 3 && e.Request.URL.Path[:3] == "/_/" {
+				if e.Request.Header.Get("X-Super-Admin") != "mat-khau-cua-toi" {
+					return e.String(http.StatusForbidden, "⛔ Super Admin Access Required")
+				}
+			}
+			return e.Next()
+		})
 
 		// ---------------------------------------------------------
 		// 1. STATIC FILES & SERVICE WORKERS
@@ -127,8 +127,9 @@ func RegisterRoutes(app *pocketbase.PocketBase, t *template.Template, eventBroke
 
 		// --- [MỚI] FCM HANDLER ---
 		fcm := &handlers.FCMHandler{
-			App:        app,
-			FCMService: fcmService,
+			App:          app,
+			FCMService:   fcmService,
+			SettingsRepo: settingsRepo, // [NEW] Injected
 		}
 
 		public := &handlers.PublicHandler{
@@ -145,6 +146,7 @@ func RegisterRoutes(app *pocketbase.PocketBase, t *template.Template, eventBroke
 		se.Router.GET("/book", web.BookingPage)
 		se.Router.POST("/book", web.BookService)
 		se.Router.GET("/api/slots/available", slot.GetAvailableSlots)
+		se.Router.GET("/api/public/reverse-geocode", public.ReverseGeocode) // [NEW] Proxy
 
 		// Super Invoice Public Routes
 		se.Router.GET("/invoice/{hash}", public.ShowInvoice)

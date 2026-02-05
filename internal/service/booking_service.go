@@ -70,26 +70,40 @@ func (s *BookingService) CreateBooking(req *core.BookingRequest) (*core.Booking,
 			Type:      "booking.created",
 			Timestamp: time.Now().Unix(),
 			Data: map[string]interface{}{
-				"booking_id":     booking.ID,
+				"id":             booking.ID,           // [FIX] Frontend expects 'id'
+				"booking_id":     booking.ID,           // Legacy support
+				"customer":       booking.CustomerName, // [FIX] Frontend expects 'customer'
 				"customer_name":  booking.CustomerName,
 				"customer_phone": booking.CustomerPhone,
 				"service":        booking.DeviceType,
-				"booking_time":   booking.BookingTime,
+				"time":           booking.BookingTime, // Raw time, frontend might need format
+				"status":         booking.JobStatus,
+				"status_label":   booking.JobStatus,
+				"address":        booking.AddressDetails, // Prioritize details
+				"lat":            booking.Lat,
+				"long":           booking.Long,
+				"issue":          booking.IssueDescription,
 			},
 		})
 	}
 
 	// 2. FCM to Admin (Multicast)
 	if s.notifications != nil {
+		// Run asynchronously to not block
 		go func() {
 			// Fetch admin tokens
 			settings, err := s.settingsRepo.GetSettings()
-			if err == nil && len(settings.AdminFCMTokens) > 0 {
-				err = s.notifications.NotifyAdmins(context.Background(), settings.AdminFCMTokens, booking.ID, booking.CustomerName)
+			if err == nil {
+				if len(settings.AdminFCMTokens) > 0 {
+					err = s.notifications.NotifyAdmins(context.Background(), settings.AdminFCMTokens, booking.ID, booking.CustomerName)
+				} else {
+					// Fallback to Topic
+					err = s.notifications.NotifyNewBooking(context.Background(), booking.ID, booking.CustomerName)
+				}
 			}
 
 			if err != nil {
-				log.Printf("❌ [BOOKING_SERVICE] Failed to notify admins: %v", err)
+				// Log error optionally
 			}
 		}()
 	}

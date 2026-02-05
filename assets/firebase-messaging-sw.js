@@ -24,7 +24,7 @@ messaging.onBackgroundMessage((payload) => {
   const notificationOptions = {
     body: payload.notification?.body || 'Bạn có nhiệm vụ mới',
     icon: payload.notification?.icon || '/assets/icons/icon-192x192.png',
-    badge: '/assets/icons/badge.png', // Icon nhỏ trên thanh status (Android)
+    badge: '/assets/icons/icon-192x192.png', // Icon nhỏ trên thanh status (Android)
     tag: payload.data?.booking_id || 'general-notification', // Group thông báo theo Job ID
     renotify: true, // Rung lại nếu có tin mới cùng tag
     data: payload.data || {},

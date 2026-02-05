@@ -78,9 +78,29 @@ window.kanbanBoard = function (initialData) {
                     }
                     // Handle New Bookings
                     else if (event.type === 'booking.created') {
-                        if (!this._reloadTimeout) {
-                            // Reload nhẹ sau 1.5s để cập nhật danh sách đầy đủ
-                            this._reloadTimeout = setTimeout(() => window.location.reload(), 1500);
+                        // [FIX] Add to list directly without reload
+                        const newJob = event.data;
+
+                        // Default properties if missing
+                        if (!newJob.status) newJob.status = 'pending';
+                        if (!newJob.id) newJob.id = newJob.booking_id;
+
+                        // Add to pending column
+                        this.columns.pending.unshift(newJob);
+
+                        Swal.fire({
+                            title: '🔔 Đơn hàng mới!',
+                            text: `Khách hàng: ${newJob.customer}`,
+                            icon: 'success',
+                            toast: true,
+                            position: 'top-end',
+                            showConfirmButton: false,
+                            timer: 5000
+                        });
+
+                        // Try to geocode if address exists (optional, reusing existing logic)
+                        if (typeof geocodeAndDraw === 'function' && newJob.address) {
+                            geocodeAndDraw(newJob);
                         }
                     }
                 } catch (err) { console.error('SSE Error', err); }
@@ -277,23 +297,42 @@ window.kanbanBoard = function (initialData) {
             fetch(form.action, {
                 method: 'POST',
                 body: formData
-            }).then(res => {
-                if (res.ok) {
-                    Swal.fire({
-                        title: 'Thành công',
-                        text: 'Đã tạo đơn hàng mới',
-                        icon: 'success',
-                        timer: 1500,
-                        showConfirmButton: false
-                    });
-                    document.getElementById('modal-create-job').checked = false;
-                    form.reset();
-                    // Reload to fetch new data
-                    setTimeout(() => window.location.reload(), 1500);
-                } else {
-                    res.text().then(text => Swal.fire('Lỗi', text, 'error'));
-                }
-            }).catch(err => Swal.fire('Lỗi', 'Lỗi kết nối', 'error'));
+            }).then(res => res.json())
+                .then(data => {
+                    if (data.success || data.message) { // Handle both simple message and full object
+                        Swal.fire({
+                            title: 'Thành công',
+                            text: 'Đã tạo đơn hàng mới',
+                            icon: 'success',
+                            timer: 1500,
+                            showConfirmButton: false
+                        });
+                        document.getElementById('modal-create-job').checked = false;
+                        form.reset();
+
+                        // [FIX] Add to list directly without reload
+                        if (data.booking) {
+                            const newJob = data.booking;
+                            // Default status if missing
+                            if (!newJob.status) newJob.status = 'pending';
+
+                            this.columns.pending.unshift(newJob);
+
+                            // Try geocode if needed
+                            if (typeof geocodeAndDraw === 'function' && newJob.address) {
+                                geocodeAndDraw(newJob);
+                            }
+                        } else {
+                            // Fallback if no booking data returned (should not happen with new backend)
+                            setTimeout(() => window.location.reload(), 1500);
+                        }
+                    } else {
+                        Swal.fire('Lỗi', data.error || 'Lỗi không xác định', 'error');
+                    }
+                }).catch(err => {
+                    console.error(err);
+                    Swal.fire('Lỗi', 'Lỗi kết nối', 'error');
+                });
         },
 
         removeJobLocally(jobId) {

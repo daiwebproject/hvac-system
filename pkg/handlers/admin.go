@@ -239,10 +239,22 @@ func (h *AdminHandler) Dashboard(e *core.RequestEvent) error {
 	// Fetch Services for Dropdown
 	servicesList, _ := h.App.FindRecordsByFilter("services", "active=true", "-created", 100, 0, nil)
 
+	// [NEW] Get Firebase Config for Frontend
+	// Quick fix: Hardcode valid public config or fetch if available.
+	// Ideally we should use h.App.Settings() or a config service.
+	// For now, let's inject manually to match client-side expectation.
+
+	firebaseConfig := map[string]string{
+		"apiKey":            "AIzaSyB1zmMjyK6XtqVm8Kcu-EwwAUpfSTkg8AA",
+		"projectId":         "techapp-hvac",
+		"messagingSenderId": "250596752999",
+		"appId":             "1:250596752999:web:6d810cf577eedfb7d55ec2",
+	}
+
 	data := map[string]interface{}{
 		"Bookings":        bookings,
 		"BookingsJSON":    template.JS(string(bookingsJSONBytes)),
-		"TechniciansJSON": template.JS(string(techsJSONBytes)), // [QUAN TRỌNG] Truyền cái này xuống View
+		"TechniciansJSON": template.JS(string(techsJSONBytes)),
 		"Technicians":     technicians,
 		"Services":        servicesList,
 		"TotalRevenue":    stats.TotalRevenue,
@@ -255,6 +267,8 @@ func (h *AdminHandler) Dashboard(e *core.RequestEvent) error {
 		"TopTechs":        topTechs,
 		"IsAdmin":         true,
 		"PageType":        "admin_dashboard",
+		"FirebaseConfig":  firebaseConfig,                                                                            // [NEW]
+		"VapidPublicKey":  "BM0Uvapd87utXwp2bBC_23HMT3LjtSwWGq6rUU8FnK6DvnJnTDCR_Kj4mGAC-HLgoia-tgjobgSWDpDJkKX_DBk", // [NEW]
 	}
 
 	return RenderPage(h.Templates, e, "layouts/admin.html", "admin/dashboard.html", data)
@@ -358,17 +372,37 @@ func (h *AdminHandler) CreateBooking(e *core.RequestEvent) error {
 	}
 
 	// Post-update for fields not in BookingRequest (e.g. estimated_cost)
-	// We need to fetch the record again or just update 'newBooking' if it was a struct?
-	// CreateBooking returns *core.Booking (struct). We need to update DB record for cost.
 	if newBooking != nil && record.GetFloat("estimated_cost") > 0 {
-		// We have to find the record by ID
+		// We have to find the record by ID (or just save the newBooking if it was a record, but it's a struct)
+		// Since we can't easily update the struct back to DB without repo methods for specific fields,
+		// we rely on finding the record.
 		if freshRecord, err := h.App.FindRecordById("bookings", newBooking.ID); err == nil {
 			freshRecord.Set("estimated_cost", record.GetFloat("estimated_cost"))
 			h.App.Save(freshRecord)
+			// Update the struct to return correct data
+			// (Assuming newBooking struct doesn't have EstimatedCost field exposed or mapped here easily,
+			// but frontend might not need cost immediately for Kanban card)
 		}
 	}
 
-	return e.JSON(200, map[string]string{"message": "Đã tạo đơn hàng mới"})
+	// [FIX] Return the booking data so frontend can update without reload
+	return e.JSON(200, map[string]interface{}{
+		"success": true,
+		"message": "Đã tạo đơn hàng mới",
+		"booking": map[string]interface{}{
+			"id":           newBooking.ID,
+			"customer":     newBooking.CustomerName,
+			"service":      newBooking.DeviceType,
+			"time":         newBooking.BookingTime,
+			"status":       "pending",
+			"status_label": "pending", // Default
+			"phone":        newBooking.CustomerPhone,
+			"address":      newBooking.AddressDetails,
+			"issue":        newBooking.IssueDescription,
+			"lat":          newBooking.Lat,
+			"long":         newBooking.Long,
+		},
+	})
 }
 
 func (h *AdminHandler) UpdateBookingStatus(e *core.RequestEvent) error {

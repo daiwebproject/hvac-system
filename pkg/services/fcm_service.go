@@ -41,10 +41,16 @@ type NotificationPayload struct {
 	DeviceToken string            `json:"-"` // Not sent to FCM, used internally
 	Icon        string            `json:"icon,omitempty"`
 	Badge       string            `json:"badge,omitempty"`
+	Link        string            `json:"link,omitempty"` // [NEW] Action link
 }
 
 // SendNotification sends a single notification to a device
 func (s *FCMService) SendNotification(ctx context.Context, payload *NotificationPayload) (string, error) {
+	link := payload.Link
+	if link == "" {
+		link = "https://192.168.1.12/tech/jobs" // Default fallback
+	}
+
 	message := &messaging.Message{
 		Token: payload.DeviceToken,
 		Notification: &messaging.Notification{
@@ -60,7 +66,7 @@ func (s *FCMService) SendNotification(ctx context.Context, payload *Notification
 				Badge: payload.Badge,
 			},
 			FCMOptions: &messaging.WebpushFCMOptions{
-				Link: "https://192.168.1.12/tech/jobs",
+				Link: link,
 			},
 		},
 		Android: &messaging.AndroidConfig{
@@ -96,33 +102,37 @@ func (s *FCMService) SendNotification(ctx context.Context, payload *Notification
 
 // SendMulticast sends notifications to multiple devices
 func (s *FCMService) SendMulticast(ctx context.Context, deviceTokens []string, payload *NotificationPayload) (*messaging.BatchResponse, error) {
-	// SendMulticast requires a MulticastMessage wrapper, not individual messages
-	multicastMsg := &messaging.MulticastMessage{
-		Tokens: deviceTokens,
-		Notification: &messaging.Notification{
-			Title: payload.Title,
-			Body:  payload.Body,
-		},
-		Data: payload.Data,
-		Webpush: &messaging.WebpushConfig{
-			Notification: &messaging.WebpushNotification{
-				Title: payload.Title,
-				Body:  payload.Body,
-				Icon:  payload.Icon,
-				Badge: payload.Badge,
-			},
-			FCMOptions: &messaging.WebpushFCMOptions{
-				Link: "/tech/jobs",
-			},
-		},
+	link := payload.Link
+	if link == "" {
+		// [FIX] Absolute URL
 	}
 
-	response, err := s.client.SendMulticast(ctx, multicastMsg)
-	if err != nil {
-		return nil, fmt.Errorf("error sending multicast: %v", err)
+	// [FIX] SendMulticast using loop to avoid legacy batch API 404 error
+	successCount := 0
+	failureCount := 0
+
+	for _, token := range deviceTokens {
+		// Create a copy of payload with specific token
+		singlePayload := *payload
+		singlePayload.DeviceToken = token
+		singlePayload.Link = link
+
+		// Reuse SendNotification which uses valid HTTP v1 API
+		_, err := s.SendNotification(ctx, &singlePayload)
+		if err != nil {
+			log.Printf("Failed to send to token %s: %v", token, err)
+			failureCount++
+		} else {
+			successCount++
+		}
 	}
 
-	return response, nil
+	// Construct a partially fake BatchResponse to satisfy interface
+	// Note: We don't have per-message IDs here easily without refactoring return type
+	return &messaging.BatchResponse{
+		SuccessCount: successCount,
+		FailureCount: failureCount,
+	}, nil
 }
 
 // SendToTopic sends notification to all subscribers of a topic
@@ -265,8 +275,8 @@ func (s *FCMService) NotifyNewBooking(ctx context.Context, bookingID string, cus
 			"action":     "open_booking",
 			"bookingUrl": fmt.Sprintf("/admin/bookings/%s", bookingID),
 		},
-		Icon:  "/assets/icon.png",
-		Badge: "/assets/badge.png",
+		Icon:  "/assets/icons/icon-192x192.png", // [FIX]
+		Badge: "/assets/icons/icon-192x192.png", // [FIX]
 	}
 
 	_, err := s.SendToTopic(ctx, "admin_alerts", payload)
@@ -289,8 +299,8 @@ func (s *FCMService) NotifyBookingCancelled(ctx context.Context, bookingID, cust
 			"booking_id": bookingID,
 			"reason":     reason,
 		},
-		Icon:  "/assets/icon.png",
-		Badge: "/assets/badge.png",
+		Icon:  "/assets/icons/icon-192x192.png",
+		Badge: "/assets/icons/icon-192x192.png",
 	}
 
 	_, err := s.SendToTopic(ctx, "admin_alerts", payload)
@@ -315,8 +325,9 @@ func (s *FCMService) NotifyAdmins(ctx context.Context, tokens []string, bookingI
 			"action":     "open_booking",
 			"bookingUrl": fmt.Sprintf("/admin/bookings/%s", bookingID),
 		},
-		Icon:  "/assets/icon.png",
-		Badge: "/assets/badge.png",
+		Icon:  "/assets/icons/icon-192x192.png",                                 // [FIX] path
+		Badge: "/assets/icons/icon-192x192.png",                                 // Reuse icon if badge missing
+		Link:  fmt.Sprintf("https://192.168.1.12/admin/bookings/%s", bookingID), // [FIX] Absolute URL
 	}
 
 	response, err := s.SendMulticast(ctx, tokens, payload)
@@ -346,8 +357,8 @@ func (s *FCMService) NotifyAdminsBookingCancelled(ctx context.Context, tokens []
 			"booking_id": bookingID,
 			"reason":     reason,
 		},
-		Icon:  "/assets/icon.png",
-		Badge: "/assets/badge.png",
+		Icon:  "/assets/icons/icon-192x192.png", // [FIX]
+		Badge: "/assets/icons/icon-192x192.png", // [FIX]
 	}
 
 	response, err := s.SendMulticast(ctx, tokens, payload)

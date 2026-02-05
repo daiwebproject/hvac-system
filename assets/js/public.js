@@ -106,9 +106,9 @@ window.bookingWizard = function () {
                     this.formData.lat = position.coords.latitude;
                     this.formData.long = position.coords.longitude;
 
-                    // Gọi API Nominatim (OpenStreetMap) để lấy tên đường
+                    // Gọi API Proxy (Backend) để tránh CORS và bảo mật
                     try {
-                        const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${this.formData.lat}&lon=${this.formData.long}&zoom=18&addressdetails=1`);
+                        const res = await fetch(`/api/public/reverse-geocode?lat=${this.formData.lat}&lon=${this.formData.long}`);
                         const data = await res.json();
                         if (data && data.display_name) {
                             this.formData.address = data.display_name;

@@ -81,7 +81,7 @@ messaging.onBackgroundMessage((payload) => {
   const options = {
     body: payload.notification?.body || 'Bạn có thông báo mới',
     icon: payload.notification?.icon || '/assets/icons/icon-192x192.png',
-    badge: '/assets/icons/badge.png',
+    badge: '/assets/icons/icon-192x192.png',
     data: payload.data || {},
     actions: [{ action: 'view', title: 'Xem chi tiết' }]
   };

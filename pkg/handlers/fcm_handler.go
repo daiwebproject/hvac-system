@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	domain "hvac-system/internal/core"
 	"hvac-system/pkg/services"
 
 	"github.com/pocketbase/pocketbase"
@@ -12,8 +13,9 @@ import (
 
 // FCMHandler manages FCM token registration and notifications
 type FCMHandler struct {
-	App        *pocketbase.PocketBase
-	FCMService *services.FCMService
+	App          *pocketbase.PocketBase
+	FCMService   *services.FCMService
+	SettingsRepo domain.SettingsRepository // [NEW] Injected
 }
 
 // RegisterDeviceTokenRequest represents the request to register a device token
@@ -24,10 +26,14 @@ type RegisterDeviceTokenRequest struct {
 // RegisterDeviceToken registers or updates FCM token for a technician
 // POST /api/tech/register-fcm-token
 func (h *FCMHandler) RegisterDeviceToken(e *core.RequestEvent) error {
+	fmt.Println("👉 [DEBUG] RegisterDeviceToken Request Received") // [DEBUG]
+
 	var req RegisterDeviceTokenRequest
 	if err := e.BindBody(&req); err != nil {
+		fmt.Printf("❌ [DEBUG] BindBody Error: %v\n", err)
 		return e.JSON(400, map[string]string{"error": "Invalid request"})
 	}
+	fmt.Printf("👉 [DEBUG] Token Received: %s\n", req.Token) // [DEBUG]
 
 	if req.Token == "" {
 		return e.JSON(400, map[string]string{"error": "Token is required"})
@@ -43,14 +49,25 @@ func (h *FCMHandler) RegisterDeviceToken(e *core.RequestEvent) error {
 		if h.FCMService == nil {
 			return e.JSON(503, map[string]string{"error": "FCM not configured"})
 		}
-		// Subscribe Admin to 'admin_alerts' topic
+		// Subscribe Admin to 'admin_alerts' topic (Legacy/Fallback)
 		err := h.FCMService.SubscribeToTopic(context.Background(), []string{req.Token}, "admin_alerts")
 		if err != nil {
 			fmt.Printf("Error subscribing admin to topic: %v\n", err)
 		}
+
+		// [NEW] Save Admin Token to Settings for Multicast
+		if h.SettingsRepo != nil {
+			if err := h.SettingsRepo.AddAdminToken(req.Token); err != nil {
+				fmt.Printf("Error saving admin token to settings: %v\n", err)
+				// Don't fail the request, just log
+			} else {
+				fmt.Printf("✅ Saved Admin FCM Token: %s\n", req.Token)
+			}
+		}
+
 		return e.JSON(200, map[string]interface{}{
 			"success": true,
-			"message": "Admin FCM token registered and subscribed",
+			"message": "Admin FCM token registered",
 		})
 	}
 
@@ -115,8 +132,8 @@ func (h *FCMHandler) TestNotification(e *core.RequestEvent) error {
 		Data: map[string]string{
 			"type": "test",
 		},
-		Icon:  "/assets/icon.png",
-		Badge: "/assets/badge.png",
+		Icon:  "/assets/icons/icon-192x192.png", // [FIX] path
+		Badge: "/assets/icons/icon-192x192.png", // Reuse icon if badge missing
 	}
 
 	_, err = h.FCMService.SendNotification(e.Request.Context(), payload)

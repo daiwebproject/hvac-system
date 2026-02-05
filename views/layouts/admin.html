@@ -8,6 +8,13 @@
     <title>{{ block "title" . }}Admin | {{if .Settings}}{{.Settings.CompanyName}}{{else}}ĐẠI ĐIỆN LẠNH{{end}}{{ end }}
     </title>
 
+    <!-- PWA / iOS Meta Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#1e40af">
+    <link rel="manifest" href="/assets/manifest-admin.json">
+    <link rel="apple-touch-icon" href="/assets/icons/icon-192x192.png">
+
     <!-- Performance: Local Assets -->
 
     <!-- Local Tailwind CSS -->
@@ -17,10 +24,21 @@
     <!-- <script src="/assets/alpine-components.js"></script> -->
     <script src="/assets/vendor/sweetalert2/sweetalert2.all.min.js"></script>
     <script src="/assets/js/utils.js"></script>
-    <script src="/assets/js/admin.js"></script>
+    <script src="/assets/js/admin.js?v=3"></script>
 
     <!-- TinyMCE (same as PocketBase) -->
     <script src="/assets/vendor/tinymce/tinymce.min.js" referrerpolicy="origin"></script>
+
+    <!-- Firebase Config Injection -->
+    <script>
+        window.FIREBASE_CONFIG = {
+            apiKey: "{{ .FirebaseConfig.apiKey }}",
+            projectId: "{{ .FirebaseConfig.projectId }}",
+            messagingSenderId: "{{ .FirebaseConfig.messagingSenderId }}",
+            appId: "{{ .FirebaseConfig.appId }}"
+        };
+        window.VAPID_PUBLIC_KEY = "{{ .VapidPublicKey }}";
+    </script>
 
     <!-- Firebase SDK & FCM Client -->
     <script src="/assets/vendor/firebase/firebase-app-compat.js"></script>
@@ -110,6 +128,17 @@
         document.body.addEventListener('htmx:afterSettle', function (evt) {
             window.scrollTo({ top: 0, behavior: 'smooth' });
         });
+
+        // Register Service Worker for PWA (Admin)
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/assets/service-worker.js')
+                .then(registration => {
+                    console.log('Admin SW Registered:', registration.scope);
+                })
+                .catch(err => {
+                    console.error('Admin SW Registration failed:', err);
+                });
+        }
     </script>
 </body>
 

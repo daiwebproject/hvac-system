@@ -1,8 +1,10 @@
 package handlers
 
 import (
+	"encoding/json"
 	"fmt"
 	"html/template"
+	"net/http"
 	"time"
 
 	"hvac-system/pkg/services"
@@ -16,8 +18,6 @@ type PublicHandler struct {
 	InvoiceService *services.InvoiceService
 }
 
-// Index renders the homepage with dynamic data
-// GET /
 // Index renders the homepage with dynamic data
 // GET /
 func (h *PublicHandler) Index(e *core.RequestEvent) error {
@@ -73,15 +73,7 @@ func (h *PublicHandler) ShowInvoice(e *core.RequestEvent) error {
 	}
 
 	// 4. Fetch Job Parts (Materials)
-	// [FIX] User needs invoice items, assuming they are stored in 'invoice_items' collection or similar.
-	// We will try access 'job_parts' as before but user mentioned "Danh sách vật tư/linh kiện đã thay"
-	// and provided code: items, _ := h.App.FindRecordsByFilter("invoice_items", "invoice_id='"+invoice.Id+"'", "", 100, 0, nil)
-	// We will follow user's instruction to try finding "invoice_items". If not compatible, we might need to adjust.
-	// For now, let's implement as requested.
 	items, _ := h.App.FindRecordsByFilter("invoice_items", fmt.Sprintf("invoice_id='%s'", invoice.Id), "", 100, 0, nil)
-
-	// If invoice items are empty, fallback to job_parts if desired?
-	// The user prompt specifically asked for "invoice_items".
 
 	// 5. Fetch Settings
 	settingsRecord, _ := h.App.FindFirstRecordByData("settings", "active", true)
@@ -100,9 +92,6 @@ func (h *PublicHandler) ShowInvoice(e *core.RequestEvent) error {
 		"Settings": settingsRecord,
 	}
 
-	// Use generic RenderPage or ExecuteTemplate directly.
-	// Since RenderPage is likely package-private or I need to import it if it's in handlers package (same package).
-	// If RenderPage is in same package 'handlers', I can call it directly.
 	return RenderPage(h.Templates, e, "invoice_view", "public/invoice_view.html", data)
 }
 
@@ -130,24 +119,6 @@ func (h *PublicHandler) SubmitFeedback(e *core.RequestEvent) error {
 	// 1. Update Booking with Signature
 	booking, err := h.App.FindRecordById("bookings", bookingID)
 	if err == nil {
-		// In a real app, decode base64 to file and save.
-		// For PocketBase 'file' field, we need a file header.
-		// For now, let's assume we might save it as text field or handle file conversion.
-		// Since 'customer_signature' is a FileField, we need to convert Base64 to Multipart or save to a separate text field if complex.
-		// For MVP: Let's assume we save it to a text field 'signature_data' if file upload is too complex for this snippet.
-		// BUT the schema added 'customer_signature' as FileField.
-		// We will need to convert base64 to file.
-
-		// easier hack for now: If the prompt expects 'signature_pad' JS, it produces base64 png.
-		// We can save this base64 string to a new text field or try to upload it.
-		// Let's create a Helper to upload base64 as file? Or just skip and log it for now.
-		// I will overwrite 'customer_signature' logic to be skipped or handled simply.
-
-		// Actually, let's look at `1770001000_update_schema_advanced.go`, it added `customer_signature` as FileField.
-		// Handling base64 -> file in PocketBase requires creating a filesystem file.
-		// Let's defer exact file saving and just update RATING for now to verify flow.
-		// And maybe update 'status' to 'signed'.
-
 		booking.Set("customer_rating", rating)
 		booking.Set("signed_at", time.Now())
 		h.App.Save(booking)
@@ -182,4 +153,58 @@ func (h *PublicHandler) ServiceDetail(e *core.RequestEvent) error {
 	}
 
 	return RenderPage(h.Templates, e, "layouts/base.html", "public/service_detail.html", data)
+}
+
+// ReverseGeocode proxies requests to Nominatim to avoid CORS issues
+// GET /api/public/reverse-geocode?lat=...&lon=...
+func (h *PublicHandler) ReverseGeocode(e *core.RequestEvent) error {
+	lat := e.Request.URL.Query().Get("lat")
+	lon := e.Request.URL.Query().Get("lon")
+
+	if lat == "" || lon == "" {
+		return e.JSON(400, map[string]string{"error": "Missing lat/lon parameters"})
+	}
+
+	// Construct Nominatim URL
+	url := fmt.Sprintf("https://nominatim.openstreetmap.org/reverse?format=json&lat=%s&lon=%s&zoom=18&addressdetails=1", lat, lon)
+
+	// Create Request
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return e.JSON(500, map[string]string{"error": "Failed to create request"})
+	}
+
+	// IMPORTANT: Set User-Agent as required by Nominatim usage policy
+	// Avoid "example.com" as it is often blocked.
+	req.Header.Set("User-Agent", "HVAC-Service/1.0")
+	req.Header.Set("Referer", "https://hvac-system.local")
+
+	// Execute Request
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		fmt.Printf("❌ [REVERSE_GEO] Failed to contact Nominatim: %v\n", err)
+		return e.JSON(502, map[string]string{"error": "Failed to contact Nominatim"})
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		fmt.Printf("❌ [REVERSE_GEO] Nominatim returned status: %d\n", resp.StatusCode)
+		// Try to read body for error details
+		var body map[string]interface{}
+		json.NewDecoder(resp.Body).Decode(&body)
+		fmt.Printf("❌ [REVERSE_GEO] Nominatim Body: %+v\n", body)
+
+		return e.JSON(resp.StatusCode, map[string]string{"error": "Nominatim error"})
+	}
+
+	// Decode and Proxy Response
+	var result map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		fmt.Printf("❌ [REVERSE_GEO] Invalid JSON: %v\n", err)
+		return e.JSON(500, map[string]string{"error": "Invalid JSON from Nominatim"})
+	}
+
+	fmt.Println("✅ [REVERSE_GEO] Success")
+	return e.JSON(200, result)
 }
