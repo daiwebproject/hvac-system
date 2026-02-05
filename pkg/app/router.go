@@ -24,14 +24,14 @@ func RegisterRoutes(app *pocketbase.PocketBase, t *template.Template, eventBroke
 
 		// [SECURITY] Protect PocketBase Admin UI (/_/)
 		// Only allow access if special header is present
-		se.Router.BindFunc(func(e *core.RequestEvent) error {
-			if len(e.Request.URL.Path) >= 3 && e.Request.URL.Path[:3] == "/_/" {
-				if e.Request.Header.Get("X-Super-Admin") != "mat-khau-cua-toi" {
-					return e.String(http.StatusForbidden, "⛔ Super Admin Access Required")
-				}
-			}
-			return e.Next()
-		})
+		// se.Router.BindFunc(func(e *core.RequestEvent) error {
+		// 	if len(e.Request.URL.Path) >= 3 && e.Request.URL.Path[:3] == "/_/" {
+		// 		if e.Request.Header.Get("X-Super-Admin") != "mat-khau-cua-toi" {
+		// 			return e.String(http.StatusForbidden, "⛔ Super Admin Access Required")
+		// 		}
+		// 	}
+		// 	return e.Next()
+		// })
 
 		// ---------------------------------------------------------
 		// 1. STATIC FILES & SERVICE WORKERS
@@ -173,6 +173,11 @@ func RegisterRoutes(app *pocketbase.PocketBase, t *template.Template, eventBroke
 		adminGroup.GET("/stream", admin.Stream)
 		adminGroup.GET("/settings", admin.ShowSettings)
 		adminGroup.POST("/settings", admin.UpdateSettings)
+
+		// History page and search API
+		adminGroup.GET("/history", admin.ShowHistory)
+		adminGroup.GET("/api/bookings/search", admin.SearchHistory)
+
 		// adminGroup.POST("/bookings/{id}/assign", admin.AssignJob)
 		adminGroup.POST("/bookings/{id}/cancel", admin.CancelBooking)
 		adminGroup.POST("/bookings/{id}/update", admin.UpdateBookingInfo)

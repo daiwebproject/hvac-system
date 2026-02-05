@@ -84,6 +84,16 @@ func (h *FCMHandler) RegisterDeviceToken(e *core.RequestEvent) error {
 		fmt.Printf("⚠️ Cleared stale FCM token from tech %s (%s)\n", other.GetString("name"), other.Id)
 	}
 
+	// [NEW] Prevent Admin Notification Leakage: Remove this token from Admin Settings
+	// If this device was previously used by an Admin, remove it from the admin list.
+	if h.SettingsRepo != nil {
+		if err := h.SettingsRepo.RemoveAdminToken(req.Token); err != nil {
+			fmt.Printf("⚠️ Failed to remove potential stale admin token: %v\n", err)
+		} else {
+			fmt.Printf("🧹 Ensured token %s is not in Admin list\n", req.Token)
+		}
+	}
+
 	// Find technician record
 	tech, err := h.App.FindRecordById("technicians", authRecord.Id)
 	if err != nil {

@@ -100,8 +100,8 @@ func (s *FCMService) SendNotification(ctx context.Context, payload *Notification
 	return response, nil
 }
 
-// SendMulticast sends notifications to multiple devices
-func (s *FCMService) SendMulticast(ctx context.Context, deviceTokens []string, payload *NotificationPayload) (*messaging.BatchResponse, error) {
+// SendMulticast sends notifications to multiple devices and returns failed tokens
+func (s *FCMService) SendMulticast(ctx context.Context, deviceTokens []string, payload *NotificationPayload) (*messaging.BatchResponse, []string, error) {
 	link := payload.Link
 	if link == "" {
 		// [FIX] Absolute URL
@@ -110,6 +110,7 @@ func (s *FCMService) SendMulticast(ctx context.Context, deviceTokens []string, p
 	// [FIX] SendMulticast using loop to avoid legacy batch API 404 error
 	successCount := 0
 	failureCount := 0
+	failedTokens := []string{}
 
 	for _, token := range deviceTokens {
 		// Create a copy of payload with specific token
@@ -122,6 +123,7 @@ func (s *FCMService) SendMulticast(ctx context.Context, deviceTokens []string, p
 		if err != nil {
 			log.Printf("Failed to send to token %s: %v", token, err)
 			failureCount++
+			failedTokens = append(failedTokens, token)
 		} else {
 			successCount++
 		}
@@ -132,7 +134,7 @@ func (s *FCMService) SendMulticast(ctx context.Context, deviceTokens []string, p
 	return &messaging.BatchResponse{
 		SuccessCount: successCount,
 		FailureCount: failureCount,
-	}, nil
+	}, failedTokens, nil
 }
 
 // SendToTopic sends notification to all subscribers of a topic
@@ -312,9 +314,9 @@ func intPtr(i int) *int {
 }
 
 // NotifyAdmins sends multicast notification to specific admin devices
-func (s *FCMService) NotifyAdmins(ctx context.Context, tokens []string, bookingID, customerName string) error {
+func (s *FCMService) NotifyAdmins(ctx context.Context, tokens []string, bookingID, customerName string) ([]string, error) {
 	if len(tokens) == 0 {
-		return nil
+		return nil, nil
 	}
 	payload := &NotificationPayload{
 		Title: "🔔 Đơn hàng mới (Admin)",
@@ -330,18 +332,18 @@ func (s *FCMService) NotifyAdmins(ctx context.Context, tokens []string, bookingI
 		Link:  fmt.Sprintf("https://192.168.1.12/admin/bookings/%s", bookingID), // [FIX] Absolute URL
 	}
 
-	response, err := s.SendMulticast(ctx, tokens, payload)
+	response, failedTokens, err := s.SendMulticast(ctx, tokens, payload)
 	if err != nil {
-		return err
+		return failedTokens, err
 	}
 	log.Printf("NotifyAdmins: Success %d, Failure %d", response.SuccessCount, response.FailureCount)
-	return nil
+	return failedTokens, nil
 }
 
 // NotifyAdminsBookingCancelled sends multicast cancellation to admins
-func (s *FCMService) NotifyAdminsBookingCancelled(ctx context.Context, tokens []string, bookingID, customerName, reason, note string) error {
+func (s *FCMService) NotifyAdminsBookingCancelled(ctx context.Context, tokens []string, bookingID, customerName, reason, note string) ([]string, error) {
 	if len(tokens) == 0 {
-		return nil
+		return nil, nil
 	}
 	title := "⚠️ Đơn hàng bị hủy"
 	body := fmt.Sprintf("Đơn %s đã bị hủy. Lý do: %s", customerName, reason)
@@ -361,10 +363,10 @@ func (s *FCMService) NotifyAdminsBookingCancelled(ctx context.Context, tokens []
 		Badge: "/assets/icons/icon-192x192.png", // [FIX]
 	}
 
-	response, err := s.SendMulticast(ctx, tokens, payload)
+	response, failedTokens, err := s.SendMulticast(ctx, tokens, payload)
 	if err != nil {
-		return err
+		return failedTokens, err
 	}
 	log.Printf("NotifyAdminsBookingCancelled: Success %d, Failure %d", response.SuccessCount, response.FailureCount)
-	return nil
+	return failedTokens, nil
 }

@@ -42,6 +42,18 @@
                         hoặc giao việc.</p>
                 </div>
                 <div class="flex gap-2 w-full sm:w-auto">
+                    <!-- Search Input -->
+                    <div class="relative w-full sm:w-64">
+                        <input type="text" x-model="searchQuery" placeholder="Tìm tên hoặc SĐT..."
+                            class="input input-xs md:input-sm input-bordered w-full pl-8" />
+                        <i
+                            class="fa-solid fa-magnifying-glass absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+                        <button x-show="searchQuery" @click="searchQuery = ''"
+                            class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+
                     <div class="join flex-1 sm:flex-none">
                         <button class="btn btn-xs md:btn-sm btn-active join-item"><i
                                 class="fa-solid fa-grip-vertical"></i>
@@ -64,11 +76,12 @@
                         <div
                             class="p-3 border-b border-gray-200 flex justify-between items-center sticky top-0 bg-gray-50/95 backdrop-blur z-10 rounded-t-xl">
                             <span class="font-bold text-gray-600 text-sm uppercase tracking-wide">Mới Tiếp Nhận</span>
-                            <span class="badge badge-sm font-mono" x-text="columns.pending.length">0</span>
+                            <span class="badge badge-sm font-mono"
+                                x-text="columns.pending.filter(j => matchesSearch(j)).length">0</span>
                         </div>
                         <div class="flex-1 overflow-y-auto p-2 space-y-3" @dragover.prevent
                             @drop="drop($event, 'pending')">
-                            <template x-for="job in columns.pending" :key="job.id">
+                            <template x-for="job in columns.pending.filter(j => matchesSearch(j))" :key="job.id">
                                 <div class="card bg-white shadow-sm border border-gray-100 cursor-move hover:shadow-md transition-all group relative"
                                     draggable="true" @dragstart="dragStart($event, job)">
                                     <div class="absolute left-0 top-0 bottom-0 w-1 bg-yellow-400 rounded-l-xl"></div>
@@ -104,11 +117,11 @@
                             class="p-3 border-b border-blue-100 flex justify-between items-center sticky top-0 bg-blue-50/95 backdrop-blur z-10 rounded-t-xl">
                             <span class="font-bold text-blue-700 text-sm uppercase tracking-wide">Đã Giao Thợ</span>
                             <span class="badge badge-sm badge-info text-white font-mono"
-                                x-text="columns.assigned.length">0</span>
+                                x-text="columns.assigned.filter(j => matchesSearch(j)).length">0</span>
                         </div>
                         <div class="flex-1 overflow-y-auto p-2 space-y-3" @dragover.prevent
                             @drop="drop($event, 'assigned')">
-                            <template x-for="job in columns.assigned" :key="job.id">
+                            <template x-for="job in columns.assigned.filter(j => matchesSearch(j))" :key="job.id">
                                 <div class="card bg-white shadow-sm border border-blue-100 cursor-move hover:shadow-md transition-all relative"
                                     draggable="true" @dragstart="dragStart($event, job)">
                                     <div class="absolute left-0 top-0 bottom-0 w-1 bg-blue-500 rounded-l-xl"></div>
@@ -147,11 +160,11 @@
                             <span class="font-bold text-purple-700 text-sm uppercase tracking-wide">Đang Thực
                                 Hiện</span>
                             <span class="badge badge-sm badge-secondary text-white font-mono"
-                                x-text="columns.working.length">0</span>
+                                x-text="columns.working.filter(j => matchesSearch(j)).length">0</span>
                         </div>
                         <div class="flex-1 overflow-y-auto p-2 space-y-3" @dragover.prevent
                             @drop="drop($event, 'working')">
-                            <template x-for="job in columns.working" :key="job.id">
+                            <template x-for="job in columns.working.filter(j => matchesSearch(j))" :key="job.id">
                                 <div class="card bg-white shadow-sm border border-purple-100 cursor-move relative"
                                     draggable="true" @dragstart="dragStart($event, job)">
                                     <div class="absolute left-0 top-0 bottom-0 w-1 bg-purple-500 rounded-l-xl"></div>
@@ -181,11 +194,11 @@
                             class="p-3 border-b border-green-100 flex justify-between items-center sticky top-0 bg-green-50/95 backdrop-blur z-10 rounded-t-xl">
                             <span class="font-bold text-green-700 text-sm uppercase tracking-wide">Hoàn Thành</span>
                             <span class="badge badge-sm badge-success text-white font-mono"
-                                x-text="columns.completed.length">0</span>
+                                x-text="columns.completed.filter(j => matchesSearch(j)).length">0</span>
                         </div>
                         <div class="flex-1 overflow-y-auto p-2 space-y-3" @dragover.prevent
                             @drop="drop($event, 'completed')">
-                            <template x-for="job in columns.completed" :key="job.id">
+                            <template x-for="job in columns.completed.filter(j => matchesSearch(j))" :key="job.id">
                                 <div
                                     class="card bg-white shadow-sm border border-green-100 opacity-80 hover:opacity-100 transition-opacity">
                                     <div class="absolute left-0 top-0 bottom-0 w-1 bg-green-500 rounded-l-xl"></div>
@@ -211,11 +224,11 @@
                             class="p-3 border-b border-red-100 flex justify-between items-center sticky top-0 bg-red-50/95 backdrop-blur z-10 rounded-t-xl">
                             <span class="font-bold text-red-700 text-sm uppercase tracking-wide">Đã Hủy</span>
                             <span class="badge badge-sm badge-error text-white font-mono"
-                                x-text="columns.cancelled.length">0</span>
+                                x-text="columns.cancelled.filter(j => matchesSearch(j)).length">0</span>
                         </div>
                         <div class="flex-1 overflow-y-auto p-2 space-y-3" @dragover.prevent
                             @drop="drop($event, 'cancelled')">
-                            <template x-for="job in columns.cancelled" :key="job.id">
+                            <template x-for="job in columns.cancelled.filter(j => matchesSearch(j))" :key="job.id">
                                 <div
                                     class="card bg-white shadow-sm border border-red-100 grayscale opacity-60 hover:grayscale-0 hover:opacity-100 transition-all">
                                     <div class="absolute left-0 top-0 bottom-0 w-1 bg-red-500 rounded-l-xl"></div>
@@ -235,8 +248,6 @@
 
                 </div>
             </div>
-        </div>
-
             <div class="card bg-white shadow-sm border border-gray-100 p-4">
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="font-bold text-gray-700 uppercase text-sm"><i class="fa-solid fa-chart-line mr-2"></i>

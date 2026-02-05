@@ -1,0 +1,180 @@
+{{ define "content" }}
+
+<div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-6">
+    <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+        <div>
+            <h2 class="text-xl font-bold text-gray-800 flex items-center">
+                <i class="fa-solid fa-clock-rotate-left text-blue-600 mr-2"></i> Lịch sử đơn hàng
+            </h2>
+            <p class="text-xs text-gray-500 mt-1">Tra cứu các đơn đã hoàn thành hoặc đã hủy</p>
+        </div>
+        <a href="/admin/" class="btn btn-sm btn-outline gap-2">
+            <i class="fa-solid fa-arrow-left"></i> Về Dashboard
+        </a>
+    </div>
+</div>
+
+<!-- Search Bar -->
+<div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-6">
+    <div class="flex flex-col md:flex-row gap-3">
+        <div class="flex-1">
+            <input type="text" id="search-query" placeholder="Tìm theo tên khách hoặc số điện thoại..."
+                class="input input-bordered w-full input-sm md:input-md">
+        </div>
+        <select id="status-filter" class="select select-bordered select-sm md:select-md w-full md:w-48">
+            <option value="">Tất cả</option>
+            <option value="completed">Hoàn thành</option>
+            <option value="cancelled">Đã hủy</option>
+        </select>
+        <button id="btn-search" class="btn btn-primary btn-sm md:btn-md gap-2">
+            <i class="fa-solid fa-magnifying-glass"></i> Tìm kiếm
+        </button>
+    </div>
+</div>
+
+<!-- Results Table -->
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+    <div class="overflow-x-auto">
+        <table class="table table-zebra">
+            <thead class="bg-base-200">
+                <tr>
+                    <th class="text-xs">Ngày</th>
+                    <th class="text-xs">Khách hàng</th>
+                    <th class="text-xs">SĐT</th>
+                    <th class="text-xs">Dịch vụ</th>
+                    <th class="text-xs">Trạng thái</th>
+                    <th class="text-xs">Thợ</th>
+                    <th class="text-xs">Thao tác</th>
+                </tr>
+            </thead>
+            <tbody id="results-tbody">
+                <tr>
+                    <td colspan="7" class="text-center text-gray-500 py-8">
+                        <i class="fa-solid fa-magnifying-glass text-3xl text-gray-300 mb-2"></i>
+                        <p>Nhập tên hoặc số điện thoại để tìm kiếm</p>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    <div id="pagination" class="p-4 border-t border-gray-200 flex justify-between items-center hidden">
+        <div class="text-sm text-gray-600">
+            Hiển thị <span id="showing-range"></span> / <span id="total-count"></span> đơn hàng
+        </div>
+        <div class="join">
+            <button id="btn-prev" class="join-item btn btn-sm">«</button>
+            <button class="join-item btn btn-sm">Trang <span id="current-page"></span></button>
+            <button id="btn-next" class="join-item btn btn-sm">»</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentPage = 1;
+    let totalPages = 1;
+
+    async function searchHistory() {
+        const query = document.getElementById('search-query').value;
+        const status = document.getElementById('status-filter').value;
+
+        try {
+            const response = await fetch(`/admin/api/bookings/search?q=${encodeURIComponent(query)}&status=${status}&page=${currentPage}`);
+            const data = await response.json();
+
+            displayResults(data.results);
+            updatePagination(data);
+        } catch (error) {
+            console.error('Search error:', error);
+            alert('Lỗi khi tìm kiếm: ' + error.message);
+        }
+    }
+
+    function displayResults(results) {
+        const tbody = document.getElementById('results-tbody');
+
+        if (!results || results.length === 0) {
+            tbody.innerHTML = `
+            <tr>
+                <td colspan="7" class="text-center text-gray-500 py-8">
+                    <i class="fa-solid fa-circle-exclamation text-3xl text-gray-300 mb-2"></i>
+                    <p>Không tìm thấy kết quả</p>
+                </td>
+            </tr>
+        `;
+            document.getElementById('pagination').classList.add('hidden');
+            return;
+        }
+
+        tbody.innerHTML = results.map(r => `
+        <tr>
+            <td class="text-xs">${r.updated}</td>
+            <td class="font-medium text-sm">${r.customer_name}</td>
+            <td class="text-sm">${r.customer_phone}</td>
+            <td class="text-xs">${r.service}</td>
+            <td>
+                <span class="badge badge-sm ${r.status === 'completed' ? 'badge-success' : 'badge-error'}">
+                    ${r.status === 'completed' ? 'Hoàn thành' : 'Đã hủy'}
+                </span>
+            </td>
+            <td class="text-sm">${r.technician}</td>
+            <td>
+                <button onclick="viewJob('${r.id}')" class="btn btn-xs btn-ghost">
+                    <i class="fa-solid fa-eye"></i>
+                </button>
+            </td>
+        </tr>
+    `).join('');
+    }
+
+    function updatePagination(data) {
+        totalPages = data.pages;
+        const pagination = document.getElementById('pagination');
+
+        if (totalPages > 1) {
+            pagination.classList.remove('hidden');
+            document.getElementById('current-page').textContent = data.page;
+            document.getElementById('showing-range').textContent = `${(data.page - 1) * data.perPage + 1}-${Math.min(data.page * data.perPage, data.total)}`;
+            document.getElementById('total-count').textContent = data.total;
+
+            document.getElementById('btn-prev').disabled = data.page === 1;
+            document.getElementById('btn-next').disabled = data.page === totalPages;
+        } else {
+            pagination.classList.add('hidden');
+        }
+    }
+
+    function viewJob(id) {
+        window.location.href = `/admin?job=${id}`;
+    }
+
+    // Event listeners
+    document.getElementById('btn-search').addEventListener('click', () => {
+        currentPage = 1;
+        searchHistory();
+    });
+
+    document.getElementById('search-query').addEventListener('keyup', (e) => {
+        if (e.key === 'Enter') {
+            currentPage = 1;
+            searchHistory();
+        }
+    });
+
+    document.getElementById('btn-prev').addEventListener('click', () => {
+        if (currentPage > 1) {
+            currentPage--;
+            searchHistory();
+        }
+    });
+
+    document.getElementById('btn-next').addEventListener('click', () => {
+        if (currentPage < totalPages) {
+            currentPage++;
+            searchHistory();
+        }
+    });
+</script>
+
+{{ end }}

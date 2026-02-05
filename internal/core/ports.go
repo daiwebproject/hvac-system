@@ -43,6 +43,7 @@ type ServiceRepository interface {
 type SettingsRepository interface {
 	GetSettings() (*Settings, error)
 	AddAdminToken(token string) error
+	RemoveAdminToken(token string) error // [NEW] Cleanup invalid tokens
 }
 
 // TimeSlotControl defines business logic for time slots
@@ -69,9 +70,9 @@ type AnalyticsService interface {
 type NotificationService interface {
 	NotifyNewJobAssignment(ctx context.Context, techToken string, jobID string, customerName string) error
 	NotifyNewBooking(ctx context.Context, bookingID string, customerName string) error
-	NotifyAdmins(ctx context.Context, tokens []string, bookingID, customerName string) error                               // [NEW]
-	NotifyBookingCancelled(ctx context.Context, bookingID, customerName, reason, note string) error                        // [NEW]
-	NotifyAdminsBookingCancelled(ctx context.Context, tokens []string, bookingID, customerName, reason, note string) error // [NEW] Multicast
+	NotifyAdmins(ctx context.Context, tokens []string, bookingID, customerName string) ([]string, error)                               // [UPDATED] Return failed tokens
+	NotifyBookingCancelled(ctx context.Context, bookingID, customerName, reason, note string) error                                    // [NEW]
+	NotifyAdminsBookingCancelled(ctx context.Context, tokens []string, bookingID, customerName, reason, note string) ([]string, error) // [UPDATED] Return failed tokens
 }
 
 // BookingService defines business logic methods

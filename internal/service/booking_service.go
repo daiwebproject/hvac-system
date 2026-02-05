@@ -95,7 +95,17 @@ func (s *BookingService) CreateBooking(req *core.BookingRequest) (*core.Booking,
 			settings, err := s.settingsRepo.GetSettings()
 			if err == nil {
 				if len(settings.AdminFCMTokens) > 0 {
-					err = s.notifications.NotifyAdmins(context.Background(), settings.AdminFCMTokens, booking.ID, booking.CustomerName)
+					failedTokens, err := s.notifications.NotifyAdmins(context.Background(), settings.AdminFCMTokens, booking.ID, booking.CustomerName)
+					if err != nil {
+						log.Printf("❌ [BOOKING_SERVICE] Failed to notify admins: %v", err)
+					}
+					// [NEW] Cleanup invalid tokens
+					if len(failedTokens) > 0 {
+						log.Printf("🧹 [BOOKING_SERVICE] Removing %d stale admin tokens...", len(failedTokens))
+						for _, t := range failedTokens {
+							_ = s.settingsRepo.RemoveAdminToken(t)
+						}
+					}
 				} else {
 					// Fallback to Topic
 					err = s.notifications.NotifyNewBooking(context.Background(), booking.ID, booking.CustomerName)
@@ -334,11 +344,17 @@ func (s *BookingService) CancelBooking(bookingID, reason, note string) error {
 			// Fetch admin tokens
 			settings, err := s.settingsRepo.GetSettings()
 			if err == nil && len(settings.AdminFCMTokens) > 0 {
-				err = s.notifications.NotifyAdminsBookingCancelled(context.Background(), settings.AdminFCMTokens, bookingID, booking.CustomerName, reason, note)
-			}
-
-			if err != nil {
-				log.Printf("❌ [BOOKING_SERVICE] Failed to notify admins of cancellation: %v", err)
+				failedTokens, err := s.notifications.NotifyAdminsBookingCancelled(context.Background(), settings.AdminFCMTokens, bookingID, booking.CustomerName, reason, note)
+				if err != nil {
+					log.Printf("❌ [BOOKING_SERVICE] Failed to notify admins of cancellation: %v", err)
+				}
+				// [NEW] Cleanup invalid tokens
+				if len(failedTokens) > 0 {
+					log.Printf("🧹 [BOOKING_SERVICE] Removing %d stale admin tokens during cancel...", len(failedTokens))
+					for _, t := range failedTokens {
+						_ = s.settingsRepo.RemoveAdminToken(t)
+					}
+				}
 			}
 		}()
 	}

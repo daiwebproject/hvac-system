@@ -111,3 +111,33 @@ func (r *SettingsRepo) AddAdminToken(token string) error {
 	// 4. Save
 	return r.pb.Save(record)
 }
+
+// RemoveAdminToken removes a token from the AdminFCMTokens list
+func (r *SettingsRepo) RemoveAdminToken(token string) error {
+	record, err := r.GetSettingsRecord()
+	if err != nil {
+		return err
+	}
+
+	// 1. Get current tokens
+	currentTokens := record.GetStringSlice("admin_fcm_tokens")
+	newTokens := []string{}
+
+	// 2. Filter out the specific token
+	found := false
+	for _, t := range currentTokens {
+		if t != token {
+			newTokens = append(newTokens, t)
+		} else {
+			found = true
+		}
+	}
+
+	if !found {
+		return nil // Token not found, nothing to do
+	}
+
+	// 3. Update and Save
+	record.Set("admin_fcm_tokens", newTokens)
+	return r.pb.Save(record)
+}

@@ -1,36 +1,79 @@
-window.kanbanBoard = function (initialData) {
+window.kanbanBoard = function (initialActive, initialCompleted) {
     return {
         columns: {
             pending: [],
             assigned: [],
             working: [],
-            completed: []
+            completed: [],
+            cancelled: []
         },
+        completedJobs: [], // Keep for reference if needed, but primary data is now in columns
         editingJob: {},
         selectedJob: null,
+        searchQuery: '',
 
         init() {
-            // 1. Phân loại dữ liệu ban đầu
-            const rawJobs = initialData || [];
+            // 1. Setup Active Jobs (Kanban)
+            const activeJobs = initialActive || [];
 
-            // Reset columns để tránh duplicate nếu re-init
-            this.columns = { pending: [], assigned: [], working: [], completed: [], cancelled: [] };
+            // Reset columns
+            this.columns = {
+                pending: [],
+                assigned: [],
+                working: [],
+                completed: [],
+                cancelled: []
+            };
 
-            rawJobs.forEach(job => {
+            activeJobs.forEach(job => {
                 let status = job.status;
-                // Chuẩn hóa status để khớp với tên cột
+                // Normalize status
                 if (status === 'moving' || status === 'arrived' || status === 'working' || status === 'failed') status = 'working';
 
                 if (this.columns[status]) {
                     this.columns[status].push(job);
                 } else {
-                    // Fallback về pending nếu status lạ
+                    // Fallback to pending if unknown status (shouldn't happen for active jobs)
                     this.columns.pending.push(job);
                 }
             });
 
-            // 2. Lắng nghe SSE (Realtime)
+            // 2. Setup Completed Jobs (History List)
+            // Split into completed vs cancelled columns
+            const historyJobs = initialCompleted || [];
+
+            historyJobs.forEach(job => {
+                let status = job.status; // 'completed' or 'cancelled'
+                if (status === 'cancelled') {
+                    this.columns.cancelled.push(job);
+                } else {
+                    // Default to completed for anything else in this list
+                    this.columns.completed.push(job);
+                }
+            });
+
+            this.completedJobs = historyJobs; // Keep reference just in case
+
+            // 3. Listen to SSE
             this.setupSSE();
+
+            // 4. Expose helpers globally (for Modals outside Alpine scope)
+            window.moveJobLocally = this.moveJobLocally.bind(this);
+        },
+
+        // Search Filter Helper
+        matchesSearch(job) {
+            if (!this.searchQuery) return true;
+            const query = this.searchQuery.toLowerCase();
+            return (job.customer && job.customer.toLowerCase().includes(query)) ||
+                (job.phone && job.phone.includes(query)) ||
+                (job.service && job.service.toLowerCase().includes(query));
+        },
+
+        // Helper to trigger UI update (if needed)
+        filterJobs() {
+            // Alpine x-show with matchesSearch handles the UI, 
+            // this is just a placeholder if we need side effects
         },
 
         setupSSE() {
@@ -109,11 +152,11 @@ window.kanbanBoard = function (initialData) {
 
         // Helper to move job between columns without reload
         moveJobLocally(jobId, newStatus, extraUpdates = {}) {
-            // 1. Determine target column
+            // 1. Determine target info
             let targetCol = newStatus;
             if (['moving', 'arrived', 'working', 'failed'].includes(newStatus)) targetCol = 'working';
 
-            // 2. Find and remove from current column
+            // 2. Find and remove from current list (check all columns)
             let job = null;
             for (const col in this.columns) {
                 const idx = this.columns[col].findIndex(j => j.id === jobId);
@@ -123,21 +166,37 @@ window.kanbanBoard = function (initialData) {
                 }
             }
 
-            // 3. Update and Add to new column
+            // Check legacy list just in case (optional fallback)
+            if (!job) {
+                const idx = this.completedJobs.findIndex(j => j.id === jobId);
+                if (idx !== -1) {
+                    job = this.completedJobs.splice(idx, 1)[0];
+                }
+            }
+
+            // 3. Update and Add to new location
             if (job) {
                 job.status = newStatus;
-                job.status_label = newStatus; // Update label
-                // Apply extra updates (e.g. staff_id)
+                job.status_label = extraUpdates.status_label || newStatus; // Use provided label or raw status
+                job.updated = new Date().toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }); // Set recent update time
+
+                // Apply extra updates (e.g. staff_id, invoice info)
                 Object.assign(job, extraUpdates);
 
+                // Add status class for completed/cancelled
+                if (newStatus === 'cancelled') job.status_class = 'error';
+                else if (newStatus === 'completed') job.status_class = 'success';
+
                 if (this.columns[targetCol]) {
-                    this.columns[targetCol].unshift(job); // Add to top
+                    this.columns[targetCol].unshift(job);
                 } else {
-                    this.columns.pending.unshift(job); // Fallback
+                    // Fallback
+                    this.columns.pending.unshift(job);
                 }
             } else {
                 // If job not found locally, reload to be safe
-                window.location.reload();
+                console.warn('Job not found locally for update:', jobId);
+                // window.location.reload(); // Optional: reload if critical
             }
         },
 

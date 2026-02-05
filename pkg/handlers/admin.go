@@ -99,37 +99,29 @@ type BookingJSON struct {
 
 // Dashboard renders the admin dashboard with Kanban board
 func (h *AdminHandler) Dashboard(e *core.RequestEvent) error {
-	// 1. Fetch active bookings (Kanban items)
+	// 2. Fetch all bookings for Kanban + Recent Completed
 	bookings, err := h.App.FindRecordsByFilter(
 		"bookings",
+		"", // No filter - get all
 		// "job_status != 'cancelled'", // Allow cancelled jobs to show
-		"",              // No filter, or maybe "created >= '2024-01-01'" if too many
-		"+booking_time", // Sort by schedule (earliest first)
-		100,
+		"-created", // Sort descending by creation time
+		500,        // Increased limit to get both active and recent history
 		0,
 		nil,
 	)
 	if err != nil {
-		return e.String(500, "Lỗi load booking: "+err.Error())
+		return e.String(500, fmt.Sprintf("❌ Error loading bookings: %v", err))
 	}
 
-	// Active technicians for assignment dropdowns
+	// Fetch all technicians for the Map
 	technicians, _ := h.App.FindRecordsByFilter("technicians", "active=true", "name", 100, 0, nil)
 
-	// 2. Fetch Stats & Analytics using optimised service
-	stats, err := h.AnalyticsService.GetDashboardStats()
-	if err != nil {
-		// Log error but proceed with empty stats
-		fmt.Printf("Dashboard Stats Error: %v\n", err)
-		stats = &domain.DashboardStats{}
-	}
-
-	revenueStats, _ := h.AnalyticsService.GetRevenueLast7Days()
-	topTechs, _ := h.AnalyticsService.GetTopTechnicians(5)
-
-	// 3. Serialize bookings to JSON for Frontend Map/Kanban interactions
+	// 3. Serialize ALL bookings to JSON for Kanban (Reverted separation)
 	bookingsJSON := []BookingJSON{}
-	for _, b := range bookings {
+	for _, b := range bookings { // Iterate over ALL fetched bookings
+		// Normalize status for frontend if needed, but usually we trust the DB
+		// ...
+
 		// Xử lý tên dịch vụ
 		serviceName := b.GetString("device_type")
 		if serviceName == "" {
@@ -210,6 +202,76 @@ func (h *AdminHandler) Dashboard(e *core.RequestEvent) error {
 		bookingsJSONBytes = []byte("[]")
 	}
 
+	// [FIX] Filter completed bookings from the main list
+	completedBookings := []*core.Record{}
+	for _, b := range bookings {
+		status := b.GetString("job_status")
+		if status == "completed" || status == "cancelled" {
+			completedBookings = append(completedBookings, b)
+		}
+	}
+
+	// [FIX] Get Analytics Data
+	stats, err := h.AnalyticsService.GetDashboardStats()
+	if err != nil {
+		fmt.Println("Error fetching dashboard stats:", err)
+		stats = &domain.DashboardStats{}
+	}
+
+	revenueStats, err := h.AnalyticsService.GetRevenueLast7Days()
+	if err != nil {
+		fmt.Println("Error fetching revenue stats:", err)
+		revenueStats = []domain.RevenueStat{}
+	}
+
+	topTechs, err := h.AnalyticsService.GetTopTechnicians(5)
+	if err != nil {
+		fmt.Println("Error fetching top technicians:", err)
+		topTechs = []domain.TechPerformance{}
+	}
+
+	// 6. Serialize COMPLETED bookings for history section
+	completedJSON := []map[string]interface{}{}
+	for _, b := range completedBookings {
+		// Get technician name
+		techName := "—"
+		techID := b.GetString("technician_id")
+		if techID != "" {
+			if tech, err := h.App.FindRecordById("technicians", techID); err == nil {
+				techName = tech.GetString("name")
+			}
+		}
+
+		// Get service name
+		serviceName := b.GetString("device_type")
+		if serviceName == "" {
+			serviceName = "Kiểm tra / Khác"
+		}
+
+		// Status label
+		statusLabel := "Hoàn thành"
+		statusClass := "success"
+		if b.GetString("job_status") == "cancelled" {
+			statusLabel = "Đã hủy"
+			statusClass = "error"
+		}
+
+		completedJSON = append(completedJSON, map[string]interface{}{
+			"id":            b.Id,
+			"customer":      b.GetString("customer_name"),
+			"phone":         b.GetString("customer_phone"),
+			"service":       serviceName,
+			"status":        b.GetString("job_status"),
+			"status_label":  statusLabel,
+			"status_class":  statusClass,
+			"technician":    techName,
+			"updated":       b.GetDateTime("updated").Time().Format("02/01 15:04"),
+			"cancel_reason": b.GetString("cancel_reason"),
+		})
+	}
+
+	completedJSONBytes, _ := json.Marshal(completedJSON)
+
 	// [NEW] Chuẩn bị dữ liệu Thợ cho Map
 	type TechMapJSON struct {
 		ID     string  `json:"id"`
@@ -252,23 +314,24 @@ func (h *AdminHandler) Dashboard(e *core.RequestEvent) error {
 	}
 
 	data := map[string]interface{}{
-		"Bookings":        bookings,
-		"BookingsJSON":    template.JS(string(bookingsJSONBytes)),
-		"TechniciansJSON": template.JS(string(techsJSONBytes)),
-		"Technicians":     technicians,
-		"Services":        servicesList,
-		"TotalRevenue":    stats.TotalRevenue,
-		"BookingsToday":   stats.BookingsToday,
-		"ActiveTechs":     stats.ActiveTechs,
-		"Pending":         stats.PendingCount,
-		"Completed":       stats.CompletedCount,
-		"CompletionRate":  stats.CompletionRate,
-		"RevenueStats":    revenueStats,
-		"TopTechs":        topTechs,
-		"IsAdmin":         true,
-		"PageType":        "admin_dashboard",
-		"FirebaseConfig":  firebaseConfig,                                                                            // [NEW]
-		"VapidPublicKey":  "BM0Uvapd87utXwp2bBC_23HMT3LjtSwWGq6rUU8FnK6DvnJnTDCR_Kj4mGAC-HLgoia-tgjobgSWDpDJkKX_DBk", // [NEW]
+		"Bookings":          bookings, // Keep for backward compatibility
+		"BookingsJSON":      template.JS(string(bookingsJSONBytes)),
+		"CompletedJobsJSON": template.JS(string(completedJSONBytes)), // [NEW] For completed section
+		"TechniciansJSON":   template.JS(string(techsJSONBytes)),
+		"Technicians":       technicians,
+		"Services":          servicesList,
+		"TotalRevenue":      stats.TotalRevenue,
+		"BookingsToday":     stats.BookingsToday,
+		"ActiveTechs":       stats.ActiveTechs,
+		"Pending":           stats.PendingCount,
+		"Completed":         stats.CompletedCount,
+		"CompletionRate":    stats.CompletionRate,
+		"RevenueStats":      revenueStats,
+		"TopTechs":          topTechs,
+		"IsAdmin":           true,
+		"PageType":          "admin_dashboard",
+		"FirebaseConfig":    firebaseConfig,                                                                            // [NEW]
+		"VapidPublicKey":    "BM0Uvapd87utXwp2bBC_23HMT3LjtSwWGq6rUU8FnK6DvnJnTDCR_Kj4mGAC-HLgoia-tgjobgSWDpDJkKX_DBk", // [NEW]
 	}
 
 	return RenderPage(h.Templates, e, "layouts/admin.html", "admin/dashboard.html", data)
@@ -967,4 +1030,163 @@ func (h *AdminHandler) CategoryDelete(e *core.RequestEvent) error {
 	}
 
 	return e.Redirect(http.StatusSeeOther, "/admin/categories")
+}
+
+// ---------------------------------------------------------
+// HISTORY PAGE (Completed & Cancelled Jobs)
+// ---------------------------------------------------------
+
+// ShowHistory displays the history page with completed and cancelled bookings
+func (h *AdminHandler) ShowHistory(e *core.RequestEvent) error {
+	authRecord := e.Auth
+	if authRecord == nil {
+		return e.Redirect(http.StatusSeeOther, "/login")
+	}
+
+	// Use the same pattern as ShowSettings
+	return RenderPage(h.Templates, e, "layouts/admin.html", "admin/history.html", map[string]interface{}{
+		"Title": "Lịch sử đơn hàng",
+	})
+}
+
+// SearchHistory handles AJAX search requests for completed/cancelled bookings
+func (h *AdminHandler) SearchHistory(e *core.RequestEvent) error {
+	authRecord := e.Auth
+	if authRecord == nil {
+		return e.JSON(http.StatusUnauthorized, map[string]string{"error": "Unauthorized"})
+	}
+
+	// Get query parameters
+	query := strings.TrimSpace(e.Request.URL.Query().Get("q"))
+	status := strings.TrimSpace(e.Request.URL.Query().Get("status"))
+	pageStr := e.Request.URL.Query().Get("page")
+	page := 1
+	if pageStr != "" {
+		fmt.Sscanf(pageStr, "%d", &page)
+	}
+	if page < 1 {
+		page = 1
+	}
+
+	perPage := 20
+	offset := (page - 1) * perPage
+
+	// Build filter expression
+	var conditions []dbx.Expression
+
+	// Only completed or cancelled
+	statusConditions := []dbx.Expression{
+		dbx.NewExp("job_status = 'completed'"),
+		dbx.NewExp("job_status = 'cancelled'"),
+	}
+
+	// If specific status filter requested
+	if status == "completed" {
+		conditions = append(conditions, dbx.NewExp("job_status = 'completed'"))
+	} else if status == "cancelled" {
+		conditions = append(conditions, dbx.NewExp("job_status = 'cancelled'"))
+	} else {
+		// Default: both completed and cancelled
+		conditions = append(conditions, dbx.Or(statusConditions...))
+	}
+
+	// Search by customer name or phone if query provided
+	if query != "" {
+		searchConditions := []dbx.Expression{
+			dbx.NewExp(fmt.Sprintf("customer_name LIKE '%%%s%%'", query)),
+			dbx.NewExp(fmt.Sprintf("customer_phone LIKE '%%%s%%'", query)),
+		}
+		conditions = append(conditions, dbx.Or(searchConditions...))
+	}
+
+	// Count total results (using string filter like existing code)
+	var filterSQL string
+	if query != "" {
+		// With search query
+		if status == "completed" {
+			filterSQL = fmt.Sprintf("job_status = 'completed' AND (customer_name LIKE '%%%s%%' OR customer_phone LIKE '%%%s%%')", query, query)
+		} else if status == "cancelled" {
+			filterSQL = fmt.Sprintf("job_status = 'cancelled' AND (customer_name LIKE '%%%s%%' OR customer_phone LIKE '%%%s%%')", query, query)
+		} else {
+			filterSQL = fmt.Sprintf("(job_status = 'completed' OR job_status = 'cancelled') AND (customer_name LIKE '%%%s%%' OR customer_phone LIKE '%%%s%%')", query, query)
+		}
+	} else {
+		// No search query
+		if status == "completed" {
+			filterSQL = "job_status = 'completed'"
+		} else if status == "cancelled" {
+			filterSQL = "job_status = 'cancelled'"
+		} else {
+			filterSQL = "job_status = 'completed' OR job_status = 'cancelled'"
+		}
+	}
+
+	total, err := h.App.CountRecords("bookings", dbx.NewExp(filterSQL))
+	if err != nil {
+		return e.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to count bookings"})
+	}
+
+	// Fetch bookings (signature: collection, filter string, sort, limit, offset, results)
+	bookings, err := h.App.FindRecordsByFilter(
+		"bookings",
+		filterSQL,
+		"-updated",
+		perPage,
+		offset,
+		nil,
+	)
+
+	if err != nil {
+		return e.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to fetch bookings"})
+	}
+
+	// Transform to response format
+	results := make([]map[string]interface{}, 0, len(bookings))
+	for _, b := range bookings {
+		// Get technician name if assigned
+		techName := "—"
+		techID := b.GetString("technician_id")
+		if techID != "" {
+			tech, err := h.App.FindRecordById("technicians", techID)
+			if err == nil {
+				techName = tech.GetString("name")
+			}
+		}
+
+		// Get service name
+		serviceName := "Dịch vụ khác"
+		serviceID := b.GetString("service_id")
+		if serviceID != "" {
+			service, err := h.App.FindRecordById("services", serviceID)
+			if err == nil {
+				serviceName = service.GetString("name")
+			}
+		}
+
+		// Get cancel reason if cancelled
+		cancelReason := ""
+		if b.GetString("job_status") == "cancelled" {
+			cancelReason = b.GetString("cancel_reason")
+		}
+
+		results = append(results, map[string]interface{}{
+			"id":             b.Id,
+			"customer_name":  b.GetString("customer_name"),
+			"customer_phone": b.GetString("customer_phone"),
+			"service":        serviceName,
+			"status":         b.GetString("job_status"),
+			"technician":     techName,
+			"booking_time":   b.GetDateTime("booking_time").Time().Format("02/01 15:04"),
+			"updated":        b.GetDateTime("updated").Time().Format("02/01/2006 15:04"),
+			"cancel_reason":  cancelReason,
+		})
+	}
+
+	return e.JSON(http.StatusOK, map[string]interface{}{
+		"results": results,
+		"total":   total,
+		"page":    page,
+		"perPage": perPage,
+		"pages":   (total + int64(perPage) - 1) / int64(perPage),
+	})
 }
