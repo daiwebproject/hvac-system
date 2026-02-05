@@ -15,7 +15,8 @@ type BookingService struct {
 	techRepo      core.TechnicianRepository
 	slotControl   core.TimeSlotControl
 	notifications core.NotificationService
-	broker        *broker.SegmentedBroker // [NEW] added field
+	settingsRepo  core.SettingsRepository // [NEW]
+	broker        *broker.SegmentedBroker
 }
 
 func NewBookingService(
@@ -23,13 +24,15 @@ func NewBookingService(
 	techRepo core.TechnicianRepository,
 	slotControl core.TimeSlotControl,
 	notifications core.NotificationService,
-	eventBroker *broker.SegmentedBroker, // [NEW]
+	settingsRepo core.SettingsRepository, // [NEW]
+	eventBroker *broker.SegmentedBroker,
 ) core.BookingService {
 	return &BookingService{
 		bookingRepo:   bookingRepo,
 		techRepo:      techRepo,
 		slotControl:   slotControl,
 		notifications: notifications,
+		settingsRepo:  settingsRepo,
 		broker:        eventBroker,
 	}
 }
@@ -76,10 +79,15 @@ func (s *BookingService) CreateBooking(req *core.BookingRequest) (*core.Booking,
 		})
 	}
 
-	// 2. FCM to Admin (Topic: admin_alerts)
+	// 2. FCM to Admin (Multicast)
 	if s.notifications != nil {
 		go func() {
-			err := s.notifications.NotifyNewBooking(context.Background(), booking.ID, booking.CustomerName)
+			// Fetch admin tokens
+			settings, err := s.settingsRepo.GetSettings()
+			if err == nil && len(settings.AdminFCMTokens) > 0 {
+				err = s.notifications.NotifyAdmins(context.Background(), settings.AdminFCMTokens, booking.ID, booking.CustomerName)
+			}
+
 			if err != nil {
 				log.Printf("❌ [BOOKING_SERVICE] Failed to notify admins: %v", err)
 			}
@@ -306,10 +314,15 @@ func (s *BookingService) CancelBooking(bookingID, reason, note string) error {
 		}
 	}
 
-	// [NEW] FCM to Admin (Topic: admin_alerts)
+	// [NEW] FCM to Admin (Multicast)
 	if s.notifications != nil {
 		go func() {
-			err := s.notifications.NotifyBookingCancelled(context.Background(), bookingID, booking.CustomerName, reason, note)
+			// Fetch admin tokens
+			settings, err := s.settingsRepo.GetSettings()
+			if err == nil && len(settings.AdminFCMTokens) > 0 {
+				err = s.notifications.NotifyAdminsBookingCancelled(context.Background(), settings.AdminFCMTokens, bookingID, booking.CustomerName, reason, note)
+			}
+
 			if err != nil {
 				log.Printf("❌ [BOOKING_SERVICE] Failed to notify admins of cancellation: %v", err)
 			}

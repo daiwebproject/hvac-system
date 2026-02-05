@@ -29,4 +29,7 @@ type Settings struct {
 	HeroCtaText  string `json:"hero_cta_text" db:"hero_cta_text"`
 	HeroCtaLink  string `json:"hero_cta_link" db:"hero_cta_link"`
 	WelcomeText  string `json:"welcome_text" db:"welcome_text"`
+
+	// [NEW] Admin Push Tokens
+	AdminFCMTokens []string `json:"admin_fcm_tokens" db:"admin_fcm_tokens"`
 }

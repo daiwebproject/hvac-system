@@ -297,7 +297,63 @@ func (s *FCMService) NotifyBookingCancelled(ctx context.Context, bookingID, cust
 	return err
 }
 
-// Helper function to convert int to *int
 func intPtr(i int) *int {
 	return &i
+}
+
+// NotifyAdmins sends multicast notification to specific admin devices
+func (s *FCMService) NotifyAdmins(ctx context.Context, tokens []string, bookingID, customerName string) error {
+	if len(tokens) == 0 {
+		return nil
+	}
+	payload := &NotificationPayload{
+		Title: "🔔 Đơn hàng mới (Admin)",
+		Body:  fmt.Sprintf("Khách hàng %s vừa đặt lịch", customerName),
+		Data: map[string]string{
+			"booking_id": bookingID,
+			"type":       "new_booking",
+			"action":     "open_booking",
+			"bookingUrl": fmt.Sprintf("/admin/bookings/%s", bookingID),
+		},
+		Icon:  "/assets/icon.png",
+		Badge: "/assets/badge.png",
+	}
+
+	response, err := s.SendMulticast(ctx, tokens, payload)
+	if err != nil {
+		return err
+	}
+	log.Printf("NotifyAdmins: Success %d, Failure %d", response.SuccessCount, response.FailureCount)
+	return nil
+}
+
+// NotifyAdminsBookingCancelled sends multicast cancellation to admins
+func (s *FCMService) NotifyAdminsBookingCancelled(ctx context.Context, tokens []string, bookingID, customerName, reason, note string) error {
+	if len(tokens) == 0 {
+		return nil
+	}
+	title := "⚠️ Đơn hàng bị hủy"
+	body := fmt.Sprintf("Đơn %s đã bị hủy. Lý do: %s", customerName, reason)
+	if note != "" {
+		body += fmt.Sprintf(" (%s)", note)
+	}
+
+	payload := &NotificationPayload{
+		Title: title,
+		Body:  body,
+		Data: map[string]string{
+			"type":       "booking_cancelled",
+			"booking_id": bookingID,
+			"reason":     reason,
+		},
+		Icon:  "/assets/icon.png",
+		Badge: "/assets/badge.png",
+	}
+
+	response, err := s.SendMulticast(ctx, tokens, payload)
+	if err != nil {
+		return err
+	}
+	log.Printf("NotifyAdminsBookingCancelled: Success %d, Failure %d", response.SuccessCount, response.FailureCount)
+	return nil
 }

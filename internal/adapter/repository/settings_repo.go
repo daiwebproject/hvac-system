@@ -64,6 +64,7 @@ func (r *SettingsRepo) GetSettings() (*domain.Settings, error) {
 		HeroCtaText:    rec.GetString("hero_cta_text"),
 		HeroCtaLink:    rec.GetString("hero_cta_link"),
 		WelcomeText:    rec.GetString("welcome_text"),
+		AdminFCMTokens: rec.GetStringSlice("admin_fcm_tokens"), // [NEW]
 	}, nil
 }
 
@@ -84,4 +85,29 @@ func (r *SettingsRepo) GetSettingsRecord() (*core.Record, error) {
 		return nil, errors.New("settings record not found")
 	}
 	return records[0], nil
+}
+
+// AddAdminToken appends a new FCM token to the AdminFCMTokens list
+func (r *SettingsRepo) AddAdminToken(token string) error {
+	record, err := r.GetSettingsRecord()
+	if err != nil {
+		return err
+	}
+
+	// 1. Get current tokens
+	currentTokens := record.GetStringSlice("admin_fcm_tokens")
+
+	// 2. Check overlap
+	for _, t := range currentTokens {
+		if t == token {
+			return nil // Already exists
+		}
+	}
+
+	// 3. Append
+	currentTokens = append(currentTokens, token)
+	record.Set("admin_fcm_tokens", currentTokens)
+
+	// 4. Save
+	return r.pb.Save(record)
 }

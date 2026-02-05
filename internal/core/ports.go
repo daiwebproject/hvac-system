@@ -39,6 +39,12 @@ type ServiceRepository interface {
 	GetByID(id string) (*Service, error)
 }
 
+// SettingsRepository defines data access methods for Settings
+type SettingsRepository interface {
+	GetSettings() (*Settings, error)
+	AddAdminToken(token string) error
+}
+
 // TimeSlotControl defines business logic for time slots
 type TimeSlotControl interface {
 	ReleaseSlot(slotID string) error
@@ -63,7 +69,9 @@ type AnalyticsService interface {
 type NotificationService interface {
 	NotifyNewJobAssignment(ctx context.Context, techToken string, jobID string, customerName string) error
 	NotifyNewBooking(ctx context.Context, bookingID string, customerName string) error
-	NotifyBookingCancelled(ctx context.Context, bookingID, customerName, reason, note string) error // [NEW]
+	NotifyAdmins(ctx context.Context, tokens []string, bookingID, customerName string) error                               // [NEW]
+	NotifyBookingCancelled(ctx context.Context, bookingID, customerName, reason, note string) error                        // [NEW]
+	NotifyAdminsBookingCancelled(ctx context.Context, tokens []string, bookingID, customerName, reason, note string) error // [NEW] Multicast
 }
 
 // BookingService defines business logic methods
