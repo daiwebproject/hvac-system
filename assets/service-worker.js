@@ -13,6 +13,7 @@ const STATIC_ASSETS = [
   '/tech/dashboard',
   '/assets/style.css',
   '/assets/manifest.json',
+  '/assets/manifest-admin.json',
   // '/assets/alpine-components.js',
   '/assets/js/utils.js',
   '/assets/js/tech.js',
