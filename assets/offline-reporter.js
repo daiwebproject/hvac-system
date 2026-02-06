@@ -62,7 +62,7 @@ class OfflineJobReporter {
     if ('serviceWorker' in navigator) {
       try {
         // Register at root for app-wide scope
-        const registration = await navigator.serviceWorker.register('/assets/service-worker.js', {
+        const registration = await navigator.serviceWorker.register('/service-worker.js', {
           scope: '/',
         });
         console.log('Service Worker registered:', registration);

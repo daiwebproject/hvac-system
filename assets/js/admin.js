@@ -1,18 +1,31 @@
-window.kanbanBoard = function (initialActive, initialCompleted) {
-    return {
-        columns: {
-            pending: [],
-            assigned: [],
-            working: [],
-            completed: [],
-            cancelled: []
-        },
-        completedJobs: [], // Keep for reference if needed, but primary data is now in columns
-        editingJob: {},
-        selectedJob: null,
-        searchQuery: '',
-        showMapModal: false,
-        fullscreenMapInstance: null,
+// Wrap in alpine:init to ensure Alpine is loaded first
+if (window.Alpine) {
+    defineKanbanBoard();
+} else {
+    window.addEventListener('alpine:init', defineKanbanBoard);
+}
+
+function defineKanbanBoard() {
+    window.kanbanBoard = function (initialActive, initialCompleted) {
+        return {
+            columns: {
+                pending: [],
+                assigned: [],
+                working: [],
+                completed: [],
+                cancelled: []
+            },
+            completedJobs: [], // Keep for reference if needed, but primary data is now in columns
+            editingJob: {},
+            selectedJob: null,
+            searchQuery: '',
+            showMapModal: false,
+            fullscreenMapInstance: null,
+            mapSidebarTab: 'techs',  // 'techs' or 'orders'
+            techHoverOn: null,
+            jobHoverOn: null,
+            selectedTechOnMap: null,
+            selectedJobOnMap: null,
 
         init() {
             // 1. Setup Active Jobs (Kanban)
@@ -354,10 +367,14 @@ window.kanbanBoard = function (initialActive, initialCompleted) {
         // --- Fullscreen Map Modal ---
         openMapModal() {
             this.showMapModal = true;
-            // Wait for modal CSS transition to complete (typically 200-300ms)
+            // Wait for modal & CSS transition, then account for reflow (500ms safe margin)
             setTimeout(() => {
                 this.drawFullscreenMap();
-            }, 350);
+                // Trigger map size recalculation after initial render
+                if (this.fullscreenMapInstance) {
+                    setTimeout(() => this.fullscreenMapInstance.invalidateSize(), 100);
+                }
+            }, 500);
         },
 
         closeMapModal() {
@@ -375,8 +392,9 @@ window.kanbanBoard = function (initialActive, initialCompleted) {
             // Check if container has valid dimensions
             const rect = container.getBoundingClientRect();
             if (rect.width === 0 || rect.height === 0) {
-                console.warn('Map container has no size, retrying...');
-                setTimeout(() => this.drawFullscreenMap(), 200);
+                // Retry with longer wait for DOM reflow
+                console.log('Map container loading... retrying in 250ms');
+                setTimeout(() => this.drawFullscreenMap(), 250);
                 return;
             }
 
@@ -385,6 +403,8 @@ window.kanbanBoard = function (initialActive, initialCompleted) {
                 this.fullscreenMapInstance.remove();
                 this.fullscreenMapInstance = null;
             }
+
+            console.log(`📍 Initializing map in container: ${rect.width}x${rect.height}px`);
 
             // Create map centered on Hanoi (disable zoom animation initially)
             this.fullscreenMapInstance = L.map('fullscreen-map', {
@@ -413,6 +433,7 @@ window.kanbanBoard = function (initialActive, initialCompleted) {
             };
 
             const bounds = [];
+            const mapMarkers = {}; // Store marker refs for interaction
 
             // Add markers for all jobs
             for (const status in this.columns) {
@@ -431,31 +452,62 @@ window.kanbanBoard = function (initialActive, initialCompleted) {
                             fillOpacity: 0.9
                         }).addTo(this.fullscreenMapInstance);
 
+                        // Store marker reference
+                        mapMarkers[job.id] = marker;
+
                         // Create popup with job details
                         const popupContent = `
                             <div style="min-width: 200px;">
-                                <div style="font-weight: bold; font-size: 14px; margin-bottom: 4px;">${job.customer || 'Khách hàng'}</div>
+                                <div style="font-weight: bold; font-size: 14px; margin-bottom: 4px;">${job.customer_name || job.customer || 'Khách hàng'}</div>
                                 <div style="font-size: 12px; color: #6b7280; margin-bottom: 4px;">
                                     <i class="fa-solid fa-phone"></i> ${job.phone || 'N/A'}
                                 </div>
                                 <div style="font-size: 12px; color: #6b7280; margin-bottom: 4px;">
-                                    <i class="fa-solid fa-wrench"></i> ${job.service || 'Dịch vụ'}
+                                    <i class="fa-solid fa-wrench"></i> ${job.service_type || job.service || 'Dịch vụ'}
                                 </div>
                                 <div style="font-size: 12px; color: #6b7280; margin-bottom: 8px;">
-                                    <i class="fa-solid fa-clock"></i> ${job.time || ''}
+                                    <i class="fa-solid fa-clock"></i> ${job.created || ''}
                                 </div>
                                 <div style="display: inline-block; padding: 2px 8px; border-radius: 4px; background: ${color}; color: white; font-size: 11px; font-weight: bold;">
                                     ${label}
                                 </div>
-                                ${job.staff_id ? `<div style="margin-top: 4px; font-size: 11px;"><i class="fa-solid fa-user-gear"></i> Thợ: ${job.staff_id}</div>` : ''}
+                                ${job.technician_id ? `<div style="margin-top: 4px; font-size: 11px;"><i class="fa-solid fa-user-gear"></i> Thợ: ${job.technician_id}</div>` : ''}
                             </div>
                         `;
 
                         marker.bindPopup(popupContent);
+
+                        // Interactive click handler
+                        marker.on('click', () => {
+                            this.selectedJobOnMap = job.id;
+                            // Open popup
+                            marker.openPopup();
+                            // Scroll to job in sidebar if orders tab is open
+                            if (this.mapSidebarTab === 'orders') {
+                                setTimeout(() => {
+                                    document.querySelector(`[x-for*="job"][jobid="${job.id}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                                }, 100);
+                            }
+                        });
+
+                        // Hover effects
+                        marker.on('mouseover', function() {
+                            this.setRadius(14);
+                            this.setStyle({ weight: 3 });
+                        });
+
+                        marker.on('mouseout', function() {
+                            this.setRadius(10);
+                            this.setStyle({ weight: 2 });
+                        });
+
                         bounds.push([job.lat, job.long]);
                     }
                 });
             }
+
+            // Store markers for later manipulation
+            this.mapMarkers = mapMarkers;
 
             // Store bounds for later use
             const savedBounds = bounds;
@@ -617,6 +669,63 @@ window.slotManager = function () {
             return days[date.getDay()];
         },
 
+        // === Map Sidebar Functions ===
+        getAllJobs() {
+            return [
+                ...this.columns.pending,
+                ...this.columns.assigned,
+                ...this.columns.working,
+                ...this.columns.completed
+            ].filter(j => j.customer_name);
+        },
+
+        getJobsForTech(techId) {
+            return this.getAllJobs().filter(j => j.technician_id === techId).length;
+        },
+
+        getStatusLabel(status) {
+            const labels = {
+                pending: 'Chờ xử lý',
+                assigned: 'Đã giao',
+                working: 'Đang làm',
+                completed: 'Hoàn thành',
+                cancelled: 'Đã hủy'
+            };
+            return labels[status] || status;
+        },
+
+        highlightTechOnMap(techId) {
+            this.selectedTechOnMap = techId;
+            // Filter map markers to show only this tech's jobs
+            if (this.fullscreenMapInstance) {
+                const techJobs = this.getAllJobs().filter(j => j.technician_id === techId);
+                console.log(`🔍 Highlighting ${techJobs.length} jobs for tech ${techId}`);
+                
+                // Zoom to show all tech's jobs
+                if (techJobs.length > 0) {
+                    const lats = techJobs.map(j => j.lat).filter(l => l);
+                    const lons = techJobs.map(j => j.long).filter(l => l);
+                    if (lats.length > 0) {
+                        const bounds = L.latLngBounds(
+                            [[Math.min(...lats), Math.min(...lons)], 
+                             [Math.max(...lats), Math.max(...lons)]]
+                        );
+                        this.fullscreenMapInstance.fitBounds(bounds, { padding: [50, 50] });
+                    }
+                }
+            }
+        },
+
+        highlightJobOnMap(jobId) {
+            this.selectedJobOnMap = jobId;
+            const job = this.getAllJobs().find(j => j.id === jobId);
+            if (job && job.lat && job.long && this.fullscreenMapInstance) {
+                // Pan to job location
+                this.fullscreenMapInstance.setView([job.lat, job.long], 14, { animate: true });
+                console.log(`📍 Centered on job ${jobId} at ${job.lat}, ${job.long}`);
+            }
+        },
+
         getProgressColor(current, max) {
             const percent = (current / max) * 100;
             if (percent >= 100) return 'progress-error';
@@ -625,6 +734,7 @@ window.slotManager = function () {
         }
     }
 };
+}  // Close defineKanbanBoard function
 
 window.inventoryManager = function (initialItems) {
     return {

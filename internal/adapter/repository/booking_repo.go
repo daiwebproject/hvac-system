@@ -201,3 +201,40 @@ func (r *PBBookingRepo) FindScheduledByTechnician(techID string) ([]*core.Bookin
 	}
 	return bookings, nil
 }
+
+// UpdateStatus updates only the job_status field of a booking
+func (r *PBBookingRepo) UpdateStatus(bookingID string, status string) error {
+	record, err := r.app.FindRecordById("bookings", bookingID)
+	if err != nil {
+		return err
+	}
+
+	record.Set("job_status", status)
+
+	// Set status-specific timestamps
+	switch status {
+	case "moving":
+		record.Set("moving_start_at", "")  // Will be auto-set by PocketBase
+	case "arrived":
+		record.Set("arrived_at", "")  // Will be auto-set by PocketBase
+	case "working":
+		record.Set("working_start_at", "")  // Will be auto-set by PocketBase
+	case "completed":
+		record.Set("completed_at", "")  // Will be auto-set by PocketBase
+	}
+
+	return r.app.Save(record)
+}
+
+// UpdateLocation updates the latitude and longitude of a booking
+func (r *PBBookingRepo) UpdateLocation(bookingID string, lat float64, lng float64) error {
+	record, err := r.app.FindRecordById("bookings", bookingID)
+	if err != nil {
+		return err
+	}
+
+	record.Set("lat", lat)
+	record.Set("long", lng)
+
+	return r.app.Save(record)
+}

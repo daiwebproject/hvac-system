@@ -545,6 +545,107 @@
         <label class="modal-backdrop" for="modal-view-job">Close</label>
     </div>
 
+    <!-- Fullscreen Map Modal (INSIDE kanban component scope) -->
+    <div class="modal" :class="showMapModal ? 'modal-open' : ''">
+        <div class="modal-box w-11/12 max-w-7xl p-0 overflow-hidden flex flex-col" style="height: 90vh;">
+            <!-- Header -->
+            <div class="p-4 bg-white border-b flex justify-between items-center shadow-sm" style="flex-shrink: 0; height: 60px;">
+                <h3 class="font-bold text-lg text-slate-800">
+                    <i class="fa-solid fa-map-location-dot text-blue-500 mr-2"></i> Bản đồ Tổng hợp
+                </h3>
+                <div class="flex gap-2 items-center">
+                    <!-- Legend -->
+                    <div class="hidden sm:flex gap-3 text-xs">
+                        <span class="flex items-center gap-1"><i class="fa-solid fa-circle text-yellow-500"></i> Chờ xử</span>
+                        <span class="flex items-center gap-1"><i class="fa-solid fa-circle text-blue-500"></i> Đang làm</span>
+                        <span class="flex items-center gap-1"><i class="fa-solid fa-circle text-green-500"></i> Hoàn thành</span>
+                    </div>
+                </div>
+                <button class="btn btn-sm btn-circle btn-ghost" @click="closeMapModal()">✕</button>
+            </div>
+
+            <!-- Main Content: Sidebar + Map -->
+            <div class="flex flex-1 overflow-hidden gap-0">
+                <!-- Left Sidebar: Tech/Order Lists -->
+                <div class="w-80 bg-white border-r flex flex-col" style="flex-shrink: 0;">
+                    <!-- Tab Buttons -->
+                    <div class="flex border-b sticky top-0 bg-white z-10">
+                        <button @click="mapSidebarTab = 'techs'" 
+                                :class="mapSidebarTab === 'techs' ? 'border-b-2 border-blue-500 text-blue-600 font-semibold' : 'text-slate-500 hover:text-slate-700'"
+                                class="flex-1 py-3 px-2 text-sm text-center transition">
+                            <i class="fa-solid fa-user-tie mr-1"></i> Thợ (<span x-text="columns.working?.length || 0"></span>)
+                        </button>
+                        <button @click="mapSidebarTab = 'orders'" 
+                                :class="mapSidebarTab === 'orders' ? 'border-b-2 border-blue-500 text-blue-600 font-semibold' : 'text-slate-500 hover:text-slate-700'"
+                                class="flex-1 py-3 px-2 text-sm text-center transition">
+                            <i class="fa-solid fa-clipboard-list mr-1"></i> Đơn (<span x-text="(columns.working?.length || 0) + (columns.pending?.length || 0) + (columns.assigned?.length || 0)"></span>)
+                        </button>
+                    </div>
+
+                    <!-- Tab Content: Technicians -->
+                    <div x-show="mapSidebarTab === 'techs'" class="overflow-y-auto flex-1">
+                        <template x-for="tech in (window.initialTechs || [])" :key="tech.id">
+                            <div class="p-3 border-b hover:bg-blue-50 cursor-pointer transition" 
+                                 @click="this.highlightTechOnMap(tech.id)"
+                                 @mouseenter="techHoverOn = tech.id" 
+                                 @mouseleave="techHoverOn = null"
+                                 :class="techHoverOn === tech.id ? 'bg-blue-100' : ''">
+                                <div class="flex justify-between items-start gap-2">
+                                    <div class="flex-1">
+                                        <p class="font-semibold text-sm text-slate-800" x-text="tech.name"></p>
+                                        <p class="text-xs text-slate-500" x-text="'📱 ' + tech.phone"></p>
+                                    </div>
+                                    <span class="text-xs px-2 py-1 rounded-full font-semibold"
+                                          :class="tech.status === 'on_job' ? 'bg-purple-100 text-purple-700' : 'bg-slate-100 text-slate-600'"
+                                          x-text="tech.status === 'on_job' ? 'Đang làm' : 'Chờ việc'">
+                                    </span>
+                                </div>
+                                <!-- Jobs count -->
+                                <p class="text-xs text-slate-400 mt-2">
+                                    <i class="fa-solid fa-tasks text-orange-500 mr-1"></i>
+                                    <span x-text="this.getJobsForTech(tech.id) + ' đơn'"></span>
+                                </p>
+                            </div>
+                        </template>
+                    </div>
+
+                    <!-- Tab Content: Orders -->
+                    <div x-show="mapSidebarTab === 'orders'" class="overflow-y-auto flex-1">
+                        <template x-for="job in this.getAllJobs()" :key="job.id">
+                            <div class="p-3 border-b hover:bg-blue-50 cursor-pointer transition" 
+                                 @click="this.highlightJobOnMap(job.id)"
+                                 @mouseenter="jobHoverOn = job.id" 
+                                 @mouseleave="jobHoverOn = null"
+                                 :class="jobHoverOn === job.id ? 'bg-blue-100' : ''">
+                                <div class="flex justify-between items-start gap-2">
+                                    <div class="flex-1">
+                                        <p class="font-semibold text-sm text-slate-800" x-text="job.customer_name"></p>
+                                        <p class="text-xs text-slate-500" x-text="job.address?.substring(0, 40) + '...'"></p>
+                                    </div>
+                                    <span class="text-xs px-2 py-1 rounded-full font-semibold"
+                                          :class="job.status === 'completed' ? 'bg-green-100 text-green-700' : 
+                                                   job.status === 'working' ? 'bg-purple-100 text-purple-700' : 
+                                                   job.status === 'assigned' ? 'bg-blue-100 text-blue-700' : 
+                                                   'bg-yellow-100 text-yellow-700'"
+                                          x-text="this.getStatusLabel(job.status)">
+                                    </span>
+                                </div>
+                                <!-- Service type -->
+                                <p class="text-xs text-slate-400 mt-2" x-text="'📋 ' + job.service_type"></p>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Right Side: Map -->
+                <div class="relative flex-1 bg-slate-100 overflow-hidden">
+                    <div id="fullscreen-map" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; width: 100%; height: 100%;"></div>
+                </div>
+            </div>
+        </div>
+        <label class="modal-backdrop bg-slate-900/50 backdrop-blur-sm" @click="closeMapModal()"></label>
+    </div>
+
 </div>
 
 <script>
@@ -607,36 +708,45 @@
     .custom-scrollbar::-webkit-scrollbar-thumb:hover {
         background: #a8a8a8;
     }
+
+    /* Map Modal Sidebar Scrollbar */
+    .modal .w-80::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .modal .w-80::-webkit-scrollbar-track {
+        background: #f3f4f6;
+    }
+
+    .modal .w-80::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 3px;
+    }
+
+    .modal .w-80::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8;
+    }
+
+    /* Map Modal Enhanced */
+    .modal .modal-box {
+        max-height: 90vh;
+    }
+
+    /* Leaflet Map fixes */
+    #fullscreen-map {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto;
+    }
+
+    #fullscreen-map .leaflet-popup-content {
+        margin: 0;
+        font-size: 13px;
+    }
+
+    #fullscreen-map .leaflet-popup-content-wrapper {
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
 </style>
-
-<!-- Fullscreen Map Modal -->
-<div class="modal" :class="showMapModal ? 'modal-open' : ''">
-    <div class="modal-box w-11/12 max-w-6xl p-0 overflow-hidden" style="height: 90vh;">
-        <div class="p-4 bg-white border-b flex justify-between items-center shadow-sm" style="height: 60px;">
-            <h3 class="font-bold text-lg text-slate-800">
-                <i class="fa-solid fa-map-location-dot text-blue-500 mr-2"></i> Bản đồ Tổng hợp
-            </h3>
-            <div class="flex gap-2 items-center">
-                <!-- Legend -->
-                <div class="hidden sm:flex gap-3 text-xs">
-                    <span class="flex items-center gap-1"><i class="fa-solid fa-circle text-yellow-500"></i> Chờ xử
-                        lý</span>
-                    <span class="flex items-center gap-1"><i class="fa-solid fa-circle text-blue-500"></i> Đã
-                        giao</span>
-                    <span class="flex items-center gap-1"><i class="fa-solid fa-circle text-purple-500"></i> Đang
-                        làm</span>
-                    <span class="flex items-center gap-1"><i class="fa-solid fa-circle text-green-500"></i> Hoàn
-                        thành</span>
-                </div>
-                <button class="btn btn-sm btn-circle btn-ghost" @click="closeMapModal()">✕</button>
-            </div>
-        </div>
-
-        <div class="relative bg-slate-100" style="height: calc(90vh - 60px);">
-            <div id="fullscreen-map" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0;"></div>
-        </div>
-    </div>
-    <div class="modal-backdrop bg-slate-900/50 backdrop-blur-sm" @click="closeMapModal()"></div>
-</div>
+</style>
 
 {{ end }}

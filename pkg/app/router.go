@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"hvac-system/internal/adapter/repository"
+	internalHandler "hvac-system/internal/handler"
 	domain "hvac-system/internal/core"
 	"hvac-system/pkg/broker"
 	"hvac-system/pkg/handlers"
@@ -19,7 +20,17 @@ import (
 )
 
 // RegisterRoutes configures all application routes
-func RegisterRoutes(app *pocketbase.PocketBase, t *template.Template, eventBroker *broker.SegmentedBroker, analytics domain.AnalyticsService, bookingServiceInternal domain.BookingService, fcmService *services.FCMService) {
+func RegisterRoutes(
+	app *pocketbase.PocketBase,
+	t *template.Template,
+	eventBroker *broker.SegmentedBroker,
+	analytics domain.AnalyticsService,
+	bookingServiceInternal domain.BookingService,
+	fcmService *services.FCMService,
+	locationCache *services.LocationCache,
+	locationHandler *internalHandler.LocationHandler,
+	locationSSEHandler *internalHandler.LocationSSEHandler,
+) {
 	app.OnServe().BindFunc(func(se *core.ServeEvent) error {
 
 		// [SECURITY] Protect PocketBase Admin UI (/_/)
@@ -38,10 +49,11 @@ func RegisterRoutes(app *pocketbase.PocketBase, t *template.Template, eventBroke
 		// ---------------------------------------------------------
 
 		// A. Service Worker chính (PWA) - Cho phép scope toàn domain
+		// ⚠️ MUST be at root (/) for proper scope control
 		se.Router.GET("/service-worker.js", func(e *core.RequestEvent) error {
 			e.Response.Header().Set("Service-Worker-Allowed", "/")
 			e.Response.Header().Set("Content-Type", "application/javascript")
-			return e.FileFS(os.DirFS("./assets"), "service-worker.js")
+			return e.FileFS(os.DirFS("."), "service-worker.js")
 		})
 
 		// B. Service Main Manifests (from root)
@@ -166,6 +178,16 @@ func RegisterRoutes(app *pocketbase.PocketBase, t *template.Template, eventBroke
 		se.Router.GET("/invoice/{hash}", public.ShowInvoice)
 		se.Router.POST("/api/invoice/{hash}/feedback", public.SubmitFeedback)
 
+		// ----- LOCATION TRACKING - PUBLIC ROUTES -----
+		// Health check for location service
+		se.Router.GET("/api/health/location", locationHandler.HealthCheck)
+		// Get technician location for a booking (customer tracking)
+		se.Router.GET("/api/bookings/{id}/tech-location", locationHandler.GetBookingTechLocation)
+		// Stream specific technician's location (for customer real-time tracking)
+		se.Router.GET("/api/bookings/{id}/location/stream", locationSSEHandler.StreamCustomerLocation)
+		// Stream technician job events (SSE)
+		se.Router.GET("/api/tech/{id}/events/stream", locationSSEHandler.StreamTechnicianEvents)
+
 		// ---------------------------------------------------------
 		// 5. AUTH ROUTES
 		// ---------------------------------------------------------
@@ -192,7 +214,7 @@ func RegisterRoutes(app *pocketbase.PocketBase, t *template.Template, eventBroke
 		adminGroup.GET("/history", admin.ShowHistory)
 		adminGroup.GET("/api/bookings/search", admin.SearchHistory)
 
-		// adminGroup.POST("/bookings/{id}/assign", admin.AssignJob)
+		adminGroup.POST("/bookings/{id}/assign", admin.AssignJob)
 		adminGroup.POST("/bookings/{id}/cancel", admin.CancelBooking)
 		adminGroup.POST("/bookings/{id}/update", admin.UpdateBookingInfo)
 		adminGroup.POST("/bookings/create", admin.CreateBooking) // NEW: Manual Creation
@@ -226,6 +248,12 @@ func RegisterRoutes(app *pocketbase.PocketBase, t *template.Template, eventBroke
 		adminGroup.GET("/categories", admin.CategoriesList)
 		adminGroup.POST("/categories", admin.CategorySave)
 		adminGroup.POST("/categories/{id}/delete", admin.CategoryDelete)
+
+		// ----- LOCATION TRACKING - ADMIN ROUTES -----
+		// Get all active technicians and their current locations
+		adminGroup.GET("/api/locations", locationHandler.GetAllTechLocations)
+		// Stream all technician locations in real-time (SSE)
+		adminGroup.GET("/api/locations/stream", locationSSEHandler.StreamAdminLocations)
 
 		// ---------------------------------------------------------
 		// 7. TECH ROUTES (Trang giao diện chính)
@@ -267,6 +295,16 @@ func RegisterRoutes(app *pocketbase.PocketBase, t *template.Template, eventBroke
 		apiGroup.POST("/bookings/{id}/cancel", tech.CancelBooking)
 		apiGroup.POST("/location", tech.UpdateLocation)
 		apiGroup.POST("/fcm/token", fcm.RegisterDeviceToken)
+
+		// ----- LOCATION TRACKING API -----
+		// Send location update (called frequently by geolocation.watchPosition)
+		apiGroup.POST("/location/update", locationHandler.UpdateLocation)
+		// Start tracking when tech clicks "Bắt đầu di chuyển"
+		apiGroup.POST("/tracking/start", locationHandler.StartTracking)
+		// Stop tracking when job is completed
+		apiGroup.POST("/tracking/stop", locationHandler.StopTracking)
+		// Get current location of this technician
+		apiGroup.GET("/location", locationHandler.GetTechLocation)
 
 		// Hóa đơn và thanh toán
 		apiGroup.GET("/job/{id}/invoice", tech.GetJobInvoice)

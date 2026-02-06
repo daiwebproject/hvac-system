@@ -84,3 +84,40 @@ type DashboardStats struct {
 	CompletedCount int
 	CompletionRate float64
 }
+
+// ============ REAL-TIME TRACKING MODELS ============
+
+// LocationUpdate represents a real-time location update from technician
+type LocationUpdate struct {
+	TechnicianID string    `json:"technician_id"`
+	BookingID    string    `json:"booking_id"`
+	Latitude     float64   `json:"latitude"`
+	Longitude    float64   `json:"longitude"`
+	Accuracy     float64   `json:"accuracy"`
+	Timestamp    int64     `json:"timestamp"`
+	Speed        float64   `json:"speed,omitempty"`
+	Heading      float64   `json:"heading,omitempty"`
+}
+
+// TechStatus represents current technician's location and status
+type TechStatus struct {
+	TechnicianID   string    `json:"technician_id"`
+	TechnicianName string    `json:"technician_name"`
+	CurrentBooking string    `json:"current_booking"`
+	Status         string    `json:"status"` // idle, moving, arrived, working, completed
+	Latitude       float64   `json:"latitude"`
+	Longitude      float64   `json:"longitude"`
+	LastUpdate     int64     `json:"last_update"`
+	Distance       float64   `json:"distance,omitempty"` // Distance to customer location in meters
+}
+
+// GeofenceEvent represents a geofencing alert
+type GeofenceEvent struct {
+	Type         string `json:"type"` // arrived, departed, geofence_enter
+	TechnicianID string `json:"technician_id"`
+	BookingID    string `json:"booking_id"`
+	Latitude     float64 `json:"latitude"`
+	Longitude    float64 `json:"longitude"`
+	Distance     float64 `json:"distance"`
+	Timestamp    int64  `json:"timestamp"`
+}

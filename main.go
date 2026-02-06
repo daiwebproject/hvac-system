@@ -9,13 +9,11 @@ import (
 	"hvac-system/internal/service"
 	"hvac-system/pkg/app"
 	"hvac-system/pkg/broker"
-	"hvac-system/pkg/middleware"
 	"hvac-system/pkg/services"
 
 	_ "hvac-system/migrations"
 
 	"github.com/pocketbase/pocketbase"
-	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/plugins/migratecmd"
 )
 
@@ -49,6 +47,9 @@ func main() {
 	slotService := service.NewTimeSlotService(slotRepo, bookingRepo, svcRepo)
 	analyticsServiceInternal := service.NewAnalyticsService(analyticsRepo)
 
+	// [NEW] Location Cache for Real-time Tracking
+	locationCache := services.NewLocationCache()
+
 	// [NEW] FCM Service
 	fcmService, err := services.NewFCMService("serviceAccountKey.json")
 	if err != nil {
@@ -57,28 +58,15 @@ func main() {
 		fmt.Println("✅ FCM Service Initialized")
 	}
 
-	// Booking Service (injected with FCM)
 	// Booking Service (injected with FCM and Broker)
 	bookingServiceInternal := service.NewBookingService(bookingRepo, techRepo, slotService, fcmService, settingsRepo, eventBroker)
 
 	// Handlers
-	bookingHandler := handler.NewBookingHandler(bookingServiceInternal)
+	locationHandler := handler.NewLocationHandler(locationCache, bookingRepo, techRepo, eventBroker)
+	locationSSEHandler := handler.NewLocationSSEHandler(eventBroker)
 
 	// 4. Register Routes (Legacy)
-	app.RegisterRoutes(pb, templates, eventBroker, analyticsServiceInternal, bookingServiceInternal, fcmService)
-
-	// Register New Handler Routes (Mixing with legacy for transition)
-	pb.OnServe().BindFunc(func(e *core.ServeEvent) error {
-		// Admin Group Extensions
-		adminGroup := e.Router.Group("/admin")
-		adminGroup.BindFunc(middleware.RequireAdmin(pb))
-
-		// Booking Routes
-		adminGroup.POST("/bookings/{id}/assign", bookingHandler.AssignJob)
-		adminGroup.POST("/api/bookings/{id}/status", bookingHandler.UpdateStatus)
-
-		return e.Next()
-	})
+	app.RegisterRoutes(pb, templates, eventBroker, analyticsServiceInternal, bookingServiceInternal, fcmService, locationCache, locationHandler, locationSSEHandler)
 
 	if err := pb.Start(); err != nil {
 		log.Fatal(err)

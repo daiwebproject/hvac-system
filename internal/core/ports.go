@@ -16,6 +16,10 @@ type BookingRepository interface {
 	FindPending() ([]*Booking, error)
 	FindActiveByTechnician(techID string) ([]*Booking, error)    // Active = Assigned & In Progress (not completed)
 	FindScheduledByTechnician(techID string) ([]*Booking, error) // Scheduled = Not Cancelled (includes completed)
+
+	// Location and Status Updates
+	UpdateStatus(bookingID string, status string) error
+	UpdateLocation(bookingID string, lat float64, lng float64) error
 }
 
 // TechnicianRepository defines data access for Technicians
