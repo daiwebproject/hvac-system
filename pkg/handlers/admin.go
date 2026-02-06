@@ -118,6 +118,30 @@ func (h *AdminHandler) Dashboard(e *core.RequestEvent) error {
 
 	// 3. Serialize ALL bookings to JSON for Kanban (Reverted separation)
 	bookingsJSON := []BookingJSON{}
+
+	// [NEW] Pre-fetch slots to optimize loop
+	slotIDs := []string{}
+	seenSlots := map[string]bool{}
+	for _, b := range bookings {
+		if sid := b.GetString("slot_id"); sid != "" && !seenSlots[sid] {
+			slotIDs = append(slotIDs, sid)
+			seenSlots[sid] = true
+		}
+	}
+
+	slotMap := make(map[string]*core.Record)
+	if len(slotIDs) > 0 {
+		// Use FindRecordsByIds if available, otherwise filter (optimized for < 500 items)
+		// Assuming FindRecordsByIds is available in h.App (It is standard in PocketBase)
+		if slots, err := h.App.FindRecordsByIds("time_slots", slotIDs); err == nil {
+			for _, s := range slots {
+				slotMap[s.Id] = s
+			}
+		} else {
+			fmt.Println("Warning: Failed to fetch slots:", err)
+		}
+	}
+
 	for _, b := range bookings { // Iterate over ALL fetched bookings
 		// Normalize status for frontend if needed, but usually we trust the DB
 		// ...
@@ -132,26 +156,35 @@ func (h *AdminHandler) Dashboard(e *core.RequestEvent) error {
 		rawTime := b.GetString("booking_time")
 		displayTime := rawTime
 
-		// Parse booking time
-		// Support both DB format "YYYY-MM-DD HH:MM:SS.000Z" and "YYYY-MM-DD HH:MM"
-		parsedTime, err := time.Parse("2006-01-02 15:04:05.000Z", rawTime)
-		if err != nil {
-			parsedTime, err = time.Parse("2006-01-02 15:04", rawTime) // Our new format
-		}
+		// [Priority 1] Try to use Slot Info
+		slotID := b.GetString("slot_id")
+		if slot, ok := slotMap[slotID]; ok && slot != nil {
+			dateStr := slot.GetString("date")
+			startTime := slot.GetString("start_time")
+			endTime := slot.GetString("end_time")
 
-		if err == nil {
-			// Calculate End Time (Default 2 hours if not expandable, or fetch service if needed)
-			// Optimally we should check service duration, but for list view default is acceptable for MVP
-			// or we can fetch service.
-			// Ideally we assume 1.5 - 2h.
-			duration := 2 * time.Hour
+			// Format: "10:00 - 12:00 30/01"
+			if tDate, err := time.Parse("2006-01-02", dateStr); err == nil {
+				displayTime = fmt.Sprintf("%s - %s %02d/%02d", startTime, endTime, tDate.Day(), tDate.Month())
+			} else {
+				displayTime = fmt.Sprintf("%s - %s", startTime, endTime)
+			}
+		} else {
+			// [Priority 2] Fallback to raw booking_time parsing
+			parsedTime, err := time.Parse("2006-01-02 15:04:05.000Z", rawTime)
+			if err != nil {
+				parsedTime, err = time.Parse("2006-01-02 15:04", rawTime)
+			}
 
-			endTime := parsedTime.Add(duration)
-			displayTime = fmt.Sprintf("%02d:%02d - %02d:%02d ngày %02d/%02d/%d",
-				parsedTime.Hour(), parsedTime.Minute(),
-				endTime.Hour(), endTime.Minute(),
-				parsedTime.Day(), parsedTime.Month(), parsedTime.Year(),
-			)
+			if err == nil {
+				duration := 2 * time.Hour
+				endTime := parsedTime.Add(duration)
+				displayTime = fmt.Sprintf("%s - %s %02d/%02d",
+					parsedTime.Format("15:04"),
+					endTime.Format("15:04"),
+					parsedTime.Day(), parsedTime.Month(),
+				)
+			}
 		}
 
 		// [MỚI] Tìm hóa đơn của job này để lấy Hash
