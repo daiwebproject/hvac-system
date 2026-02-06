@@ -28,9 +28,19 @@ type TimeSlot struct {
 	IsAvailable     bool
 }
 
-// GetAvailableSlots returns available time slots for a given date
-// Business rule: Capacity based on ACTIVE technicians, 2-hour advance notice
+// TimeBlock represents a busy period for a technician
+type TimeBlock struct {
+	Start time.Time
+	End   time.Time
+}
+
+// GetAvailableSlots returns available time slots using Resource-Based Availability
+// It dynamically checks if any technician has a sufficient gap for the service
 func (s *TimeSlotService) GetAvailableSlots(date string) ([]TimeSlot, error) {
+	// Standard slot duration (could be dynamic based on selected service in future)
+	const StandardSlotDuration = 120 * time.Minute // 2 hours
+	const TravelBuffer = 30 * time.Minute
+
 	// Validate date format
 	targetDate, err := time.Parse("2006-01-02", date)
 	if err != nil {
@@ -39,90 +49,169 @@ func (s *TimeSlotService) GetAvailableSlots(date string) ([]TimeSlot, error) {
 
 	// Don't allow booking in the past
 	if targetDate.Before(time.Now().Truncate(24 * time.Hour)) {
-		// return nil, fmt.Errorf("cannot book slots in the past")
-		// Logic fix: Truncate to day is fine, current day is valid
+		return []TimeSlot{}, nil
 	}
 
-	// 1. Get Dynamic Capacity (Count Active Techs)
-	// [SYNC] Only count techs who are currently marked as active/online
+	// 1. Get Resources (Active Technicians)
 	activeTechs, err := s.app.FindRecordsByFilter("technicians", "active=true", "", 0, 0, nil)
-	dynamicCapacity := 0
-	if err == nil {
-		dynamicCapacity = len(activeTechs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch technicians: %w", err)
+	}
+	dynamicCapacity := len(activeTechs)
+	if dynamicCapacity == 0 {
+		return []TimeSlot{}, nil // No techs = no slots
 	}
 
-	// Query available slots
-	// We verify capacity memory-side since DB max_capacity might be stale
+	// 2. Get Constraints (Existing Bookings for the Date)
+	// We fetch bookings for the specific date to build the daily timeline
+	bookings, err := s.app.FindRecordsByFilter(
+		"bookings",
+		fmt.Sprintf("booking_time ~ '%s' && job_status != 'cancelled'", date),
+		"booking_time",
+		500,
+		0,
+		nil,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch bookings: %w", err)
+	}
+
+	// 3. Build Tech Timelines (Map[TechID] -> BusyBlocks)
+	techSchedules := make(map[string][]TimeBlock)
+	for _, b := range bookings {
+		techID := b.GetString("technician_id")
+		if techID == "" {
+			continue // Unassigned jobs don't block a specific tech yet (or should they block a 'pool'?)
+			// For now, only assigned jobs block specific techs.
+			// Ideally, pending jobs should reduce total system capacity, but that's complex.
+			// MVP: Smart Schedule checks PHYSICAL tech availability.
+		}
+
+		startTimeStr := b.GetString("booking_time") // "2006-01-02 15:04"
+		if startT, err := time.Parse("2006-01-02 15:04", startTimeStr); err == nil {
+			// Estimate duration (default 60m + travel 30m) if not known
+			// TODO: Fetch actual service duration
+			duration := 60 * time.Minute
+			endT := startT.Add(duration).Add(TravelBuffer)
+
+			// Add buffer BEFORE start too?
+			// Simplified: Block = [Start - Buffer, End + Buffer]?
+			// Design: Block = [Start, End + Buffer] (Travel to NEXT job)
+
+			techSchedules[techID] = append(techSchedules[techID], TimeBlock{
+				Start: startT,
+				End:   endT,
+			})
+		}
+	}
+
+	// 4. Fetch Standard Slot Definitions (The "Grid")
 	filter := fmt.Sprintf("date = '%s'", date)
 	records, err := s.app.FindRecordsByFilter("time_slots", filter, "start_time", 100, 0, nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch slots: %w", err)
+		return nil, fmt.Errorf("failed to fetch slot definitions: %w", err)
 	}
 
 	slots := make([]TimeSlot, 0, len(records))
 	now := time.Now()
 
 	for _, record := range records {
-		startTime := record.GetString("start_time")
+		startTimeStr := record.GetString("start_time")
+		slotStart, _ := time.Parse("2006-01-02 15:04", date+" "+startTimeStr)
+		slotEnd := slotStart.Add(StandardSlotDuration)
 
-		// Skip slots that are too soon (less than 2 hours from now)
-		if date == time.Now().Format("2006-01-02") {
-			slotTime, _ := time.Parse("2006-01-02 15:04", date+" "+startTime)
-			if slotTime.Sub(now).Hours() < 2 {
+		// Filter past slots (2h advance notice)
+		if date == now.Format("2006-01-02") {
+			if slotStart.Sub(now).Hours() < 2 {
 				continue
 			}
 		}
 
-		currentBookings := int(record.GetFloat("current_bookings"))
+		// 5. Evaluate Availability: Can ANY tech take this slot?
+		availableTechsCount := 0
 
-		// [SYNC] Determine availability using Dynamic Capacity
-		isAvailable := currentBookings < dynamicCapacity
+		for _, tech := range activeTechs {
+			techID := tech.Id
+			timeline := techSchedules[techID]
+			isFree := true
+
+			// Check intersection with any busy block
+			for _, block := range timeline {
+				// Intersection formula: (StartA < EndB) && (EndA > StartB)
+				// We check if (SlotStart < BlockEnd) && (SlotEnd > BlockStart)
+				// Note: slotEnd should include travel buffer for the TECH to move to NEXT job?
+				// Relaxed check: Is the SLOT ITSELF free?
+				if slotStart.Before(block.End) && slotEnd.After(block.Start) {
+					isFree = false
+					break
+				}
+			}
+
+			if isFree {
+				availableTechsCount++
+			}
+		}
+
+		// Update DB record with real-time stats (optional, but good for caching/analytics)
+		// record.Set("current_bookings", dynamicCapacity - availableTechsCount)
+		// record.Set("is_available", availableTechsCount > 0)
+		// s.app.Save(record) // Avoid write-heavy loop for now
 
 		slots = append(slots, TimeSlot{
 			ID:              record.Id,
 			Date:            record.GetString("date"),
-			StartTime:       startTime,
+			StartTime:       startTimeStr,
 			EndTime:         record.GetString("end_time"),
-			MaxCapacity:     dynamicCapacity, // Show real-time capacity
-			CurrentBookings: currentBookings,
-			IsAvailable:     isAvailable,
+			MaxCapacity:     dynamicCapacity,
+			CurrentBookings: dynamicCapacity - availableTechsCount, // Inverted: Busy = Total - Free
+			IsAvailable:     availableTechsCount > 0,
 		})
 	}
 
 	return slots, nil
 }
 
-// BookSlot reserves a time slot for a booking
-// Business rule: Atomic increment & Dynamic Capacity Check
+// BookSlot reserves a time slot (Legacy Wrapper)
+// In the new logic, we don't strictly "book" a slot ID counters,
+// but we perform a validation check.
 func (s *TimeSlotService) BookSlot(slotID, bookingID string) error {
 	slot, err := s.app.FindRecordById("time_slots", slotID)
 	if err != nil {
-		return fmt.Errorf("slot not found: %w", err)
+		return fmt.Errorf("slot not found")
 	}
 
-	// [SYNC] Check against Dynamic Capacity (Active Techs)
-	activeTechs, _ := s.app.FindRecordsByFilter("technicians", "active=true", "", 0, 0, nil)
-	dynamicCapacity := float64(len(activeTechs))
+	// Double-check availability logic
+	date := slot.GetString("date")
 
-	// Check availability
+	// Re-run smart check just for this slot?
+	// For performance, we might trust the generic capacity check for now,
+	// or implement a lightweight "IsSlotAvailable(date, start, duration)" helper.
+
+	// MVP: Fetch availability for the whole day (cached?) and check this slot.
+	availableSlots, err := s.GetAvailableSlots(date)
+	if err != nil {
+		return err
+	}
+
+	isAvailable := false
+	for _, s := range availableSlots {
+		if s.ID == slotID {
+			if s.IsAvailable {
+				isAvailable = true
+			}
+			break
+		}
+	}
+
+	if !isAvailable {
+		return fmt.Errorf("slot is no longer available")
+	}
+
+	// We can update `current_bookings` just for analytics/counters
+	// But it is no longer the Source of Truth for availability.
 	currentBookings := slot.GetFloat("current_bookings")
-	// maxCapacity := slot.GetFloat("max_capacity") // Ignore static capacity
-
-	if currentBookings >= dynamicCapacity {
-		return fmt.Errorf("slot is fully booked (no active technicians)")
-	}
-
-	// Increment booking count
 	slot.Set("current_bookings", currentBookings+1)
-
-	// If this was the last available spot, mark as fully booked metadata
-	if currentBookings+1 >= dynamicCapacity {
-		slot.Set("is_booked", true)
-	}
-
-	if err := s.app.Save(slot); err != nil {
-		return fmt.Errorf("failed to book slot: %w", err)
-	}
+	s.app.Save(slot)
 
 	return nil
 }

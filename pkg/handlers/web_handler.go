@@ -55,7 +55,7 @@ func (h *WebHandler) BookService(e *core.RequestEvent) error {
 	brand := e.Request.FormValue("brand")
 
 	// Time slot ID (new) or legacy booking_time
-	slotID := e.Request.FormValue("selected_slot")
+	slotID := e.Request.FormValue("slot_id")           // [FIX] Match frontend key
 	bookingTime := e.Request.FormValue("booking_time") // Fallback for old flow
 
 	// Location

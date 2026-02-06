@@ -14,6 +14,7 @@ type BookingService struct {
 	bookingRepo   core.BookingRepository
 	techRepo      core.TechnicianRepository
 	slotControl   core.TimeSlotControl
+	slotRepo      core.TimeSlotRepository // [NEW] To fetch slot details
 	notifications core.NotificationService
 	settingsRepo  core.SettingsRepository // [NEW]
 	broker        *broker.SegmentedBroker
@@ -23,6 +24,7 @@ func NewBookingService(
 	bookingRepo core.BookingRepository,
 	techRepo core.TechnicianRepository,
 	slotControl core.TimeSlotControl,
+	slotRepo core.TimeSlotRepository, // [NEW]
 	notifications core.NotificationService,
 	settingsRepo core.SettingsRepository, // [NEW]
 	eventBroker *broker.SegmentedBroker,
@@ -31,6 +33,7 @@ func NewBookingService(
 		bookingRepo:   bookingRepo,
 		techRepo:      techRepo,
 		slotControl:   slotControl,
+		slotRepo:      slotRepo, // [NEW]
 		notifications: notifications,
 		settingsRepo:  settingsRepo,
 		broker:        eventBroker,
@@ -77,7 +80,9 @@ func (s *BookingService) CreateBooking(req *core.BookingRequest) (*core.Booking,
 				"phone":           booking.CustomerPhone, // [FIX] Frontend expects 'phone'
 				"customer_phone":  booking.CustomerPhone,
 				"service":         booking.DeviceType,
-				"time":            booking.BookingTime, // Raw time, frontend formats it
+				"brand":           booking.Brand,                         // [NEW]
+				"device_type":     booking.DeviceType,                    // [NEW] Explicit
+				"time":            formatTimeForSSE(booking, s.slotRepo), // Use helper
 				"created":         time.Now().Format("15:04"),
 				"status":          booking.JobStatus,
 				"status_label":    "Chờ xử lý",

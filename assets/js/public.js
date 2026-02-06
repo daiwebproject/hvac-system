@@ -100,15 +100,21 @@ window.bookingWizard = function () {
         // Định vị GPS
         getLocation() {
             this.locationStatus = 'Đang lấy vị trí...';
+
+            // Helper: Detect Chrome
+            const isChrome = /Chrome/.test(navigator.userAgent) && /Google Inc/.test(navigator.vendor);
+            const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
             if (!navigator.geolocation) {
-                this.locationStatus = 'Trình duyệt không hỗ trợ định vị.';
+                this.locationStatus = 'Trình duyệt không hỗ trợ.';
+                this.suggestChrome(isMobile);
                 return;
             }
 
             const options = {
-                enableHighAccuracy: true, // Ép dùng GPS (quan trọng cho Safari)
-                timeout: 10000,           // Chờ tối đa 10 giây
-                maximumAge: 0             // Không dùng cache cũ
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 0
             };
 
             navigator.geolocation.getCurrentPosition(
@@ -119,16 +125,64 @@ window.bookingWizard = function () {
                 },
                 (err) => {
                     console.warn(`Geolocation Error (${err.code}): ${err.message}`);
+
+                    let title = 'Lỗi GPS';
+                    let html = 'Không thể lấy vị trí. Vui lòng thử lại hoặc chọn trên bản đồ.';
+
                     if (err.code === 1) { // PERMISSION_DENIED
-                        this.locationStatus = 'Bạn đã chặn quyền vị trí. Vui lòng dùng Bản đồ bên cạnh!';
+                        this.locationStatus = 'Quyền vị trí bị chặn.';
+                        title = 'Cần quyền truy cập vị trí';
+                        html = 'Bạn đã chặn quyền vị trí. Vui lòng <b>Cho phép</b> trong cài đặt trình duyệt hoặc chuyển sang <b>Google Chrome</b>.';
                     } else if (err.code === 3) { // TIMEOUT
-                        this.locationStatus = 'Không tìm thấy GPS. Hãy thử dùng nút Bản đồ!';
-                    } else {
-                        this.locationStatus = 'Lỗi định vị. Vui lòng dùng nút Bản đồ để chọn.';
+                        this.locationStatus = 'Không tìm thấy GPS.';
+                        title = 'Không tìm thấy tín hiệu';
+                        html = 'Vui lòng kiểm tra GPS hoặc chuyển sang <b>Google Chrome</b> để chính xác hơn.';
                     }
+
+                    // Auto suggest Chrome prompt
+                    Swal.fire({
+                        title: title,
+                        html: html,
+                        icon: 'warning',
+                        showCancelButton: isMobile, // Show 'Open Chrome' on mobile
+                        confirmButtonText: 'Đã hiểu',
+                        cancelButtonText: 'Mở bằng Chrome 🌐',
+                        cancelButtonColor: '#3085d6'
+                    }).then((result) => {
+                        if (result.dismiss === Swal.DismissReason.cancel && isMobile) {
+                            // Try to open Chrome on mobile
+                            const url = window.location.href;
+                            // Intent scheme for Android
+                            if (/Android/i.test(navigator.userAgent)) {
+                                window.location.href = `intent://${url.replace(/^https?:\/\//, '')}#Intent;scheme=https;package=com.android.chrome;end`;
+                            } else if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+                                // iOS Chrome scheme
+                                window.location.href = `googlechrome://${url.replace(/^https?:\/\//, '')}`;
+                            }
+                        }
+                    });
                 },
                 options
             );
+        },
+
+        suggestChrome(isMobile) {
+            Swal.fire({
+                title: 'Lỗi Trình Duyệt',
+                html: 'Vui lòng sử dụng <b>Google Chrome</b> để có trải nghiệm tốt nhất.',
+                icon: 'error',
+                showCancelButton: isMobile,
+                cancelButtonText: 'Mở bằng Chrome 🌐',
+            }).then((result) => {
+                if (result.dismiss === Swal.DismissReason.cancel && isMobile) {
+                    const url = window.location.href;
+                    if (/Android/i.test(navigator.userAgent)) {
+                        window.location.href = `intent://${url.replace(/^https?:\/\//, '')}#Intent;scheme=https;package=com.android.chrome;end`;
+                    } else if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+                        window.location.href = `googlechrome://${url.replace(/^https?:\/\//, '')}`;
+                    }
+                }
+            });
         },
 
         // Mở bản đồ chọn vị trí thủ công

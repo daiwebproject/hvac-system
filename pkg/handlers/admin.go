@@ -82,6 +82,7 @@ type BookingJSON struct {
 	ID             string  `json:"id"`
 	Customer       string  `json:"customer"`
 	StaffID        string  `json:"staff_id"`
+	TechName       string  `json:"tech_name"` // [NEW] Added Name
 	Service        string  `json:"service"`
 	Time           string  `json:"time"`    // Chuỗi hiển thị giờ làm (VD: 30/01 10:00 - 12:00)
 	Created        string  `json:"created"` // [MỚI] Thời gian khách đặt đơn
@@ -209,13 +210,32 @@ func (h *AdminHandler) Dashboard(e *core.RequestEvent) error {
 			}
 		}
 
+		// Display Time Fallback
+		if displayTime == "" {
+			displayTime = "Chưa đặt lịch"
+		}
+
+		// [FIX] Get Technician Name
+		techName := ""
+		techID := b.GetString("technician_id")
+		if techID != "" {
+			// Optimization: Use the technicians slice we already fetched
+			for _, t := range technicians {
+				if t.Id == techID {
+					techName = t.GetString("name")
+					break
+				}
+			}
+		}
+
 		bookingsJSON = append(bookingsJSON, BookingJSON{
 			ID:             b.Id,
 			Customer:       b.GetString("customer_name"),
-			StaffID:        b.GetString("technician_id"),
+			StaffID:        techID,
+			TechName:       techName, // [NEW] Display Name
 			Service:        serviceName,
 			Time:           displayTime,
-			Created:        b.GetString("created"),
+			Created:        b.GetDateTime("created").Time().Format("15:04 02/01"), // [FIX] Format created time
 			Status:         b.GetString("job_status"),
 			StatusLabel:    b.GetString("job_status"),
 			Phone:          b.GetString("customer_phone"),

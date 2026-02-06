@@ -82,45 +82,55 @@
                         <div class="flex-1 overflow-y-auto p-2 space-y-3" @dragover.prevent
                             @drop="drop($event, 'pending')">
                             <template x-for="job in columns.pending.filter(j => matchesSearch(j))" :key="job.id">
-                                <div class="card bg-white shadow-sm border border-gray-100 cursor-move hover:shadow-md transition-all group relative"
+                                <div class="card bg-white shadow-sm border border-gray-100 cursor-move hover:shadow-md transition-all group relative pb-2"
                                     draggable="true" @dragstart="dragStart($event, job)">
                                     <div class="absolute left-0 top-0 bottom-0 w-1 bg-yellow-400 rounded-l-xl"></div>
                                     <div class="card-body p-3 pl-4 space-y-1.5">
-                                        <div class="flex justify-between items-start">
+                                        <div class="flex flex-col">
                                             <h3 class="font-bold text-sm text-gray-800 line-clamp-1"
                                                 x-text="job.customer"></h3>
+                                            <span class="text-[10px] text-gray-400 flex items-center gap-1">
+                                                <i class="fa-regular fa-clock"></i> <span x-text="job.created"></span>
+                                            </span>
+                                        </div>
+                                        <div class="flex justify-between items-start">
+                                            <div class="space-y-1">
+                                                <!-- Service -->
+                                                <p class="text-xs text-gray-700 font-medium flex items-center gap-1">
+                                                    <i class="fa-solid fa-wrench text-yellow-500 text-[10px]"></i>
+                                                    <span x-text="job.service || 'Dịch vụ khác'"></span>
+                                                </p>
+                                                <!-- Phone clickable -->
+                                                <a :href="'tel:' + job.phone"
+                                                    class="text-xs text-green-600 hover:underline flex items-center gap-1"
+                                                    x-show="job.phone">
+                                                    <i class="fa-solid fa-phone text-[10px]"></i>
+                                                    <span x-text="job.phone"></span>
+                                                </a>
+                                                <!-- Address with map link -->
+                                                <a :href="job.lat && job.long ? 'https://www.google.com/maps?q=' + job.lat + ',' + job.long : '#'"
+                                                    target="_blank"
+                                                    class="text-xs text-blue-600 hover:underline flex items-center gap-1 line-clamp-1 max-w-[180px]"
+                                                    x-show="job.address">
+                                                    <i class="fa-solid fa-location-dot text-[10px]"></i>
+                                                    <span x-text="job.address" class="truncate"></span>
+                                                </a>
+                                            </div>
                                             <button @click="viewJob(job)"
                                                 class="btn btn-ghost btn-xs text-gray-400 hover:text-blue-600 -mr-2 -mt-2">
                                                 <i class="fa-solid fa-eye"></i>
                                             </button>
                                         </div>
-                                        <!-- Phone clickable -->
-                                        <a :href="'tel:' + job.phone"
-                                            class="text-xs text-green-600 hover:underline flex items-center gap-1"
-                                            x-show="job.phone">
-                                            <i class="fa-solid fa-phone"></i>
-                                            <span x-text="job.phone"></span>
-                                        </a>
-                                        <!-- Address with map link -->
-                                        <a :href="job.lat && job.long ? 'https://www.google.com/maps?q=' + job.lat + ',' + job.long : '#'"
-                                            target="_blank"
-                                            class="text-xs text-blue-600 hover:underline flex items-center gap-1 line-clamp-1"
-                                            x-show="job.address">
-                                            <i class="fa-solid fa-location-dot"></i>
-                                            <span x-text="job.address" class="truncate"></span>
-                                        </a>
-                                        <!-- Service -->
-                                        <p class="text-xs text-gray-500 flex items-center gap-1">
-                                            <i class="fa-solid fa-wrench text-yellow-500"></i>
-                                            <span x-text="job.service || 'Dịch vụ khác'"></span>
-                                        </p>
-                                        <!-- Time Slot -->
-                                        <div class="flex justify-between items-end pt-1">
+
+                                        <!-- Time Slot & Action -->
+                                        <div
+                                            class="flex justify-between items-center pt-2 border-t border-gray-50 mt-1">
                                             <span
                                                 class="text-[10px] bg-yellow-50 text-yellow-700 px-2 py-1 rounded font-medium border border-yellow-200"
-                                                x-text="job.time"></span>
+                                                x-text="job.time || 'Chưa hẹn giờ'"></span>
                                             <button type="button" @click="openAssignModal(job)"
-                                                class="btn btn-xs btn-primary btn-outline">Giao việc</button>
+                                                class="btn btn-xs btn-primary shadow-sm hover:shadow-md transition-shadow">Giao
+                                                việc</button>
                                         </div>
                                     </div>
                                 </div>
@@ -144,8 +154,15 @@
                                     <div class="absolute left-0 top-0 bottom-0 w-1 bg-blue-500 rounded-l-xl"></div>
                                     <div class="card-body p-3 pl-4 space-y-1.5">
                                         <div class="flex justify-between items-start">
-                                            <h3 class="font-bold text-sm text-gray-800 line-clamp-1"
-                                                x-text="job.customer"></h3>
+                                            <div class="flex flex-col">
+                                                <h3 class="font-bold text-sm text-gray-800 line-clamp-1"
+                                                    x-text="job.customer">
+                                                </h3>
+                                                <span class="text-[10px] text-gray-400 flex items-center gap-1">
+                                                    <i class="fa-regular fa-clock"></i> <span
+                                                        x-text="job.created"></span>
+                                                </span>
+                                            </div>
                                             <button @click="viewJob(job)"
                                                 class="btn btn-ghost btn-xs text-gray-400 hover:text-blue-600">
                                                 <i class="fa-solid fa-eye"></i>
@@ -176,11 +193,11 @@
                                                 </div>
                                             </div>
                                             <span class="text-xs font-bold text-blue-800"
-                                                x-text="job.staff_id || 'Chưa định danh'"></span>
+                                                x-text="job.tech_name || 'Chưa định danh'"></span>
                                         </div>
                                         <!-- Time Slot -->
                                         <div class="text-[10px] bg-blue-50 text-blue-700 px-2 py-1 rounded font-medium border border-blue-200 text-center"
-                                            x-text="job.time"></div>
+                                            x-text="job.time || 'Chưa hẹn giờ'"></div>
                                     </div>
                                 </div>
                             </template>
@@ -206,8 +223,15 @@
                                     </div>
                                     <div class="card-body p-3 pl-4 space-y-1.5">
                                         <div class="flex justify-between items-start">
-                                            <h3 class="font-bold text-sm text-gray-800 line-clamp-1"
-                                                x-text="job.customer"></h3>
+                                            <div class="flex flex-col">
+                                                <h3 class="font-bold text-sm text-gray-800 line-clamp-1"
+                                                    x-text="job.customer">
+                                                </h3>
+                                                <span class="text-[10px] text-gray-400 flex items-center gap-1">
+                                                    <i class="fa-regular fa-clock"></i> <span
+                                                        x-text="job.created"></span>
+                                                </span>
+                                            </div>
                                             <button @click="viewJob(job)"
                                                 class="btn btn-ghost btn-xs text-gray-400 hover:text-purple-600 -mr-2 -mt-2">
                                                 <i class="fa-solid fa-eye"></i>
@@ -233,11 +257,12 @@
                                         <!-- Progress bar -->
                                         <div class="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
                                             <div class="bg-purple-500 h-1.5 rounded-full animate-pulse"
-                                                style="width: 60%"></div>
+                                                style="width: 60%">
+                                            </div>
                                         </div>
                                         <!-- Time Slot -->
                                         <div class="text-[10px] bg-purple-50 text-purple-700 px-2 py-1 rounded font-medium border border-purple-200 text-center"
-                                            x-text="job.time"></div>
+                                            x-text="job.time || 'Chưa hẹn giờ'"></div>
                                     </div>
                                 </div>
                             </template>
@@ -390,7 +415,8 @@
     <div class="modal" role="dialog">
         <div class="modal-box">
             <h3 class="font-bold text-lg text-primary flex items-center"><i
-                    class="fa-solid fa-file-circle-plus mr-2"></i> Tạo Đơn Hàng Mới</h3>
+                    class="fa-solid fa-file-circle-plus mr-2"></i>
+                Tạo Đơn Hàng Mới</h3>
             <form action="/admin/bookings/create" method="POST" @submit.prevent="createJob($event)"
                 class="mt-4 space-y-4">
                 <div class="grid grid-cols-2 gap-4">
@@ -492,8 +518,9 @@
                     </a>
                 </p>
                 <p class="text-sm mt-2 text-gray-700"><i
-                        class="fa-solid fa-wrench text-blue-500 mr-2 w-4 text-center"></i> <span
-                        x-text="selectedJob?.service"></span></p>
+                        class="fa-solid fa-wrench text-blue-500 mr-2 w-4 text-center"></i>
+                    <span x-text="selectedJob?.service"></span>
+                </p>
 
                 <div x-show="selectedJob?.status == 'cancelled'"
                     class="mt-2 text-sm text-red-600 bg-red-50 p-2 rounded border border-red-100">
@@ -598,7 +625,8 @@
                                     <div class="flex-1">
                                         <p class="font-semibold text-sm text-slate-800" x-text="tech.name"></p>
                                         <p class="text-xs text-slate-500"
-                                            x-text="tech.phone ? ('📱 ' + tech.phone) : ''"></p>
+                                            x-text="tech.phone ? ('📱 ' + tech.phone) : ''">
+                                        </p>
                                     </div>
                                     <span class="text-xs px-2 py-1 rounded-full font-semibold"
                                         :class="tech.status === 'on_job' ? 'bg-purple-100 text-purple-700' : 'bg-slate-100 text-slate-600'"
@@ -624,7 +652,8 @@
                                     <div class="flex-1">
                                         <p class="font-semibold text-sm text-slate-800" x-text="job.customer_name"></p>
                                         <p class="text-xs text-slate-500"
-                                            x-text="job.address?.substring(0, 40) + '...'"></p>
+                                            x-text="job.address?.substring(0, 40) + '...'">
+                                        </p>
                                     </div>
                                     <span class="text-xs px-2 py-1 rounded-full font-semibold" :class="job.status === 'completed' ? 'bg-green-100 text-green-700' : 
                                                    job.status === 'working' ? 'bg-purple-100 text-purple-700' : 

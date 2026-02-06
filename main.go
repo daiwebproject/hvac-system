@@ -59,7 +59,7 @@ func main() {
 	}
 
 	// Booking Service (injected with FCM and Broker)
-	bookingServiceInternal := service.NewBookingService(bookingRepo, techRepo, slotService, fcmService, settingsRepo, eventBroker)
+	bookingServiceInternal := service.NewBookingService(bookingRepo, techRepo, slotService, slotRepo, fcmService, settingsRepo, eventBroker)
 
 	// Handlers
 	locationHandler := handler.NewLocationHandler(locationCache, bookingRepo, techRepo, eventBroker)

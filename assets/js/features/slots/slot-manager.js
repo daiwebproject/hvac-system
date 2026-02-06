@@ -82,6 +82,14 @@ export function slotManager() {
             const date = new Date(dateStr);
             const days = ['Chủ Nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];
             return days[date.getDay()];
+        },
+
+        getProgressColor(current, max) {
+            if (!max) return 'progress-success';
+            const ratio = current / max;
+            if (ratio < 0.5) return 'progress-success';
+            if (ratio < 0.8) return 'progress-warning';
+            return 'progress-error';
         }
     };
 }

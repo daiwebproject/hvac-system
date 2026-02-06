@@ -27,9 +27,6 @@
     <script src="/assets/js/utils.js"></script>
     <!-- Legacy Admin JS (will be removed after ES Modules fully tested) -->
     <!-- <script src="/assets/js/admin.js?v=6"></script> -->
-    <!-- [NEW] ES Modules Entry Point -->
-    <script type="module" src="/assets/js/admin/index.js"></script>
-
     <!-- TinyMCE (same as PocketBase) -->
     <script src="/assets/vendor/tinymce/tinymce.min.js" referrerpolicy="origin"></script>
 
@@ -50,8 +47,10 @@
     <script src="/assets/firebase-messaging-client.js?v=2"></script>
     <script src="/assets/js/admin-fcm.js?v=4"></script> <!-- Cache bust -->
 
+    <!-- [NEW] ES Modules Entry Point (Cache Busting Added) -->
+    <script type="module" src="/assets/js/admin/index.js?v=2"></script>
 
-
+    <!-- Alpine.js -->
     <script src="/assets/vendor/alpine/alpine.min.js" defer></script>
     <script src="/assets/vendor/chartjs/chart.min.js"></script>
 

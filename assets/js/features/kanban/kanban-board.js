@@ -126,8 +126,11 @@ export function kanbanBoard(initialActive = [], initialCompleted = []) {
                     break;
 
                 case 'job.assigned':
+                    const sseTech = this.techs.find(t => t.id === event.data.tech_id);
                     this.moveJobLocally(event.data.booking_id, 'assigned', {
-                        staff_id: event.data.tech_id
+                        staff_id: event.data.tech_id,
+                        technician_id: event.data.tech_id,
+                        tech_name: sseTech ? sseTech.name : '...'
                     });
                     break;
 
@@ -341,8 +344,9 @@ export function kanbanBoard(initialActive = [], initialCompleted = []) {
 
                 if (response.ok) {
                     this.moveJobLocally(jobId, 'assigned', {
-                        staff_id: techName,
-                        technician_id: techId
+                        staff_id: techId,        // Sync with backend ID
+                        technician_id: techId,
+                        tech_name: techName      // [FIX] Populate Name
                     });
                     document.getElementById('modal-assign-generic').checked = false;
                     toast.success('Đã giao việc thành công');

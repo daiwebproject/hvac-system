@@ -9,10 +9,11 @@
 import { kanbanBoard } from '../features/kanban/kanban-board.js';
 import { slotManager } from '../features/slots/slot-manager.js';
 import { inventoryManager } from '../features/inventory/inventory-manager.js';
+import { techManager } from '../features/techs/tech-manager.js';
 import { initMiniMap } from '../features/dashboard/mini-map.js';
 
 // Export for direct usage
-export { kanbanBoard, slotManager, inventoryManager, initMiniMap };
+export { kanbanBoard, slotManager, inventoryManager, techManager, initMiniMap };
 
 // Register components
 function registerComponents() {
@@ -25,11 +26,13 @@ function registerComponents() {
     window.Alpine.data('kanbanBoard', kanbanBoard);
     window.Alpine.data('slotManager', slotManager);
     window.Alpine.data('inventoryManager', inventoryManager);
+    window.Alpine.data('techManager', techManager);
 
     // Also expose globally for compatibility with existing templates
     window.kanbanBoard = kanbanBoard;
     window.slotManager = slotManager;
     window.inventoryManager = inventoryManager;
+    window.techManager = techManager;
 
     // Initialize Mini Map (if element exists)
     initMiniMap();
