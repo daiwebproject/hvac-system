@@ -214,13 +214,13 @@ func (r *PBBookingRepo) UpdateStatus(bookingID string, status string) error {
 	// Set status-specific timestamps
 	switch status {
 	case "moving":
-		record.Set("moving_start_at", "")  // Will be auto-set by PocketBase
+		record.Set("moving_start_at", "") // Will be auto-set by PocketBase
 	case "arrived":
-		record.Set("arrived_at", "")  // Will be auto-set by PocketBase
+		record.Set("arrived_at", "") // Will be auto-set by PocketBase
 	case "working":
-		record.Set("working_start_at", "")  // Will be auto-set by PocketBase
+		record.Set("working_start_at", "") // Will be auto-set by PocketBase
 	case "completed":
-		record.Set("completed_at", "")  // Will be auto-set by PocketBase
+		record.Set("completed_at", "") // Will be auto-set by PocketBase
 	}
 
 	return r.app.Save(record)

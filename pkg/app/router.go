@@ -6,8 +6,8 @@ import (
 	"os"
 
 	"hvac-system/internal/adapter/repository"
-	internalHandler "hvac-system/internal/handler"
 	domain "hvac-system/internal/core"
+	internalHandler "hvac-system/internal/handler"
 	"hvac-system/pkg/broker"
 	"hvac-system/pkg/handlers"
 	"hvac-system/pkg/middleware"

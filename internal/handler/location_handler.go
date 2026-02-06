@@ -35,15 +35,16 @@ func NewLocationHandler(
 }
 
 // UpdateLocation handles POST /api/location
-// Request body: {
-//   "technician_id": "tech123",
-//   "booking_id": "booking456",
-//   "latitude": 21.0285,
-//   "longitude": 105.8542,
-//   "accuracy": 15.5,
-//   "speed": 5.2,
-//   "heading": 45.0
-// }
+//
+//	Request body: {
+//	  "technician_id": "tech123",
+//	  "booking_id": "booking456",
+//	  "latitude": 21.0285,
+//	  "longitude": 105.8542,
+//	  "accuracy": 15.5,
+//	  "speed": 5.2,
+//	  "heading": 45.0
+//	}
 func (h *LocationHandler) UpdateLocation(e *pbCore.RequestEvent) error {
 	var req struct {
 		TechnicianID string  `json:"technician_id"`
@@ -151,7 +152,7 @@ func (h *LocationHandler) UpdateLocation(e *pbCore.RequestEvent) error {
 
 	// ============ GEOFENCE CHECK: ARRIVED DETECTION ============
 	if arrived && booking != nil && booking.JobStatus == "moving" {
-		log.Printf("✅ [GEOFENCE] Tech %s has ARRIVED at booking %s (distance: %.2f m)", 
+		log.Printf("✅ [GEOFENCE] Tech %s has ARRIVED at booking %s (distance: %.2f m)",
 			req.TechnicianID, req.BookingID, distance)
 
 		// Update booking status to "arrived"
@@ -281,7 +282,7 @@ func (h *LocationHandler) StopTracking(e *pbCore.RequestEvent) error {
 
 	// Get final location for record
 	techStatus := h.locationCache.GetTechLocation(techID)
-	
+
 	// Save final location to booking (optional)
 	if _, err := h.bookingRepo.GetByID(bookingID); err == nil && techStatus != nil {
 		// Update final coordinates
@@ -316,7 +317,7 @@ func (h *LocationHandler) StopTracking(e *pbCore.RequestEvent) error {
 // For monitoring location service health
 func (h *LocationHandler) HealthCheck(e *pbCore.RequestEvent) error {
 	activeTechs := h.locationCache.GetAllActiveTechs()
-	
+
 	return e.JSON(200, map[string]interface{}{
 		"service":      "location-tracker",
 		"status":       "healthy",

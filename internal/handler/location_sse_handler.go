@@ -42,8 +42,8 @@ func (h *LocationSSEHandler) StreamAdminLocations(e *pbCore.RequestEvent) error 
 	// Listen for events
 	for event := range eventChan {
 		// Only send location-related events
-		if event.Type == "location.updated" || event.Type == "geofence.arrived" || 
-		   event.Type == "tracking.started" || event.Type == "tracking.stopped" {
+		if event.Type == "location.updated" || event.Type == "geofence.arrived" ||
+			event.Type == "tracking.started" || event.Type == "tracking.stopped" {
 			sendSSEMessage(e, event.Type, event.Data)
 		}
 	}
@@ -79,8 +79,8 @@ func (h *LocationSSEHandler) StreamCustomerLocation(e *pbCore.RequestEvent) erro
 	// Listen for events
 	for event := range eventChan {
 		// Send all events related to this booking
-		if event.Type == "location.updated" || event.Type == "geofence.arrived" || 
-		   event.Type == "tracking.started" || event.Type == "tracking.stopped" {
+		if event.Type == "location.updated" || event.Type == "geofence.arrived" ||
+			event.Type == "tracking.started" || event.Type == "tracking.stopped" {
 			sendSSEMessage(e, event.Type, event.Data)
 		}
 	}
