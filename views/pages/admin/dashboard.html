@@ -119,8 +119,8 @@
                                             <span
                                                 class="text-[10px] bg-yellow-50 text-yellow-700 px-2 py-1 rounded font-medium border border-yellow-200"
                                                 x-text="job.time"></span>
-                                            <label :for="'modal-assign-' + job.id"
-                                                class="btn btn-xs btn-primary btn-outline">Giao việc</label>
+                                            <button type="button" @click="openAssignModal(job)"
+                                                class="btn btn-xs btn-primary btn-outline">Giao việc</button>
                                         </div>
                                     </div>
                                 </div>
@@ -441,51 +441,29 @@
         </div>
     </div>
 
-    {{ range .Bookings }}
-    <input type="checkbox" id="modal-assign-{{.Id}}" class="modal-toggle" />
+    <!-- Generic Assignment Modal (Dynamic) -->
+    <input type="checkbox" id="modal-assign-generic" class="modal-toggle" />
     <div class="modal" role="dialog">
         <div class="modal-box">
-            <h3 class="font-bold text-lg">Giao việc: {{.GetString "customer_name"}}</h3>
-            <div x-data="{ techId: '' }">
+            <h3 class="font-bold text-lg">Giao việc: <span x-text="selectedJob?.customer"></span></h3>
+            <div>
                 <div class="form-control w-full my-4">
                     <label class="label font-bold text-xs text-gray-500">Chọn kỹ thuật viên:</label>
-                    <select x-ref="techSelect" x-model="techId" class="select select-bordered w-full">
+                    <select x-model="assignTechId" class="select select-bordered w-full">
                         <option value="" disabled selected>-- Chọn người --</option>
-                        {{ range $.Technicians }}
+                        {{ range .Technicians }}
                         <option value="{{.Id}}">{{.GetString "name"}}</option>
                         {{ end }}
                     </select>
                 </div>
                 <div class="modal-action">
-                    <label for="modal-assign-{{.Id}}" class="btn btn-sm">Hủy</label>
-                    <button type="button" class="btn btn-sm btn-primary" :disabled="!techId" @click="
-                        let jobId = '{{.Id}}';
-                        let selectEl = $refs.techSelect;
-                        let techName = selectEl.options[selectEl.selectedIndex].text;
-                        let formData = new FormData();
-                        formData.append('technician_id', techId);
-                        fetch('/admin/bookings/' + jobId + '/assign', { method: 'POST', body: formData })
-                            .then(res => {
-                                if(res.ok) {
-                                    let jobIndex = columns.pending.findIndex(j => j.id == jobId);
-                                    if(jobIndex > -1) {
-                                        let job = columns.pending.splice(jobIndex, 1)[0]; 
-                                        job.status = 'assigned';
-                                        job.staff_id = techName; 
-                                        columns.assigned.unshift(job);
-                                    }
-                                    document.getElementById('modal-assign-' + jobId).checked = false;
-                                    Swal.fire({ title: 'Thành công', icon: 'success', timer: 1000, showConfirmButton: false });
-                                } else {
-                                    Swal.fire('Lỗi', 'Không thể giao việc', 'error');
-                                }
-                            });
-                    ">Xác nhận</button>
+                    <label for="modal-assign-generic" class="btn btn-sm">Hủy</label>
+                    <button type="button" class="btn btn-sm btn-primary" :disabled="!assignTechId"
+                        @click="submitAssignment()">Xác nhận</button>
                 </div>
             </div>
         </div>
     </div>
-    {{ end }}
 
     <input type="checkbox" id="modal-view-job" class="modal-toggle" />
     <div class="modal" role="dialog">
@@ -549,61 +527,88 @@
     <div class="modal" :class="showMapModal ? 'modal-open' : ''">
         <div class="modal-box w-11/12 max-w-7xl p-0 overflow-hidden flex flex-col" style="height: 90vh;">
             <!-- Header -->
-            <div class="p-4 bg-white border-b flex justify-between items-center shadow-sm" style="flex-shrink: 0; height: 60px;">
+            <div class="p-4 bg-white border-b flex justify-between items-center shadow-sm"
+                style="flex-shrink: 0; height: 60px;">
                 <h3 class="font-bold text-lg text-slate-800">
                     <i class="fa-solid fa-map-location-dot text-blue-500 mr-2"></i> Bản đồ Tổng hợp
                 </h3>
                 <div class="flex gap-2 items-center">
                     <!-- Legend -->
                     <div class="hidden sm:flex gap-3 text-xs">
-                        <span class="flex items-center gap-1"><i class="fa-solid fa-circle text-yellow-500"></i> Chờ xử</span>
-                        <span class="flex items-center gap-1"><i class="fa-solid fa-circle text-blue-500"></i> Đang làm</span>
-                        <span class="flex items-center gap-1"><i class="fa-solid fa-circle text-green-500"></i> Hoàn thành</span>
+                        <span class="flex items-center gap-1"><i class="fa-solid fa-circle text-yellow-500"></i> Chờ
+                            xử</span>
+                        <span class="flex items-center gap-1"><i class="fa-solid fa-circle text-blue-500"></i> Đang
+                            làm</span>
+                        <span class="flex items-center gap-1"><i class="fa-solid fa-circle text-green-500"></i> Hoàn
+                            thành</span>
                     </div>
                 </div>
-                <button class="btn btn-sm btn-circle btn-ghost" @click="closeMapModal()">✕</button>
+                <div class="flex gap-2">
+                    <button class="btn btn-sm btn-outline btn-primary" @click.stop="toggleMapSidebar()">
+                        <i class="fa-solid fa-list-ul mr-1"></i> Danh sách
+                    </button>
+                    <button class="btn btn-sm btn-circle btn-ghost" @click="closeMapModal()">✕</button>
+                </div>
             </div>
 
-            <!-- Main Content: Sidebar + Map -->
-            <div class="flex flex-1 overflow-hidden gap-0">
-                <!-- Left Sidebar: Tech/Order Lists -->
-                <div class="w-80 bg-white border-r flex flex-col" style="flex-shrink: 0;">
+            <!-- Main Content: Relative Container -->
+            <div class="relative flex-1 overflow-hidden w-full h-full">
+
+                <!-- Map Layer (Always Background) -->
+                <div class="absolute inset-0 z-0">
+                    <div id="fullscreen-map" class="w-full h-full bg-slate-100"></div>
+                </div>
+
+                <!-- Left Sidebar: Overlay -->
+                <!-- Use transform to slide in/out. Default hidden on small screens? Or filtered? -->
+                <!-- Plan: Default hidden. Toggle opens it. -->
+                <div class="absolute top-2 left-2 bottom-2 w-80 bg-white shadow-xl rounded-lg border flex flex-col z-20 transition-all duration-300 transform"
+                    :class="showMapSidebar ? 'translate-x-0 opacity-100 pointer-events-auto' : '-translate-x-full opacity-0 pointer-events-none'"
+                    style="max-width: calc(100% - 16px);" @click.outside="showMapSidebar = false">
+
+                    <!-- Sidebar Header (Mobile Close) -->
+                    <div class="flex justify-between items-center p-2 border-b md:hidden">
+                        <span class="font-bold text-sm">Danh sách</span>
+                        <button class="btn btn-sm btn-circle btn-ghost" @click="showMapSidebar = false">✕</button>
+                    </div>
+
                     <!-- Tab Buttons -->
-                    <div class="flex border-b sticky top-0 bg-white z-10">
-                        <button @click="mapSidebarTab = 'techs'" 
-                                :class="mapSidebarTab === 'techs' ? 'border-b-2 border-blue-500 text-blue-600 font-semibold' : 'text-slate-500 hover:text-slate-700'"
-                                class="flex-1 py-3 px-2 text-sm text-center transition">
-                            <i class="fa-solid fa-user-tie mr-1"></i> Thợ (<span x-text="columns.working?.length || 0"></span>)
+                    <div class="flex border-b bg-gray-50">
+                        <button @click="mapSidebarTab = 'techs'"
+                            :class="mapSidebarTab === 'techs' ? 'border-b-2 border-blue-500 text-blue-600 bg-white font-semibold' : 'text-slate-500 hover:text-slate-700'"
+                            class="flex-1 py-3 px-2 text-sm text-center transition">
+                            <i class="fa-solid fa-user-tie mr-1"></i> Thợ (<span
+                                x-text="techs.filter(t => t.active).length"></span>)
                         </button>
-                        <button @click="mapSidebarTab = 'orders'" 
-                                :class="mapSidebarTab === 'orders' ? 'border-b-2 border-blue-500 text-blue-600 font-semibold' : 'text-slate-500 hover:text-slate-700'"
-                                class="flex-1 py-3 px-2 text-sm text-center transition">
-                            <i class="fa-solid fa-clipboard-list mr-1"></i> Đơn (<span x-text="(columns.working?.length || 0) + (columns.pending?.length || 0) + (columns.assigned?.length || 0)"></span>)
+                        <button @click="mapSidebarTab = 'orders'"
+                            :class="mapSidebarTab === 'orders' ? 'border-b-2 border-blue-500 text-blue-600 bg-white font-semibold' : 'text-slate-500 hover:text-slate-700'"
+                            class="flex-1 py-3 px-2 text-sm text-center transition">
+                            <i class="fa-solid fa-clipboard-list mr-1"></i> Đơn (<span
+                                x-text="(columns.working?.length || 0) + (columns.pending?.length || 0) + (columns.assigned?.length || 0)"></span>)
                         </button>
                     </div>
 
                     <!-- Tab Content: Technicians -->
-                    <div x-show="mapSidebarTab === 'techs'" class="overflow-y-auto flex-1">
-                        <template x-for="tech in (window.initialTechs || [])" :key="tech.id">
-                            <div class="p-3 border-b hover:bg-blue-50 cursor-pointer transition" 
-                                 @click="this.highlightTechOnMap(tech.id)"
-                                 @mouseenter="techHoverOn = tech.id" 
-                                 @mouseleave="techHoverOn = null"
-                                 :class="techHoverOn === tech.id ? 'bg-blue-100' : ''">
+                    <div x-show="mapSidebarTab === 'techs'" class="overflow-y-auto flex-1 bg-white">
+                        <template x-for="tech in techs" :key="tech.id">
+                            <div class="p-3 border-b hover:bg-blue-50 cursor-pointer transition"
+                                @click="selectAndPanTo(tech.lat, tech.long, tech.id)" @mouseleave="techHoverOn = null"
+                                :class="techHoverOn === tech.id ? 'bg-blue-100' : ''">
                                 <div class="flex justify-between items-start gap-2">
                                     <div class="flex-1">
                                         <p class="font-semibold text-sm text-slate-800" x-text="tech.name"></p>
-                                        <p class="text-xs text-slate-500" x-text="'📱 ' + tech.phone"></p>
+                                        <p class="text-xs text-slate-500"
+                                            x-text="tech.phone ? ('📱 ' + tech.phone) : ''"></p>
                                     </div>
                                     <span class="text-xs px-2 py-1 rounded-full font-semibold"
-                                          :class="tech.status === 'on_job' ? 'bg-purple-100 text-purple-700' : 'bg-slate-100 text-slate-600'"
-                                          x-text="tech.status === 'on_job' ? 'Đang làm' : 'Chờ việc'">
+                                        :class="tech.status === 'on_job' ? 'bg-purple-100 text-purple-700' : 'bg-slate-100 text-slate-600'"
+                                        x-text="tech.status === 'on_job' ? 'Đang làm' : 'Chờ việc'">
                                     </span>
                                 </div>
                                 <!-- Jobs count -->
                                 <p class="text-xs text-slate-400 mt-2">
                                     <i class="fa-solid fa-tasks text-orange-500 mr-1"></i>
-                                    <span x-text="this.getJobsForTech(tech.id) + ' đơn'"></span>
+                                    <span x-text="getJobsForTech(tech.id) + ' đơn'"></span>
                                 </p>
                             </div>
                         </template>
@@ -611,23 +616,21 @@
 
                     <!-- Tab Content: Orders -->
                     <div x-show="mapSidebarTab === 'orders'" class="overflow-y-auto flex-1">
-                        <template x-for="job in this.getAllJobs()" :key="job.id">
-                            <div class="p-3 border-b hover:bg-blue-50 cursor-pointer transition" 
-                                 @click="this.highlightJobOnMap(job.id)"
-                                 @mouseenter="jobHoverOn = job.id" 
-                                 @mouseleave="jobHoverOn = null"
-                                 :class="jobHoverOn === job.id ? 'bg-blue-100' : ''">
+                        <template x-for="job in getAllJobs()" :key="job.id">
+                            <div class="p-3 border-b hover:bg-blue-50 cursor-pointer transition"
+                                @click="highlightJobOnMap(job.id)" @mouseenter="jobHoverOn = job.id"
+                                @mouseleave="jobHoverOn = null" :class="jobHoverOn === job.id ? 'bg-blue-100' : ''">
                                 <div class="flex justify-between items-start gap-2">
                                     <div class="flex-1">
                                         <p class="font-semibold text-sm text-slate-800" x-text="job.customer_name"></p>
-                                        <p class="text-xs text-slate-500" x-text="job.address?.substring(0, 40) + '...'"></p>
+                                        <p class="text-xs text-slate-500"
+                                            x-text="job.address?.substring(0, 40) + '...'"></p>
                                     </div>
-                                    <span class="text-xs px-2 py-1 rounded-full font-semibold"
-                                          :class="job.status === 'completed' ? 'bg-green-100 text-green-700' : 
+                                    <span class="text-xs px-2 py-1 rounded-full font-semibold" :class="job.status === 'completed' ? 'bg-green-100 text-green-700' : 
                                                    job.status === 'working' ? 'bg-purple-100 text-purple-700' : 
                                                    job.status === 'assigned' ? 'bg-blue-100 text-blue-700' : 
                                                    'bg-yellow-100 text-yellow-700'"
-                                          x-text="this.getStatusLabel(job.status)">
+                                        x-text="getStatusLabel(job.status)">
                                     </span>
                                 </div>
                                 <!-- Service type -->
@@ -635,11 +638,6 @@
                             </div>
                         </template>
                     </div>
-                </div>
-
-                <!-- Right Side: Map -->
-                <div class="relative flex-1 bg-slate-100 overflow-hidden">
-                    <div id="fullscreen-map" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; width: 100%; height: 100%;"></div>
                 </div>
             </div>
         </div>

@@ -70,19 +70,22 @@ func (s *BookingService) CreateBooking(req *core.BookingRequest) (*core.Booking,
 			Type:      "booking.created",
 			Timestamp: time.Now().Unix(),
 			Data: map[string]interface{}{
-				"id":             booking.ID,           // [FIX] Frontend expects 'id'
-				"booking_id":     booking.ID,           // Legacy support
-				"customer":       booking.CustomerName, // [FIX] Frontend expects 'customer'
-				"customer_name":  booking.CustomerName,
-				"customer_phone": booking.CustomerPhone,
-				"service":        booking.DeviceType,
-				"time":           booking.BookingTime, // Raw time, frontend might need format
-				"status":         booking.JobStatus,
-				"status_label":   booking.JobStatus,
-				"address":        booking.AddressDetails, // Prioritize details
-				"lat":            booking.Lat,
-				"long":           booking.Long,
-				"issue":          booking.IssueDescription,
+				"id":              booking.ID,
+				"booking_id":      booking.ID, // Legacy support
+				"customer":        booking.CustomerName,
+				"customer_name":   booking.CustomerName,
+				"phone":           booking.CustomerPhone, // [FIX] Frontend expects 'phone'
+				"customer_phone":  booking.CustomerPhone,
+				"service":         booking.DeviceType,
+				"time":            booking.BookingTime, // Raw time, frontend formats it
+				"created":         time.Now().Format("15:04"),
+				"status":          booking.JobStatus,
+				"status_label":    "Chờ xử lý",
+				"address":         booking.AddressDetails, // Prioritize details
+				"address_details": booking.Address,        // Include both
+				"lat":             booking.Lat,
+				"long":            booking.Long,
+				"issue":           booking.IssueDescription,
 			},
 		})
 	}

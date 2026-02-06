@@ -1,7 +1,7 @@
 // Service Worker for Offline-First Support
 // [Updated: Version v9 - Force Update]
 
-const CACHE_VERSION = 'hvac-tech-v11'; // <--- TĂNG LÊN v11 ĐỂ ÉP CẬP NHẬT
+const CACHE_VERSION = 'hvac-tech-v13'; // <--- TĂNG LÊN v13 ĐỂ ÉP CẬP NHẬT
 const CACHE_NAME = `static-${CACHE_VERSION}`;
 const DYNAMIC_CACHE = `dynamic-${CACHE_VERSION}`;
 const OFFLINE_DB = 'hvac_offline_db';
@@ -53,8 +53,8 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // Bỏ qua request không phải GET hoặc là API/Manifest
-  if (event.request.method !== 'GET' || url.pathname.startsWith('/api') || url.pathname.includes('manifest')) {
+  // Bỏ qua request không phải GET hoặc là API/Manifest/Stream
+  if (event.request.method !== 'GET' || url.pathname.startsWith('/api') || url.pathname.includes('manifest') || url.pathname.includes('/stream')) {
     return;
   }
 
@@ -64,12 +64,21 @@ self.addEventListener('fetch', (event) => {
         return caches.open(DYNAMIC_CACHE).then((cache) => {
           // Cache lại các tài nguyên tĩnh mới (trừ API)
           if (event.request.url.startsWith('http')) {
-            cache.put(event.request, networkResponse.clone());
+            cache.put(event.request, networkResponse.clone()).catch(err => {
+              // Ignore QuotaExceededError
+              if (err.name !== 'QuotaExceededError') {
+                console.warn('[SW] Caching failed:', err);
+              } else {
+                console.warn('[SW] Quota exceeded. Skipping cache for:', event.request.url);
+                // Optional: Trigger cache cleanup here
+              }
+            });
           }
           return networkResponse;
         });
       })
-      .catch(() => {
+      .catch((err) => {
+        console.warn('[SW] Fetch failed:', err);
         return caches.match(event.request);
       })
   );

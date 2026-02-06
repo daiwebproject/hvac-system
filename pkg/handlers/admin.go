@@ -276,6 +276,7 @@ func (h *AdminHandler) Dashboard(e *core.RequestEvent) error {
 	type TechMapJSON struct {
 		ID     string  `json:"id"`
 		Name   string  `json:"name"`
+		Phone  string  `json:"phone"` // [NEW] Add Phone
 		Lat    float64 `json:"lat"`
 		Long   float64 `json:"long"`
 		Active bool    `json:"active"`
@@ -286,9 +287,10 @@ func (h *AdminHandler) Dashboard(e *core.RequestEvent) error {
 		techsJSON = append(techsJSON, TechMapJSON{
 			ID:     t.Id,
 			Name:   t.GetString("name"),
+			Phone:  t.GetString("phone"), // [NEW] Populate Phone
 			Active: t.GetBool("active"),
-			// Lat: t.GetFloat("last_lat"),
-			// Long: t.GetFloat("last_long"),
+			Lat:    t.GetFloat("last_lat"),
+			Long:   t.GetFloat("last_long"),
 		})
 	}
 

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"net/url"
 	"time"
 
 	"hvac-system/pkg/services"
@@ -217,11 +218,12 @@ func (h *PublicHandler) Geocode(e *core.RequestEvent) error {
 		return e.JSON(400, map[string]string{"error": "Missing query parameter"})
 	}
 
-	// Construct Nominatim URL
-	url := fmt.Sprintf("https://nominatim.openstreetmap.org/search?format=json&q=%s", query)
+	// Construct Nominatim URL - Query MUST be URL-encoded for special characters
+	encodedQuery := url.QueryEscape(query)
+	nominatimURL := fmt.Sprintf("https://nominatim.openstreetmap.org/search?format=json&q=%s", encodedQuery)
 
 	// Create Request
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequest("GET", nominatimURL, nil)
 	if err != nil {
 		return e.JSON(500, map[string]string{"error": "Failed to create request"})
 	}

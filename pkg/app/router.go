@@ -56,6 +56,14 @@ func RegisterRoutes(
 			return e.FileFS(os.DirFS("."), "service-worker.js")
 		})
 
+		// [ALIAS] Legacy SW path - Một số client cũ còn cache đường dẫn này
+		// Sẽ tự hết khi tất cả client update SW mới
+		se.Router.GET("/assets/service-worker.js", func(e *core.RequestEvent) error {
+			e.Response.Header().Set("Service-Worker-Allowed", "/")
+			e.Response.Header().Set("Content-Type", "application/javascript")
+			return e.FileFS(os.DirFS("."), "service-worker.js")
+		})
+
 		// B. Service Main Manifests (from root)
 		se.Router.GET("/manifest.json", func(e *core.RequestEvent) error {
 			e.Response.Header().Set("Content-Type", "application/json")
@@ -218,7 +226,7 @@ func RegisterRoutes(
 		adminGroup.POST("/bookings/{id}/cancel", admin.CancelBooking)
 		adminGroup.POST("/bookings/{id}/update", admin.UpdateBookingInfo)
 		adminGroup.POST("/bookings/create", admin.CreateBooking) // NEW: Manual Creation
-		// adminGroup.POST("/api/bookings/{id}/status", admin.UpdateBookingStatus)
+		adminGroup.POST("/api/bookings/{id}/status", admin.UpdateBookingStatus)
 
 		// Admin Tech Management
 		adminGroup.GET("/techs", admin.TechsList)

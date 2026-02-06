@@ -27,266 +27,397 @@ function defineKanbanBoard() {
             selectedTechOnMap: null,
             selectedJobOnMap: null,
 
-        init() {
-            // 1. Setup Active Jobs (Kanban)
-            const activeJobs = initialActive || [];
+            techs: window.initialTechs || [], // Reactive techs
+            markerLayerGroup: null, // Layer group for markers
+            showMapSidebar: false, // [NEW] Toggle sidebar state
 
-            // Reset columns
-            this.columns = {
-                pending: [],
-                assigned: [],
-                working: [],
-                completed: [],
-                cancelled: []
-            };
+            toggleMapSidebar() {
+                this.showMapSidebar = !this.showMapSidebar;
+            },
 
-            activeJobs.forEach(job => {
-                let status = job.status;
-                // Normalize status
-                if (status === 'moving' || status === 'arrived' || status === 'working' || status === 'failed') status = 'working';
+            selectAndPanTo(lat, long, id) {
+                if (lat && long && this.fullscreenMapInstance) {
+                    this.fullscreenMapInstance.flyTo([lat, long], 16);
+                    this.showMapSidebar = false; // Close sidebar on mobile/overlay
 
-                if (this.columns[status]) {
-                    this.columns[status].push(job);
-                } else {
-                    // Fallback to pending if unknown status (shouldn't happen for active jobs)
-                    this.columns.pending.push(job);
+                    // Open popup if marker exists
+                    if (this.mapMarkers[id]) {
+                        this.mapMarkers[id].openPopup();
+                    }
                 }
-            });
+            },
 
-            // 2. Setup Completed Jobs (History List)
-            // Split into completed vs cancelled columns
-            const historyJobs = initialCompleted || [];
+            init() {
+                // Watch for changes to redraw map
+                this.$watch('columns', () => {
+                    if (this.showMapModal) this.renderMapMarkers();
+                });
+                // Deep watch for columns.pending, etc. if needed, but array mutation might need specific triggers. 
+                // Better to call renderMapMarkers manually on updates? 
+                // Alpine $watch on arrays is tricky. Let's call this.renderMapMarkers() explicitly in update methods.
 
-            historyJobs.forEach(job => {
-                let status = job.status; // 'completed' or 'cancelled'
-                if (status === 'cancelled') {
-                    this.columns.cancelled.push(job);
-                } else {
-                    // Default to completed for anything else in this list
-                    this.columns.completed.push(job);
-                }
-            });
+                // 1. Setup Active Jobs (Kanban)
+                const activeJobs = initialActive || [];
 
-            this.completedJobs = historyJobs; // Keep reference just in case
+                // Reset columns
+                this.columns = {
+                    pending: [],
+                    assigned: [],
+                    working: [],
+                    completed: [],
+                    cancelled: []
+                };
 
-            // 3. Listen to SSE
-            this.setupSSE();
+                activeJobs.forEach(job => {
+                    let status = job.status;
+                    // Normalize status
+                    if (status === 'moving' || status === 'arrived' || status === 'working' || status === 'failed') status = 'working';
 
-            // 4. Expose helpers globally (for Modals outside Alpine scope)
-            window.moveJobLocally = this.moveJobLocally.bind(this);
-        },
-
-        // Search Filter Helper
-        matchesSearch(job) {
-            if (!this.searchQuery) return true;
-            const query = this.searchQuery.toLowerCase();
-            return (job.customer && job.customer.toLowerCase().includes(query)) ||
-                (job.phone && job.phone.includes(query)) ||
-                (job.service && job.service.toLowerCase().includes(query));
-        },
-
-        // Helper to trigger UI update (if needed)
-        filterJobs() {
-            // Alpine x-show with matchesSearch handles the UI, 
-            // this is just a placeholder if we need side effects
-        },
-
-        setupSSE() {
-            const eventSource = new EventSource('/admin/stream');
-            eventSource.addEventListener('message', (e) => {
-                try {
-                    const event = JSON.parse(e.data);
-                    console.log('Admin SSE:', event);
-
-                    // Handle Job Status Change
-                    if (event.type === 'job.status_changed') {
-                        const { booking_id, status } = event.data;
-                        this.moveJobLocally(booking_id, status);
+                    if (this.columns[status]) {
+                        this.columns[status].push(job);
+                    } else {
+                        // Fallback to pending if unknown status (shouldn't happen for active jobs)
+                        this.columns.pending.push(job);
                     }
-                    // Handle Job Assign
-                    else if (event.type === 'job.assigned') {
-                        const { booking_id, tech_id } = event.data;
-                        this.moveJobLocally(booking_id, 'assigned', { staff_id: tech_id });
-                    }
-                    // Handle Job Completion (Payment)
-                    else if (event.type === 'job.completed') {
-                        const { booking_id, invoice_amount } = event.data;
-                        this.moveJobLocally(booking_id, 'completed', {
-                            status_label: 'completed',
-                            invoice_amount: invoice_amount
-                        });
-                    }
-                    // Handle Cancellations
-                    else if (event.type === 'booking.cancelled' || event.type === 'job.cancelled') {
-                        const { id, booking_id, reason, note } = event.data;
-                        this.removeJobLocally(id || booking_id);
+                });
 
-                        // [NEW] Notify Admin
-                        if (reason) {
+                // 2. Setup Completed Jobs (History List)
+                // Split into completed vs cancelled columns
+                const historyJobs = initialCompleted || [];
+
+                historyJobs.forEach(job => {
+                    let status = job.status; // 'completed' or 'cancelled'
+                    if (status === 'cancelled') {
+                        this.columns.cancelled.push(job);
+                    } else {
+                        // Default to completed for anything else in this list
+                        this.columns.completed.push(job);
+                    }
+                });
+
+                this.completedJobs = historyJobs; // Keep reference just in case
+
+                // 3. Listen to SSE
+                this.setupSSE();
+
+                // 4. Expose helpers globally (for Modals outside Alpine scope)
+                window.moveJobLocally = this.moveJobLocally.bind(this);
+            },
+
+            // Search Filter Helper
+            matchesSearch(job) {
+                if (!this.searchQuery) return true;
+                const query = this.searchQuery.toLowerCase();
+                return (job.customer && job.customer.toLowerCase().includes(query)) ||
+                    (job.phone && job.phone.includes(query)) ||
+                    (job.service && job.service.toLowerCase().includes(query));
+            },
+
+            // Helper to trigger UI update (if needed)
+            filterJobs() {
+                // Alpine x-show with matchesSearch handles the UI, 
+                // this is just a placeholder if we need side effects
+            },
+
+            setupSSE() {
+                const eventSource = new EventSource('/admin/stream');
+                eventSource.addEventListener('message', (e) => {
+                    try {
+                        const event = JSON.parse(e.data);
+                        console.log('Admin SSE:', event);
+
+                        // Handle Job Status Change
+                        if (event.type === 'job.status_changed') {
+                            const { booking_id, status } = event.data;
+                            this.moveJobLocally(booking_id, status);
+                        }
+                        // Handle Job Assign
+                        else if (event.type === 'job.assigned') {
+                            const { booking_id, tech_id } = event.data;
+                            this.moveJobLocally(booking_id, 'assigned', { staff_id: tech_id });
+                        }
+                        // Handle Job Completion (Payment)
+                        else if (event.type === 'job.completed') {
+                            const { booking_id, invoice_amount } = event.data;
+                            this.moveJobLocally(booking_id, 'completed', {
+                                status_label: 'completed',
+                                invoice_amount: invoice_amount
+                            });
+                        }
+                        // Handle Cancellations
+                        else if (event.type === 'booking.cancelled' || event.type === 'job.cancelled') {
+                            const { id, booking_id, reason, note } = event.data;
+                            this.removeJobLocally(id || booking_id);
+
+                            // [NEW] Notify Admin
+                            if (reason) {
+                                Swal.fire({
+                                    title: 'Thông báo',
+                                    text: `Đơn hàng đã hủy. Lý do: ${reason} ${note ? '(' + note + ')' : ''}`,
+                                    icon: 'warning',
+                                    toast: true,
+                                    position: 'top-end',
+                                    showConfirmButton: false,
+                                    timer: 5000
+                                });
+                            }
+                        }
+                        // Handle New Bookings
+                        else if (event.type === 'booking.created') {
+                            // [FIX] Add to list directly without reload
+                            // [FIX] Normalize SSE data to match Dashboard BookingJSON format
+                            const raw = event.data;
+                            const newJob = {
+                                id: raw.id || raw.booking_id,
+                                customer: raw.customer || raw.customer_name,
+                                phone: raw.phone || raw.customer_phone || '',
+                                service: raw.service || raw.device_type,
+                                time: this.formatBookingTime(raw.time), // Helper needed
+                                created: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+                                status: raw.status || 'pending',
+                                status_label: raw.status_label || 'Chờ xử lý',
+                                status_class: 'warning', // Default for pending
+                                address: raw.address || raw.address_details || '',
+                                address_details: raw.address_details || '',
+                                lat: raw.lat,
+                                long: raw.long,
+                                issue: raw.issue || '',
+                                staff_id: null,
+                                technician_id: null
+                            };
+
+                            // Add to pending column
+                            this.columns.pending.unshift(newJob);
+
                             Swal.fire({
-                                title: 'Thông báo',
-                                text: `Đơn hàng đã hủy. Lý do: ${reason} ${note ? '(' + note + ')' : ''}`,
-                                icon: 'warning',
+                                title: '🔔 Đơn hàng mới!',
+                                text: `Khách hàng: ${newJob.customer}`,
+                                icon: 'success',
                                 toast: true,
                                 position: 'top-end',
                                 showConfirmButton: false,
                                 timer: 5000
                             });
+
+                            // Try to geocode if address exists (optional, reusing existing logic)
+                            if (typeof geocodeAndDraw === 'function' && newJob.address) {
+                                geocodeAndDraw(newJob);
+                            }
                         }
-                    }
-                    // Handle New Bookings
-                    else if (event.type === 'booking.created') {
-                        // [FIX] Add to list directly without reload
-                        const newJob = event.data;
-
-                        // Default properties if missing
-                        if (!newJob.status) newJob.status = 'pending';
-                        if (!newJob.id) newJob.id = newJob.booking_id;
-
-                        // Add to pending column
-                        this.columns.pending.unshift(newJob);
-
-                        Swal.fire({
-                            title: '🔔 Đơn hàng mới!',
-                            text: `Khách hàng: ${newJob.customer}`,
-                            icon: 'success',
-                            toast: true,
-                            position: 'top-end',
-                            showConfirmButton: false,
-                            timer: 5000
-                        });
-
-                        // Try to geocode if address exists (optional, reusing existing logic)
-                        if (typeof geocodeAndDraw === 'function' && newJob.address) {
-                            geocodeAndDraw(newJob);
-                        }
-                    }
-                } catch (err) { console.error('SSE Error', err); }
-            });
-        },
-
-        // Helper to move job between columns without reload
-        moveJobLocally(jobId, newStatus, extraUpdates = {}) {
-            // 1. Determine target info
-            let targetCol = newStatus;
-            if (['moving', 'arrived', 'working', 'failed'].includes(newStatus)) targetCol = 'working';
-
-            // 2. Find and remove from current list (check all columns)
-            let job = null;
-            for (const col in this.columns) {
-                const idx = this.columns[col].findIndex(j => j.id === jobId);
-                if (idx !== -1) {
-                    job = this.columns[col].splice(idx, 1)[0];
-                    break;
-                }
-            }
-
-            // Check legacy list just in case (optional fallback)
-            if (!job) {
-                const idx = this.completedJobs.findIndex(j => j.id === jobId);
-                if (idx !== -1) {
-                    job = this.completedJobs.splice(idx, 1)[0];
-                }
-            }
-
-            // 3. Update and Add to new location
-            if (job) {
-                job.status = newStatus;
-                job.status_label = extraUpdates.status_label || newStatus; // Use provided label or raw status
-                job.updated = new Date().toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }); // Set recent update time
-
-                // Apply extra updates (e.g. staff_id, invoice info)
-                Object.assign(job, extraUpdates);
-
-                // Add status class for completed/cancelled
-                if (newStatus === 'cancelled') job.status_class = 'error';
-                else if (newStatus === 'completed') job.status_class = 'success';
-
-                if (this.columns[targetCol]) {
-                    this.columns[targetCol].unshift(job);
-                } else {
-                    // Fallback
-                    this.columns.pending.unshift(job);
-                }
-            } else {
-                // If job not found locally, reload to be safe
-                console.warn('Job not found locally for update:', jobId);
-                // window.location.reload(); // Optional: reload if critical
-            }
-        },
-
-        // --- Drag & Drop Logic ---
-
-        dragStart(e, job) {
-            e.dataTransfer.setData('jobId', job.id);
-            e.dataTransfer.effectAllowed = 'move';
-        },
-
-        drop(e, targetCol) {
-            const jobId = e.dataTransfer.getData('jobId');
-
-            // Tìm job đang nằm ở cột nào
-            let sourceCol = null;
-            let jobIndex = -1;
-            let job = null;
-
-            for (const colName in this.columns) {
-                const idx = this.columns[colName].findIndex(j => j.id === jobId);
-                if (idx !== -1) {
-                    sourceCol = colName;
-                    jobIndex = idx;
-                    job = this.columns[colName][idx];
-                    break;
-                }
-            }
-
-            if (!sourceCol || sourceCol === targetCol) return;
-
-            // Helper function to execute the drop logic
-            const executeDrop = () => {
-                // 3. Cập nhật UI (Optimistic)
-                this.columns[sourceCol].splice(jobIndex, 1);
-
-                // [FIX] Cập nhật thuộc tính Job ngay lập tức
-                job.status = targetCol;
-                job.status_label = targetCol;
-
-                // Nếu kéo về Pending -> Xóa thông tin thợ
-                if (targetCol === 'pending') {
-                    job.staff_id = null;
-                    job.technician_id = null;
-                }
-
-                this.columns[targetCol].push(job);
-
-                // 4. Gọi API
-                let newStatus = targetCol;
-                if (targetCol === 'working') newStatus = 'moving'; // Default working status start
-
-                fetch(`/admin/api/bookings/${jobId}/status`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: `status=${newStatus}`
-                }).then(res => {
-                    if (!res.ok) {
-                        Swal.fire({
-                            title: 'Lỗi',
-                            text: 'Không thể cập nhật trạng thái',
-                            icon: 'error'
-                        });
-                        window.location.reload();
-                    }
-                    // Success
+                    } catch (err) { console.error('SSE Error', err); }
                 });
-            };
+            },
 
-            // Xử lý logic nghiệp vụ
+            // Helper to move job between columns without reload
+            moveJobLocally(jobId, newStatus, extraUpdates = {}) {
+                // 1. Determine target info
+                let targetCol = newStatus;
+                if (['moving', 'arrived', 'working', 'failed'].includes(newStatus)) targetCol = 'working';
 
-            // 1. Kéo về Pending (Hủy giao việc)
-            if (targetCol === 'pending') {
+                // 2. Find and remove from current list (check all columns)
+                let job = null;
+                for (const col in this.columns) {
+                    const idx = this.columns[col].findIndex(j => j.id === jobId);
+                    if (idx !== -1) {
+                        job = this.columns[col].splice(idx, 1)[0];
+                        break;
+                    }
+                }
+
+                // Check legacy list just in case (optional fallback)
+                if (!job) {
+                    const idx = this.completedJobs.findIndex(j => j.id === jobId);
+                    if (idx !== -1) {
+                        job = this.completedJobs.splice(idx, 1)[0];
+                    }
+                }
+
+                // 3. Update and Add to new location
+                if (job) {
+                    job.status = newStatus;
+                    job.status_label = extraUpdates.status_label || newStatus; // Use provided label or raw status
+                    job.updated = new Date().toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }); // Set recent update time
+
+                    // Apply extra updates (e.g. staff_id, invoice info)
+                    Object.assign(job, extraUpdates);
+
+                    // Add status class for completed/cancelled
+                    if (newStatus === 'cancelled') job.status_class = 'error';
+                    else if (newStatus === 'completed') job.status_class = 'success';
+
+                    if (this.columns[targetCol]) {
+                        this.columns[targetCol].unshift(job);
+                    } else {
+                        // Fallback
+                        this.columns.pending.unshift(job);
+                    }
+                } else {
+                    // If job not found locally, reload to be safe
+                    console.warn('Job not found locally for update:', jobId);
+                    // window.location.reload(); // Optional: reload if critical
+                }
+            },
+
+            // --- Drag & Drop Logic ---
+
+            dragStart(e, job) {
+                e.dataTransfer.setData('jobId', job.id);
+                e.dataTransfer.effectAllowed = 'move';
+            },
+
+            drop(e, targetCol) {
+                const jobId = e.dataTransfer.getData('jobId');
+
+                // Tìm job đang nằm ở cột nào
+                let sourceCol = null;
+                let jobIndex = -1;
+                let job = null;
+
+                for (const colName in this.columns) {
+                    const idx = this.columns[colName].findIndex(j => j.id === jobId);
+                    if (idx !== -1) {
+                        sourceCol = colName;
+                        jobIndex = idx;
+                        job = this.columns[colName][idx];
+                        break;
+                    }
+                }
+
+                if (!sourceCol || sourceCol === targetCol) return;
+
+                // Helper function to execute the drop logic
+                const executeDrop = () => {
+                    // 3. Cập nhật UI (Optimistic)
+                    this.columns[sourceCol].splice(jobIndex, 1);
+
+                    // [FIX] Cập nhật thuộc tính Job ngay lập tức
+                    job.status = targetCol;
+                    job.status_label = targetCol;
+
+                    // Nếu kéo về Pending -> Xóa thông tin thợ
+                    if (targetCol === 'pending') {
+                        job.staff_id = null;
+                        job.technician_id = null;
+                    }
+
+                    this.columns[targetCol].push(job);
+
+                    // 4. Gọi API
+                    let newStatus = targetCol;
+                    if (targetCol === 'working') newStatus = 'moving'; // Default working status start
+
+                    fetch(`/admin/api/bookings/${jobId}/status`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: `status=${newStatus}`
+                    }).then(res => {
+                        if (!res.ok) {
+                            Swal.fire({
+                                title: 'Lỗi',
+                                text: 'Không thể cập nhật trạng thái',
+                                icon: 'error'
+                            });
+                            window.location.reload();
+                        }
+                        // Success
+                    });
+                };
+
+                // Xử lý logic nghiệp vụ
+
+                // 1. Kéo về Pending (Hủy giao việc)
+                if (targetCol === 'pending') {
+                    Swal.fire({
+                        title: 'Hủy giao việc?',
+                        text: `Đơn "${job.customer}" sẽ quay lại hàng chờ.`,
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonColor: '#d33',
+                        cancelButtonColor: '#3085d6',
+                        confirmButtonText: 'Đồng ý hủy',
+                        cancelButtonText: 'Không'
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            executeDrop();
+                        }
+                    });
+                    return; // Wait for async confirmation
+                }
+
+                // 2. Kéo vào Assigned (Giao việc) -> Mở Modal
+                if (targetCol === 'assigned') {
+                    // Hack nhẹ để mở modal sau khi drop
+                    setTimeout(() => {
+                        const modalCheckbox = document.getElementById('modal-assign-' + jobId);
+                        if (modalCheckbox) modalCheckbox.checked = true;
+                    }, 50);
+                    return; // Dừng tại đây, Modal sẽ lo việc submit
+                }
+
+                // 3. Các trường hợp khác -> Thực hiện ngay
+                executeDrop();
+            },
+
+            // --- Modal Logic ---
+            viewJob(job) {
+                this.selectedJob = job;
+                document.getElementById('modal-view-job').checked = true;
+            },
+
+            openEdit(job) {
+                document.getElementById('modal-view-job').checked = false;
+                // Deep clone để tránh lỗi Alpine reactivity cycle
+                this.editingJob = JSON.parse(JSON.stringify(job));
+                document.getElementById('modal-edit-booking').checked = true;
+            },
+
+            // --- Assignment Modal Logic ---
+            assignTechId: '', // State for the generic assignment modal
+
+            openAssignModal(job) {
+                this.selectedJob = job;
+                this.assignTechId = ''; // Reset selection
+                document.getElementById('modal-assign-generic').checked = true;
+            },
+
+            submitAssignment() {
+                if (!this.selectedJob || !this.assignTechId) return;
+
+                const jobId = this.selectedJob.id;
+                const techId = this.assignTechId;
+
+                // Get tech name from select element (optional UI update) or just use ID
+                // We can find tech name from techs array if widely available, but for now simple is fine.
+                // Or better: Let's assume we reload/update UI via response.
+
+                // Find tech name for optimistic update
+                const techName = this.techs.find(t => t.id == techId)?.name || '...';
+
+                const formData = new FormData();
+                formData.append('technician_id', techId);
+
+                fetch('/admin/bookings/' + jobId + '/assign', { method: 'POST', body: formData })
+                    .then(res => {
+                        if (res.ok) {
+                            // Optimistic Update
+                            this.moveJobLocally(jobId, 'assigned', {
+                                staff_id: techName,
+                                technician_id: techId
+                            });
+
+                            document.getElementById('modal-assign-generic').checked = false;
+                            Swal.fire({ title: 'Thành công', icon: 'success', timer: 1000, showConfirmButton: false });
+                        } else {
+                            Swal.fire('Lỗi', 'Không thể giao việc', 'error');
+                        }
+                    })
+                    .catch(() => Swal.fire('Lỗi', 'Lỗi kết nối', 'error'));
+            },
+
+            cancelJob(id) {
                 Swal.fire({
-                    title: 'Hủy giao việc?',
-                    text: `Đơn "${job.customer}" sẽ quay lại hàng chờ.`,
+                    title: 'Hủy đơn hàng?',
+                    text: "Bạn có chắc chắn muốn hủy đơn hàng này không? Hành động này không thể hoàn tác.",
                     icon: 'warning',
                     showCancelButton: true,
                     confirmButtonColor: '#d33',
@@ -295,152 +426,155 @@ function defineKanbanBoard() {
                     cancelButtonText: 'Không'
                 }).then((result) => {
                     if (result.isConfirmed) {
-                        executeDrop();
+                        fetch('/admin/bookings/' + id + '/cancel', { method: 'POST' })
+                            .then(res => {
+                                if (res.ok) {
+                                    this.removeJobLocally(id);
+                                    Swal.fire({
+                                        title: 'Đã hủy',
+                                        text: 'Đơn hàng đã được hủy thành công',
+                                        icon: 'success',
+                                        toast: true,
+                                        position: 'top-end',
+                                        showConfirmButton: false,
+                                        timer: 3000
+                                    });
+                                } else {
+                                    Swal.fire('Lỗi', 'Lỗi khi hủy đơn', 'error');
+                                }
+                            })
+                            .catch(() => {
+                                Swal.fire('Lỗi', 'Lỗi kết nối', 'error');
+                            });
                     }
                 });
-                return; // Wait for async confirmation
-            }
+            },
 
-            // 2. Kéo vào Assigned (Giao việc) -> Mở Modal
-            if (targetCol === 'assigned') {
-                // Hack nhẹ để mở modal sau khi drop
+            // --- Fullscreen Map Modal ---
+            openMapModal() {
+                this.showMapModal = true;
+                // Wait for modal & CSS transition, then account for reflow (500ms safe margin)
                 setTimeout(() => {
-                    const modalCheckbox = document.getElementById('modal-assign-' + jobId);
-                    if (modalCheckbox) modalCheckbox.checked = true;
-                }, 50);
-                return; // Dừng tại đây, Modal sẽ lo việc submit
-            }
+                    this.drawFullscreenMap();
+                    // Trigger map size recalculation after initial render
+                    if (this.fullscreenMapInstance) {
+                        setTimeout(() => this.fullscreenMapInstance.invalidateSize(), 100);
+                    }
+                }, 500);
+            },
 
-            // 3. Các trường hợp khác -> Thực hiện ngay
-            executeDrop();
-        },
-
-        // --- Modal Logic ---
-        viewJob(job) {
-            this.selectedJob = job;
-            document.getElementById('modal-view-job').checked = true;
-        },
-
-        openEdit(job) {
-            document.getElementById('modal-view-job').checked = false;
-            // Deep clone để tránh lỗi Alpine reactivity cycle
-            this.editingJob = JSON.parse(JSON.stringify(job));
-            document.getElementById('modal-edit-booking').checked = true;
-        },
-
-        cancelJob(id) {
-            Swal.fire({
-                title: 'Hủy đơn hàng?',
-                text: "Bạn có chắc chắn muốn hủy đơn hàng này không? Hành động này không thể hoàn tác.",
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#d33',
-                cancelButtonColor: '#3085d6',
-                confirmButtonText: 'Đồng ý hủy',
-                cancelButtonText: 'Không'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    fetch('/admin/bookings/' + id + '/cancel', { method: 'POST' })
-                        .then(res => {
-                            if (res.ok) {
-                                this.removeJobLocally(id);
-                                Swal.fire({
-                                    title: 'Đã hủy',
-                                    text: 'Đơn hàng đã được hủy thành công',
-                                    icon: 'success',
-                                    toast: true,
-                                    position: 'top-end',
-                                    showConfirmButton: false,
-                                    timer: 3000
-                                });
-                            } else {
-                                Swal.fire('Lỗi', 'Lỗi khi hủy đơn', 'error');
-                            }
-                        })
-                        .catch(() => {
-                            Swal.fire('Lỗi', 'Lỗi kết nối', 'error');
-                        });
-                }
-            });
-        },
-
-        // --- Fullscreen Map Modal ---
-        openMapModal() {
-            this.showMapModal = true;
-            // Wait for modal & CSS transition, then account for reflow (500ms safe margin)
-            setTimeout(() => {
-                this.drawFullscreenMap();
-                // Trigger map size recalculation after initial render
+            closeMapModal() {
+                this.showMapModal = false;
                 if (this.fullscreenMapInstance) {
-                    setTimeout(() => this.fullscreenMapInstance.invalidateSize(), 100);
+                    this.fullscreenMapInstance.remove();
+                    this.fullscreenMapInstance = null;
                 }
-            }, 500);
-        },
+            },
 
-        closeMapModal() {
-            this.showMapModal = false;
-            if (this.fullscreenMapInstance) {
-                this.fullscreenMapInstance.remove();
-                this.fullscreenMapInstance = null;
-            }
-        },
+            drawFullscreenMap(retryCount = 0) {
+                const container = document.getElementById('fullscreen-map');
+                if (!container || typeof L === 'undefined') return;
 
-        drawFullscreenMap() {
-            const container = document.getElementById('fullscreen-map');
-            if (!container || typeof L === 'undefined') return;
+                // Check if container has valid dimensions
+                const rect = container.getBoundingClientRect();
+                if (rect.width === 0 || rect.height === 0) {
+                    if (retryCount > 20) {
+                        console.error('❌ Map container failed to initialize dimensions after 5s. Rect:', rect, 'Visible:', window.getComputedStyle(container).display !== 'none');
+                        return;
+                    }
+                    // Retry with longer wait for DOM reflow
+                    console.log(`Map container loading... retrying (${retryCount + 1}/20). Rect: ${rect.width}x${rect.height}`);
+                    setTimeout(() => this.drawFullscreenMap(retryCount + 1), 250);
+                    return;
+                }
 
-            // Check if container has valid dimensions
-            const rect = container.getBoundingClientRect();
-            if (rect.width === 0 || rect.height === 0) {
-                // Retry with longer wait for DOM reflow
-                console.log('Map container loading... retrying in 250ms');
-                setTimeout(() => this.drawFullscreenMap(), 250);
-                return;
-            }
+                // Cleanup existing
+                if (this.fullscreenMapInstance) {
+                    this.fullscreenMapInstance.remove();
+                    this.fullscreenMapInstance = null;
+                }
 
-            // Cleanup existing
-            if (this.fullscreenMapInstance) {
-                this.fullscreenMapInstance.remove();
-                this.fullscreenMapInstance = null;
-            }
+                console.log(`📍 Initializing map in container: ${rect.width}x${rect.height}px`);
 
-            console.log(`📍 Initializing map in container: ${rect.width}x${rect.height}px`);
+                // Create map centered on Hanoi (disable zoom animation initially)
+                this.fullscreenMapInstance = L.map('fullscreen-map', {
+                    zoomAnimation: false,
+                    zoomControl: false // Disable default top-left control
+                }).setView([21.0285, 105.8542], 10);
 
-            // Create map centered on Hanoi (disable zoom animation initially)
-            this.fullscreenMapInstance = L.map('fullscreen-map', {
-                zoomAnimation: false
-            }).setView([21.0285, 105.8542], 10);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© OpenStreetMap'
+                }).addTo(this.fullscreenMapInstance);
 
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '© OpenStreetMap'
-            }).addTo(this.fullscreenMapInstance);
+                // Add zoom control to top-right to avoid sidebar overlap
+                L.control.zoom({
+                    position: 'topright'
+                }).addTo(this.fullscreenMapInstance);
 
-            // Status color mapping
-            const statusColors = {
-                pending: '#eab308',   // yellow-500
-                assigned: '#3b82f6', // blue-500
-                working: '#a855f7',  // purple-500
-                completed: '#22c55e', // green-500
-                cancelled: '#ef4444' // red-500
-            };
+                this.renderMapMarkers();
+            },
 
-            const statusLabels = {
-                pending: 'Chờ xử lý',
-                assigned: 'Đã giao',
-                working: 'Đang làm',
-                completed: 'Hoàn thành',
-                cancelled: 'Đã hủy'
-            };
+            renderMapMarkers() {
+                if (!this.fullscreenMapInstance) return;
 
-            const bounds = [];
-            const mapMarkers = {}; // Store marker refs for interaction
+                // Initialize Layer Group if not exists
+                if (!this.markerLayerGroup) {
+                    this.markerLayerGroup = L.layerGroup().addTo(this.fullscreenMapInstance);
+                } else {
+                    this.markerLayerGroup.clearLayers();
+                }
 
-            // Add markers for all jobs
-            for (const status in this.columns) {
-                this.columns[status].forEach(job => {
+                this.mapMarkers = {}; // Reset markers map
+
+                // Bounds array to fit map
+                const bounds = [];
+
+                // 1. Draw Technicians
+                this.techs.forEach(tech => {
+                    if (tech.lat && tech.long) {
+                        const techIcon = L.divIcon({
+                            className: 'custom-div-icon',
+                            html: `<div style="background-color: #3b82f6; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 4px rgba(0,0,0,0.3);"></div>`,
+                            iconSize: [12, 12],
+                            iconAnchor: [6, 6]
+                        });
+
+                        // Tech Marker
+                        const marker = L.marker([tech.lat, tech.long], { icon: techIcon }).addTo(this.markerLayerGroup);
+
+                        const popupContent = `
+                            <div class="font-bold text-sm text-blue-800">${tech.name}</div>
+                            <div class="text-xs text-gray-500">${tech.active ? 'Đang hoạt động' : 'Ngoại tuyến'}</div>
+                            <div class="text-xs mt-1"><i class="fa-solid fa-tasks"></i> ${this.getJobsForTech(tech.id)} đơn</div>
+                        `;
+                        marker.bindPopup(popupContent);
+                        bounds.push([tech.lat, tech.long]);
+                    }
+                });
+
+                // 2. Draw Jobs
+                const statusColors = {
+                    pending: '#eab308',   // yellow-500
+                    assigned: '#3b82f6', // blue-500
+                    working: '#a855f7',  // purple-500
+                    completed: '#22c55e', // green-500
+                    cancelled: '#ef4444' // red-500
+                };
+
+                const statusLabels = {
+                    pending: 'Chờ xử lý',
+                    assigned: 'Đã giao',
+                    working: 'Đang làm',
+                    completed: 'Hoàn thành',
+                    cancelled: 'Đã hủy'
+                };
+
+                // Add markers for all jobs using getAllJobs helper
+                const jobs = this.getAllJobs();
+                jobs.forEach(job => {
                     if (job.lat && job.long) {
-                        const color = statusColors[status] || '#6b7280';
-                        const label = statusLabels[status] || status;
+                        const color = statusColors[job.status] || '#6b7280';
+                        const label = statusLabels[job.status] || job.status;
 
                         // Create colored circle marker
                         const marker = L.circleMarker([job.lat, job.long], {
@@ -450,10 +584,10 @@ function defineKanbanBoard() {
                             weight: 2,
                             opacity: 1,
                             fillOpacity: 0.9
-                        }).addTo(this.fullscreenMapInstance);
+                        }).addTo(this.markerLayerGroup);
 
                         // Store marker reference
-                        mapMarkers[job.id] = marker;
+                        this.mapMarkers[job.id] = marker;
 
                         // Create popup with job details
                         const popupContent = `
@@ -485,18 +619,19 @@ function defineKanbanBoard() {
                             // Scroll to job in sidebar if orders tab is open
                             if (this.mapSidebarTab === 'orders') {
                                 setTimeout(() => {
-                                    document.querySelector(`[x-for*="job"][jobid="${job.id}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                                    document.querySelector(`[x-id="job-${job.id}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                                 }, 100);
                             }
                         });
 
+
                         // Hover effects
-                        marker.on('mouseover', function() {
+                        marker.on('mouseover', function () {
                             this.setRadius(14);
                             this.setStyle({ weight: 3 });
                         });
 
-                        marker.on('mouseout', function() {
+                        marker.on('mouseout', function () {
                             this.setRadius(10);
                             this.setStyle({ weight: 2 });
                         });
@@ -504,236 +639,266 @@ function defineKanbanBoard() {
                         bounds.push([job.lat, job.long]);
                     }
                 });
-            }
 
-            // Store markers for later manipulation
-            this.mapMarkers = mapMarkers;
+                // Only fit bounds if this is the first render or explicitly requested?
+                // For now, let's fit bounds only if we have bounds and no map center set yet, OR initially.
+                // Or just fit bounds every time data changes? That might be annoying if user is zoomed in.
 
-            // Store bounds for later use
-            const savedBounds = bounds;
+                // Let's only fit bounds if it's likely the initial load. 
+                // We'll use a flag or just rely on the fact that if user is interacting we shouldn't move.
+                // But simplified: Only on openMapModal we call drawFullscreenMap -> renderMapMarkers
+                // Updates call renderMapMarkers directly.
+                // Maybe we can check if map zoom is default?
+                // Let's just NOT fit bounds on update to preserve view.
 
-            // Force resize after modal animation, then fit bounds
-            setTimeout(() => {
-                if (this.fullscreenMapInstance) {
-                    this.fullscreenMapInstance.invalidateSize();
+                // Fit bounds logic moved to drawFullscreenMap setup or specific "Fit Bounds" button if needed.
+                // But for initial load (when drawFullscreenMap calls this), we probably want to fit bounds.
+                // Let's pass a parameter? Or just check if map was just created?
 
-                    // Fit bounds after map is fully initialized
-                    if (savedBounds.length > 0) {
-                        this.fullscreenMapInstance.fitBounds(savedBounds, { padding: [50, 50] });
-                    }
+                // Since this method is called by drawFullscreenMap, we can rely on drawFullscreenMap's fitBounds logic IF needed,
+                // BUT drawFullscreenMap clears instance, so it's always "fresh".
+
+                // Wait, in my replacement below, I removed the fitBounds logic from drawFullscreenMap's timeout.
+                // I should add it back here, but only if it matches some condition.
+                // Let's add "Fit All" button functionality instead of auto-fit on every update.
+                // But on initial open, it *should* fit.
+
+                if (bounds.length > 0 && !this.mapViewInitialized) {
+                    this.fullscreenMapInstance.fitBounds(bounds, { padding: [50, 50] });
+                    this.mapViewInitialized = true;
                 }
-            }, 400);
-        },
+            },
 
-        createJob(event) {
-            const form = event.target;
-            const formData = new FormData(form);
+            createJob(event) {
+                const form = event.target;
+                const formData = new FormData(form);
 
-            fetch(form.action, {
-                method: 'POST',
-                body: formData
-            }).then(res => res.json())
-                .then(data => {
-                    if (data.success || data.message) { // Handle both simple message and full object
-                        Swal.fire({
-                            title: 'Thành công',
-                            text: 'Đã tạo đơn hàng mới',
-                            icon: 'success',
-                            timer: 1500,
-                            showConfirmButton: false
-                        });
-                        document.getElementById('modal-create-job').checked = false;
-                        form.reset();
-
-                        // [FIX] Add to list directly without reload
-                        if (data.booking) {
-                            const newJob = data.booking;
-                            // Default status if missing
-                            if (!newJob.status) newJob.status = 'pending';
-
-                            this.columns.pending.unshift(newJob);
-
-                            // Try geocode if needed
-                            if (typeof geocodeAndDraw === 'function' && newJob.address) {
-                                geocodeAndDraw(newJob);
-                            }
-                        } else {
-                            // Fallback if no booking data returned (should not happen with new backend)
-                            setTimeout(() => window.location.reload(), 1500);
-                        }
-                    } else {
-                        Swal.fire('Lỗi', data.error || 'Lỗi không xác định', 'error');
-                    }
-                }).catch(err => {
-                    console.error(err);
-                    Swal.fire('Lỗi', 'Lỗi kết nối', 'error');
-                });
-        },
-
-        removeJobLocally(jobId) {
-            for (const col in this.columns) {
-                const idx = this.columns[col].findIndex(j => j.id === jobId);
-                if (idx !== -1) {
-                    this.columns[col].splice(idx, 1);
-                    return;
-                }
-            }
-        }
-    };
-};
-
-window.slotManager = function () {
-    return {
-        techCount: 3,
-        loading: false,
-        loadingList: false,
-        message: '',
-        success: false,
-        slots: [],
-
-        init() {
-            this.fetchSlots();
-        },
-
-        async fetchSlots() {
-            this.loadingList = true;
-            try {
-                const res = await fetch('/admin/api/slots?days=7');
-                if (res.ok) {
-                    this.slots = await res.json();
-                } else {
-                    console.warn('API slots chưa có, hiển thị rỗng');
-                }
-            } catch (e) {
-                console.error(e);
-            } finally {
-                this.loadingList = false;
-            }
-        },
-
-        async generateWeek() {
-            if (this.techCount < 1) {
-                this.showMessage('Số thợ phải lớn hơn 0', false);
-                return;
-            }
-
-            this.loading = true;
-            this.message = '';
-
-            try {
-                const formData = new FormData();
-                formData.append('tech_count', this.techCount);
-
-                const response = await fetch('/admin/tools/slots/generate-week', {
+                fetch(form.action, {
                     method: 'POST',
                     body: formData
-                });
+                }).then(res => res.json())
+                    .then(data => {
+                        if (data.success || data.message) { // Handle both simple message and full object
+                            Swal.fire({
+                                title: 'Thành công',
+                                text: 'Đã tạo đơn hàng mới',
+                                icon: 'success',
+                                timer: 1500,
+                                showConfirmButton: false
+                            });
+                            document.getElementById('modal-create-job').checked = false;
+                            form.reset();
 
-                const result = await response.json();
+                            // [FIX] Add to list directly without reload
+                            if (data.booking) {
+                                const newJob = data.booking;
+                                // Default status if missing
+                                if (!newJob.status) newJob.status = 'pending';
 
-                if (response.ok) {
-                    this.showMessage(
-                        `✅ Đã tạo ${result.success_count} khung giờ. ${result.errors?.length > 0 ? '(Một số đã tồn tại)' : ''}`,
-                        true
-                    );
-                    setTimeout(() => this.fetchSlots(), 1000);
-                } else {
-                    this.showMessage('❌ Lỗi: ' + (result.error || 'Không xác định'), false);
-                }
-            } catch (error) {
-                this.showMessage('❌ Lỗi kết nối: ' + error.message, false);
-            } finally {
-                this.loading = false;
-            }
-        },
+                                this.columns.pending.unshift(newJob);
 
-        showMessage(msg, isSuccess) {
-            this.message = msg;
-            this.success = isSuccess;
-            setTimeout(() => {
-                this.message = '';
-            }, 5000);
-        },
+                                // Try geocode if needed
+                                if (typeof geocodeAndDraw === 'function' && newJob.address) {
+                                    geocodeAndDraw(newJob);
+                                }
+                            } else {
+                                // Fallback if no booking data returned (should not happen with new backend)
+                                setTimeout(() => window.location.reload(), 1500);
+                            }
+                        } else {
+                            Swal.fire('Lỗi', data.error || 'Lỗi không xác định', 'error');
+                        }
+                    }).catch(err => {
+                        console.error(err);
+                        Swal.fire('Lỗi', 'Lỗi kết nối', 'error');
+                    });
+            },
 
-        // Helpers
-        formatDate(dateStr) {
-            if (!dateStr) return '';
-            const date = new Date(dateStr);
-            return date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
-        },
-
-        getDayName(dateStr) {
-            if (!dateStr) return '';
-            const date = new Date(dateStr);
-            const days = ['Chủ Nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];
-            return days[date.getDay()];
-        },
-
-        // === Map Sidebar Functions ===
-        getAllJobs() {
-            return [
-                ...this.columns.pending,
-                ...this.columns.assigned,
-                ...this.columns.working,
-                ...this.columns.completed
-            ].filter(j => j.customer_name);
-        },
-
-        getJobsForTech(techId) {
-            return this.getAllJobs().filter(j => j.technician_id === techId).length;
-        },
-
-        getStatusLabel(status) {
-            const labels = {
-                pending: 'Chờ xử lý',
-                assigned: 'Đã giao',
-                working: 'Đang làm',
-                completed: 'Hoàn thành',
-                cancelled: 'Đã hủy'
-            };
-            return labels[status] || status;
-        },
-
-        highlightTechOnMap(techId) {
-            this.selectedTechOnMap = techId;
-            // Filter map markers to show only this tech's jobs
-            if (this.fullscreenMapInstance) {
-                const techJobs = this.getAllJobs().filter(j => j.technician_id === techId);
-                console.log(`🔍 Highlighting ${techJobs.length} jobs for tech ${techId}`);
-                
-                // Zoom to show all tech's jobs
-                if (techJobs.length > 0) {
-                    const lats = techJobs.map(j => j.lat).filter(l => l);
-                    const lons = techJobs.map(j => j.long).filter(l => l);
-                    if (lats.length > 0) {
-                        const bounds = L.latLngBounds(
-                            [[Math.min(...lats), Math.min(...lons)], 
-                             [Math.max(...lats), Math.max(...lons)]]
-                        );
-                        this.fullscreenMapInstance.fitBounds(bounds, { padding: [50, 50] });
+            removeJobLocally(jobId) {
+                for (const col in this.columns) {
+                    const idx = this.columns[col].findIndex(j => j.id === jobId);
+                    if (idx !== -1) {
+                        this.columns[col].splice(idx, 1);
+                        return;
                     }
                 }
-            }
-        },
+            },
 
-        highlightJobOnMap(jobId) {
-            this.selectedJobOnMap = jobId;
-            const job = this.getAllJobs().find(j => j.id === jobId);
-            if (job && job.lat && job.long && this.fullscreenMapInstance) {
-                // Pan to job location
-                this.fullscreenMapInstance.setView([job.lat, job.long], 14, { animate: true });
-                console.log(`📍 Centered on job ${jobId} at ${job.lat}, ${job.long}`);
-            }
-        },
+            // === Map Sidebar Functions ===
+            getAllJobs() {
+                return [
+                    ...this.columns.pending,
+                    ...this.columns.assigned,
+                    ...this.columns.working,
+                    ...this.columns.completed
+                ].filter(j => j.customer_name || j.customer);
+            },
 
-        getProgressColor(current, max) {
-            const percent = (current / max) * 100;
-            if (percent >= 100) return 'progress-error';
-            if (percent >= 70) return 'progress-warning';
-            return 'progress-success';
+            getJobsForTech(techId) {
+                return this.getAllJobs().filter(j => j.technician_id === techId).length;
+            },
+
+            // Helper to format booking time from raw YYYY-MM-DD HH:MM
+            formatBookingTime(rawTime) {
+                if (!rawTime) return '';
+                try {
+                    // Expecting "2024-02-06 14:30" or similar
+                    const date = new Date(rawTime);
+                    if (isNaN(date.getTime())) return rawTime;
+
+                    // Add 2 hours for duration
+                    const endDate = new Date(date.getTime() + 2 * 60 * 60 * 1000);
+
+                    const pad = (n) => n.toString().padStart(2, '0');
+                    // Format: HH:MM - HH:MM DD/MM/YYYY
+                    return `${pad(date.getHours())}:${pad(date.getMinutes())} - ${pad(endDate.getHours())}:${pad(endDate.getMinutes())} ngày ${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()}`;
+                } catch (e) {
+                    return rawTime;
+                }
+            },
+
+            getStatusLabel(status) {
+                const labels = {
+                    pending: 'Chờ xử lý',
+                    assigned: 'Đã giao',
+                    working: 'Đang làm',
+                    completed: 'Hoàn thành',
+                    cancelled: 'Đã hủy'
+                };
+                return labels[status] || status;
+            },
+
+            highlightTechOnMap(techId) {
+                this.selectedTechOnMap = techId;
+                // Filter map markers to show only this tech's jobs
+                if (this.fullscreenMapInstance) {
+                    const techJobs = this.getAllJobs().filter(j => j.technician_id === techId);
+                    console.log(`🔍 Highlighting ${techJobs.length} jobs for tech ${techId}`);
+
+                    // Zoom to show all tech's jobs
+                    if (techJobs.length > 0) {
+                        const lats = techJobs.map(j => j.lat).filter(l => l);
+                        const lons = techJobs.map(j => j.long).filter(l => l);
+                        if (lats.length > 0) {
+                            const bounds = L.latLngBounds(
+                                [[Math.min(...lats), Math.min(...lons)],
+                                [Math.max(...lats), Math.max(...lons)]]
+                            );
+                            this.fullscreenMapInstance.fitBounds(bounds, { padding: [50, 50] });
+                        }
+                    }
+                }
+            },
+
+            highlightJobOnMap(jobId) {
+                this.selectedJobOnMap = jobId;
+                const job = this.getAllJobs().find(j => j.id === jobId);
+                if (job && job.lat && job.long && this.fullscreenMapInstance) {
+                    // Pan to job location
+                    this.fullscreenMapInstance.setView([job.lat, job.long], 14, { animate: true });
+                    console.log(`📍 Centered on job ${jobId} at ${job.lat}, ${job.long}`);
+                }
+            },
+
+            getProgressColor(current, max) {
+                const percent = (current / max) * 100;
+                if (percent >= 100) return 'progress-error';
+                if (percent >= 70) return 'progress-warning';
+                return 'progress-success';
+            }
+        };
+    };
+
+    window.slotManager = function () {
+        return {
+            techCount: 3,
+            loading: false,
+            loadingList: false,
+            message: '',
+            success: false,
+            slots: [],
+
+            init() {
+                this.fetchSlots();
+            },
+
+            async fetchSlots() {
+                this.loadingList = true;
+                try {
+                    const res = await fetch('/admin/api/slots?days=7');
+                    if (res.ok) {
+                        this.slots = await res.json();
+                    } else {
+                        console.warn('API slots chưa có, hiển thị rỗng');
+                    }
+                } catch (e) {
+                    console.error(e);
+                } finally {
+                    this.loadingList = false;
+                }
+            },
+
+            async generateWeek() {
+                if (this.techCount < 1) {
+                    this.showMessage('Số thợ phải lớn hơn 0', false);
+                    return;
+                }
+
+                this.loading = true;
+                this.message = '';
+
+                try {
+                    const formData = new FormData();
+                    formData.append('tech_count', this.techCount);
+
+                    const response = await fetch('/admin/tools/slots/generate-week', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    const result = await response.json();
+
+                    if (response.ok) {
+                        this.showMessage(
+                            `✅ Đã tạo ${result.success_count} khung giờ. ${result.errors?.length > 0 ? '(Một số đã tồn tại)' : ''}`,
+                            true
+                        );
+                        setTimeout(() => this.fetchSlots(), 1000);
+                    } else {
+                        this.showMessage('❌ Lỗi: ' + (result.error || 'Không xác định'), false);
+                    }
+                } catch (error) {
+                    this.showMessage('❌ Lỗi kết nối: ' + error.message, false);
+                } finally {
+                    this.loading = false;
+                }
+            },
+
+            showMessage(msg, isSuccess) {
+                this.message = msg;
+                this.success = isSuccess;
+                setTimeout(() => {
+                    this.message = '';
+                }, 5000);
+            },
+
+            // Helpers
+            formatDate(dateStr) {
+                if (!dateStr) return '';
+                const date = new Date(dateStr);
+                return date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
+            },
+
+            getDayName(dateStr) {
+                if (!dateStr) return '';
+                const date = new Date(dateStr);
+                const days = ['Chủ Nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];
+                return days[date.getDay()];
+            },
+
+
         }
-    }
-};
+    };
 }  // Close defineKanbanBoard function
 
 window.inventoryManager = function (initialItems) {
