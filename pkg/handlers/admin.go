@@ -99,6 +99,7 @@ type BookingJSON struct {
 	InvoiceHash    string  `json:"invoice_hash"`  // [MỚI] Thêm trường này
 	RawTime        string  `json:"raw_time"`      // [MỚI] Thời gian bắt đầu (ISO)
 	Duration       int     `json:"duration"`      // [MỚI] Thời lượng (phút)
+	TimeSlotID     string  `json:"time_slot_id"`  // [MỚI] ID Slot để check trùng
 }
 
 // Dashboard renders the admin dashboard with Kanban board
@@ -250,7 +251,8 @@ func (h *AdminHandler) Dashboard(e *core.RequestEvent) error {
 			CancelReason:   cancelReason, // [FIX]
 			InvoiceHash:    invoiceHash,  // [MỚI] Gán giá trị
 			RawTime:        b.GetString("booking_time"),
-			Duration:       120, // Default 2h (ToDo: Fetch from Service)
+			Duration:       120,    // Default 2h (ToDo: Fetch from Service)
+			TimeSlotID:     slotID, // [NEW] Populate Slot ID
 		})
 	}
 
@@ -574,7 +576,11 @@ func (h *AdminHandler) AssignJob(e *core.RequestEvent) error {
 
 	// [FIX] Derive booking_time from slot_id if empty
 	bookingTimeStr := booking.GetString("booking_time") // "YYYY-MM-DD HH:MM"
-	slotID := booking.GetString("slot_id")
+	// Check both potential field names
+	slotID := booking.GetString("time_slot_id")
+	if slotID == "" {
+		slotID = booking.GetString("slot_id")
+	}
 
 	// If booking_time is missing but slot_id exists, derive time from slot
 	if len(bookingTimeStr) < 16 && slotID != "" {
@@ -614,8 +620,8 @@ func (h *AdminHandler) AssignJob(e *core.RequestEvent) error {
 			}
 		}
 
-		// 2. Gọi hàm CheckConflict
-		if errStr := h.SlotService.CheckConflict(technicianID, date, timeStr, duration); errStr != nil {
+		// 2. Gọi hàm CheckConflict with slotID
+		if errStr := h.SlotService.CheckConflict(technicianID, date, timeStr, duration, slotID); errStr != nil {
 			return e.String(409, errStr.Error())
 		}
 	} else {
@@ -1275,4 +1281,54 @@ func (h *AdminHandler) SearchHistory(e *core.RequestEvent) error {
 		"perPage": perPage,
 		"pages":   (total + int64(perPage) - 1) / int64(perPage),
 	})
+}
+
+// ActiveBookings returns all active bookings as JSON for frontend sync
+func (h *AdminHandler) ActiveBookings(e *core.RequestEvent) error {
+	authRecord := e.Auth
+	if authRecord == nil {
+		return e.JSON(http.StatusUnauthorized, map[string]string{"error": "Unauthorized"})
+	}
+
+	// Use the same logic as Dashboard to get consistent data
+	bookings, err := h.App.FindRecordsByFilter(
+		"bookings",
+		"1=1", // Fetch all to handle complex status logic in memory or filter by active status here
+		"-created",
+		500,
+		0,
+		nil,
+	)
+	if err != nil {
+		return e.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to load bookings"})
+	}
+
+	// Fetch technicians for name mapping
+	technicians, _ := h.App.FindRecordsByFilter("technicians", "active=true", "name", 100, 0, nil)
+	techMap := make(map[string]string)
+	for _, t := range technicians {
+		techMap[t.Id] = t.GetString("name")
+	}
+
+	bookingsJSON := []BookingJSON{}
+
+	for _, b := range bookings {
+		status := b.GetString("job_status")
+
+		techName := techMap[b.GetString("technician_id")]
+
+		// Basic mapping
+		bookingsJSON = append(bookingsJSON, BookingJSON{
+			ID:         b.Id,
+			Customer:   b.GetString("customer_name"),
+			StaffID:    b.GetString("technician_id"),
+			TechName:   techName,
+			Status:     status,
+			RawTime:    b.GetString("booking_time"),
+			Duration:   120, // Default 2h (ToDo: Fetch from Service)
+			TimeSlotID: b.GetString("time_slot_id"),
+		})
+	}
+
+	return e.JSON(http.StatusOK, bookingsJSON)
 }

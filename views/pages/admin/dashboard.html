@@ -481,12 +481,12 @@
                         <option value="" disabled selected>-- Chọn người --</option>
                         <!-- Use x-for to handle dynamic availability -->
                         <template x-for="tech in techs" :key="tech.id">
-                            <option :value="tech.id" :disabled="busyTechs.includes(tech.id) || !tech.active"
-                                x-text="tech.name + (busyTechs.includes(tech.id) ? ' (⚠️ Bận - Trùng giờ)' : '') + (!tech.active ? ' (Off)' : '')">
+                            <option :value="tech.id" :disabled="busyTechs[tech.id] || !tech.active"
+                                x-text="tech.name + (busyTechs[tech.id] ? ' (⚠️ ' + busyTechs[tech.id] + ')' : '') + (!tech.active ? ' (Off)' : '')">
                             </option>
                         </template>
                     </select>
-                    <label class="label text-xs text-orange-500" x-show="busyTechs.length > 0">
+                    <label class="label text-xs text-orange-500" x-show="Object.keys(busyTechs).length > 0">
                         <span class="flex items-center gap-1"><i class="fa-solid fa-triangle-exclamation"></i> Có thợ
                             trùng lịch với đơn này</span>
                     </label>

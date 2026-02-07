@@ -239,3 +239,26 @@ func (r *PBBookingRepo) UpdateLocation(bookingID string, lat float64, lng float6
 
 	return r.app.Save(record)
 }
+
+// FindAllByDate returns all bookings for a specific date (excluding cancelled)
+func (r *PBBookingRepo) FindAllByDate(date string) ([]*core.Booking, error) {
+	// Filter by booking_time starting with date string (YYYY-MM-DD)
+	// and not cancelled
+	records, err := r.app.FindRecordsByFilter(
+		"bookings",
+		"booking_time ~ {:date} && job_status != 'cancelled'",
+		"booking_time",
+		500,
+		0,
+		dbx.Params{"date": date},
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	var bookings []*core.Booking
+	for _, rec := range records {
+		bookings = append(bookings, r.toDomain(rec))
+	}
+	return bookings, nil
+}

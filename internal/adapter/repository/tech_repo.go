@@ -136,3 +136,12 @@ func (r *PBTechnicianRepo) ClearFCMTokenExcept(token, exceptTechID string) error
 	}
 	return nil
 }
+
+// CountActive returns the number of active technicians
+func (r *PBTechnicianRepo) CountActive() (int, error) {
+	records, err := r.app.FindRecordsByFilter("technicians", "active = true", "", 0, 0, nil)
+	if err != nil {
+		return 0, err
+	}
+	return len(records), nil
+}

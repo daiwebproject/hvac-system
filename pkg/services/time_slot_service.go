@@ -4,17 +4,25 @@ import (
 	"fmt"
 	"time"
 
+	domain "hvac-system/internal/core"
+
 	"github.com/pocketbase/pocketbase/core"
 )
 
 // TimeSlotService handles time slot availability and booking logic
 type TimeSlotService struct {
-	app core.App
+	app         core.App
+	techRepo    domain.TechnicianRepository
+	bookingRepo domain.BookingRepository
 }
 
 // NewTimeSlotService creates a new time slot service
-func NewTimeSlotService(app core.App) *TimeSlotService {
-	return &TimeSlotService{app: app}
+func NewTimeSlotService(app core.App, techRepo domain.TechnicianRepository, bookingRepo domain.BookingRepository) *TimeSlotService {
+	return &TimeSlotService{
+		app:         app,
+		techRepo:    techRepo,
+		bookingRepo: bookingRepo,
+	}
 }
 
 // TimeSlot represents a bookable time window
@@ -34,8 +42,8 @@ type TimeBlock struct {
 	End   time.Time
 }
 
-// GetAvailableSlots returns available time slots using Resource-Based Availability
-// It dynamically checks if any technician has a sufficient gap for the service
+// GetAvailableSlots returns available time slots using Dynamic Availability
+// Formula: Available = TotalActiveTechs - (AssignedJobs + StuckJobs)
 func (s *TimeSlotService) GetAvailableSlots(date string) ([]TimeSlot, error) {
 	// Standard slot duration (could be dynamic based on selected service in future)
 	const StandardSlotDuration = 120 * time.Minute // 2 hours
@@ -52,26 +60,17 @@ func (s *TimeSlotService) GetAvailableSlots(date string) ([]TimeSlot, error) {
 		return []TimeSlot{}, nil
 	}
 
-	// 1. Get Resources (Active Technicians)
-	activeTechs, err := s.app.FindRecordsByFilter("technicians", "active=true", "", 0, 0, nil)
+	// 1. Get Resources (Total Active Technicians)
+	dynamicCapacity, err := s.techRepo.CountActive()
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch technicians: %w", err)
+		return nil, fmt.Errorf("failed to fetch active technicians: %w", err)
 	}
-	dynamicCapacity := len(activeTechs)
 	if dynamicCapacity == 0 {
 		return []TimeSlot{}, nil // No techs = no slots
 	}
 
-	// 2. Get Constraints (Existing Bookings for the Date)
-	// We fetch bookings for the specific date to build the daily timeline
-	bookings, err := s.app.FindRecordsByFilter(
-		"bookings",
-		fmt.Sprintf("booking_time ~ '%s' && job_status != 'cancelled'", date),
-		"booking_time",
-		500,
-		0,
-		nil,
-	)
+	// 2. Get Constraints (All Bookings for the Date)
+	bookings, err := s.bookingRepo.FindAllByDate(date)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch bookings: %w", err)
 	}
@@ -79,24 +78,29 @@ func (s *TimeSlotService) GetAvailableSlots(date string) ([]TimeSlot, error) {
 	// 3. Build Tech Timelines (Map[TechID] -> BusyBlocks)
 	techSchedules := make(map[string][]TimeBlock)
 	for _, b := range bookings {
-		techID := b.GetString("technician_id")
+		techID := b.TechnicianID
 		if techID == "" {
-			continue // Unassigned jobs don't block a specific tech yet (or should they block a 'pool'?)
-			// For now, only assigned jobs block specific techs.
-			// Ideally, pending jobs should reduce total system capacity, but that's complex.
-			// MVP: Smart Schedule checks PHYSICAL tech availability.
+			continue // Unassigned jobs don't block dynamic capacity yet
 		}
 
-		startTimeStr := b.GetString("booking_time") // "2006-01-02 15:04"
+		startTimeStr := b.BookingTime // "2006-01-02 15:04"
 		if startT, err := time.Parse("2006-01-02 15:04", startTimeStr); err == nil {
-			// Estimate duration (default 60m + travel 30m) if not known
-			// TODO: Fetch actual service duration
+			// Estimate duration (default 60m + travel 30m)
+			// Ideally we fetch service specific duration, for now allow standard block
 			duration := 60 * time.Minute
+
+			// [TODO] If ServiceID is available, fetch duration
+			// For MVP, we use standard block or existing logic if available
+
 			endT := startT.Add(duration).Add(TravelBuffer)
 
-			// Add buffer BEFORE start too?
-			// Simplified: Block = [Start - Buffer, End + Buffer]?
-			// Design: Block = [Start, End + Buffer] (Travel to NEXT job)
+			// [NEW] Overrun Detection (Stuck Job)
+			if b.JobStatus == "working" && endT.Before(time.Now()) {
+				estimatedEnd := time.Now().Add(30 * time.Minute)
+				if estimatedEnd.After(endT) {
+					endT = estimatedEnd
+				}
+			}
 
 			techSchedules[techID] = append(techSchedules[techID], TimeBlock{
 				Start: startT,
@@ -106,6 +110,7 @@ func (s *TimeSlotService) GetAvailableSlots(date string) ([]TimeSlot, error) {
 	}
 
 	// 4. Fetch Standard Slot Definitions (The "Grid")
+	// We still use the "time_slots" collection to define the grid (8-10, 10-12...)
 	filter := fmt.Sprintf("date = '%s'", date)
 	records, err := s.app.FindRecordsByFilter("time_slots", filter, "start_time", 100, 0, nil)
 	if err != nil {
@@ -113,7 +118,7 @@ func (s *TimeSlotService) GetAvailableSlots(date string) ([]TimeSlot, error) {
 	}
 
 	// [AUTO-GENERATE] If no slots exist for this date, create them on-the-fly
-	if len(records) == 0 && dynamicCapacity > 0 {
+	if len(records) == 0 {
 		// Only auto-generate for future dates (not past)
 		if !targetDate.Before(time.Now().Truncate(24 * time.Hour)) {
 			if err := s.GenerateDefaultSlots(date, dynamicCapacity); err == nil {
@@ -138,20 +143,26 @@ func (s *TimeSlotService) GetAvailableSlots(date string) ([]TimeSlot, error) {
 			}
 		}
 
-		// 5. Evaluate Availability: Can ANY tech take this slot?
+		// 5. Evaluate Availability: Count how many techs are free for this slot
 		availableTechsCount := 0
 
+		// Use CountActive() implicitly by assuming specific Tech IDs aren't needed here,
+		// but we do need to iterate actual Tech IDs if we built specific schedules.
+		// Wait, CountActive returns int. We need the list of Active Techs to check their specific schedules?
+		// YES.
+		// Retrying fetching active techs list for iteration
+		// Optimally this should be cached or passed from handler, but repo query is fast enough (sqlite/pb)
+		activeTechs, _ := s.techRepo.GetAvailable() // Re-using GetAvailable which returns []*Technician
+
 		for _, tech := range activeTechs {
-			techID := tech.Id
+			techID := tech.ID
 			timeline := techSchedules[techID]
 			isFree := true
 
 			// Check intersection with any busy block
 			for _, block := range timeline {
-				// Intersection formula: (StartA < EndB) && (EndA > StartB)
-				// We check if (SlotStart < BlockEnd) && (SlotEnd > BlockStart)
-				// Note: slotEnd should include travel buffer for the TECH to move to NEXT job?
-				// Relaxed check: Is the SLOT ITSELF free?
+				// Slot [Start, End] overlaps Block [Start, End]?
+				// Allow TravelBuffer logic inside Block definition
 				if slotStart.Before(block.End) && slotEnd.After(block.Start) {
 					isFree = false
 					break
@@ -163,18 +174,13 @@ func (s *TimeSlotService) GetAvailableSlots(date string) ([]TimeSlot, error) {
 			}
 		}
 
-		// Update DB record with real-time stats (optional, but good for caching/analytics)
-		// record.Set("current_bookings", dynamicCapacity - availableTechsCount)
-		// record.Set("is_available", availableTechsCount > 0)
-		// s.app.Save(record) // Avoid write-heavy loop for now
-
 		slots = append(slots, TimeSlot{
 			ID:              record.Id,
 			Date:            record.GetString("date"),
 			StartTime:       startTimeStr,
 			EndTime:         record.GetString("end_time"),
 			MaxCapacity:     dynamicCapacity,
-			CurrentBookings: dynamicCapacity - availableTechsCount, // Inverted: Busy = Total - Free
+			CurrentBookings: dynamicCapacity - availableTechsCount, // Occupied = Total - Free
 			IsAvailable:     availableTechsCount > 0,
 		})
 	}
@@ -232,7 +238,7 @@ func (s *TimeSlotService) BookSlot(slotID, bookingID string) error {
 // 1. New Job Start Time >= Previous Job End Time + Travel Buffer (30m)
 // 2. New Job End Time + Travel Buffer <= Next Job Start Time
 // CheckConflict validates if a specific scheduler slot conflicts with existing bookings
-func (s *TimeSlotService) CheckConflict(techID string, date string, startTime string, newJobDuration int) error {
+func (s *TimeSlotService) CheckConflict(techID string, date string, startTime string, newJobDuration int, newSlotID string) error {
 	const TravelBufferMinutes = 30
 
 	// 1. Tính toán thời gian của Job MỚI đang định giao
@@ -271,6 +277,14 @@ func (s *TimeSlotService) CheckConflict(techID string, date string, startTime st
 		// Chỉ kiểm tra các job cùng ngày
 		if jobStart.Format("2006-01-02") != date {
 			continue
+		}
+
+		// [NEW] Check Slot overlap if both have slot IDs
+		if newSlotID != "" {
+			existingSlot := job.GetString("time_slot_id")
+			if existingSlot == newSlotID {
+				return fmt.Errorf("Xung đột: Thợ đã được giao việc trong khung giờ này (Trùng Slot ID)")
+			}
 		}
 
 		// 3. Xác định thời lượng của Job ĐÃ CÓ (Quan trọng)

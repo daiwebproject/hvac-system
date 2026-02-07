@@ -63,7 +63,7 @@ func RegisterRoutes(pb *pocketbase.PocketBase, c *internalApp.Container) {
 		// 2. SERVICES FROM CONTAINER (No more local initialization)
 		// ---------------------------------------------------------
 		// Legacy pkg/services that still need PocketBase directly
-		slotService := services.NewTimeSlotService(pb)
+		slotService := services.NewTimeSlotService(pb, c.TechRepo, c.BookingRepo)
 
 		// Register Global Middleware for Settings Injection & License Check
 		se.Router.BindFunc(middleware.SettingsMiddleware(c.SettingsRepo))
@@ -117,6 +117,7 @@ func RegisterRoutes(pb *pocketbase.PocketBase, c *internalApp.Container) {
 			SettingsRepo:   c.SettingsRepo,
 			FCMService:     c.FCMService,
 			BookingService: c.BookingService,
+			SlotService:    slotService,
 		}
 
 		fcm := &handlers.FCMHandler{
@@ -188,6 +189,8 @@ func RegisterRoutes(pb *pocketbase.PocketBase, c *internalApp.Container) {
 		adminGroup.POST("/bookings/{id}/update", admin.UpdateBookingInfo)
 		adminGroup.POST("/bookings/create", admin.CreateBooking)
 		adminGroup.POST("/api/bookings/{id}/status", admin.UpdateBookingStatus)
+		// [NEW] API for fetching active bookings for conflict check
+		adminGroup.GET("/api/bookings/active", admin.ActiveBookings)
 
 		// Admin Tech Management
 		adminGroup.GET("/techs", admin.TechsList)

@@ -56,7 +56,7 @@ func (s *TimeSlotService) BookSlot(slotID, bookingID string) error {
 	return s.slotRepo.Update(slot)
 }
 
-func (s *TimeSlotService) CheckConflict(techID, date, timeStr string, durationMin int) error {
+func (s *TimeSlotService) CheckConflict(techID, date, timeStr string, durationMin int, newSlotID string) error {
 	const TravelBufferMinutes = 30
 
 	// 1. Calculate New Job Times
@@ -74,6 +74,17 @@ func (s *TimeSlotService) CheckConflict(techID, date, timeStr string, durationMi
 
 	// 3. Iterate and check overlaps
 	for _, job := range bookings {
+		// [NEW] Check Slot overlap if both have slot IDs
+		if newSlotID != "" && job.SlotID != nil {
+			if *job.SlotID == newSlotID {
+				// Only if dates match (Job SlotID might be reused across days? -> Slot ID is usually unique record ID in PB)
+				// Assuming Slot ID is unique record ID from time_slots collection, checks are safe.
+				// But we should double check date just in case.
+				// With current architecture, Slot ID is unique globally.
+				return fmt.Errorf("Slot conflict: Technician already assigned to this slot")
+			}
+		}
+
 		// Parse job time (using booking_time field which format is expected to be "YYYY-MM-DD HH:MM")
 		if len(job.BookingTime) < 16 {
 			continue

@@ -23,6 +23,7 @@ type WebHandler struct {
 	SettingsRepo   *repository.SettingsRepo // [NEW]
 	FCMService     *notification.FCMService // [NEW]
 	BookingService domain.BookingService    // [NEW] Internal Service
+	SlotService    *services.TimeSlotService
 }
 
 // 1. Trang chủ - Landing Page
@@ -97,8 +98,7 @@ func (h *WebHandler) BookService(e *core.RequestEvent) error {
 
 	// If slot was selected, book it
 	if slotID != "" {
-		slotService := services.NewTimeSlotService(h.App)
-		if err := slotService.BookSlot(slotID, booking.ID); err != nil {
+		if err := h.SlotService.BookSlot(slotID, booking.ID); err != nil {
 			// Slot booking failed, but booking exists - log error or handle
 			// For now,continue since booking is created
 			fmt.Printf("Error booking slot %s for booking %s: %v\n", slotID, booking.ID, err)

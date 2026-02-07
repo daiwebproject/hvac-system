@@ -88,6 +88,10 @@ export function kanbanBoard(initialActive = [], initialCompleted = []) {
             };
 
             activeJobs.forEach(job => {
+                // [FIX] Ensure consistent field naming from Backend JSON
+                if (!job.staff_id && job.StaffID) job.staff_id = job.StaffID;
+                if (!job.time_slot_id && job.TimeSlotID) job.time_slot_id = job.TimeSlotID; // [FIX]
+
                 let status = job.status;
                 if (['moving', 'arrived', 'working', 'failed'].includes(status)) {
                     status = 'working';
@@ -178,11 +182,11 @@ export function kanbanBoard(initialActive = [], initialCompleted = []) {
                 lat: raw.lat,
                 long: raw.long,
                 issue: raw.issue || '',
-                issue: raw.issue || '',
                 staff_id: null,
                 technician_id: null,
-                raw_time: raw.raw_time || raw.booking_time, // [NEW]
-                duration: raw.duration || 120 // [NEW]
+                raw_time: raw.raw_time || raw.booking_time,
+                duration: raw.duration || 120,
+                time_slot_id: raw.time_slot_id // [NEW] Catch slot ID
             };
 
             this.columns.pending.unshift(newJob);
@@ -328,50 +332,66 @@ export function kanbanBoard(initialActive = [], initialCompleted = []) {
                 (document.getElementById('modal-edit-job').checked = true);
         },
 
-        openAssignModal(job) {
+        // [NEW] Refresh data before assignment
+        async refreshBookings() {
+            try {
+                const response = await apiClient.get('/admin/api/bookings/active');
+                if (response.ok) {
+                    const jobs = await response.json();
+                    jobs.forEach(job => {
+                        if (!job.staff_id && job.StaffID) job.staff_id = job.StaffID;
+                        if (!job.time_slot_id && job.TimeSlotID) job.time_slot_id = job.TimeSlotID;
+                    });
+                    return jobs;
+                }
+            } catch (err) { console.error(err); }
+            return this.getAllJobs();
+        },
+
+        async openAssignModal(job) {
             this.selectedJob = job;
             this.assignTechId = '';
 
-            // [NEW] Calculate Availability
-            this.busyTechs = [];
+            // 1. Fetch latest data
+            const allJobs = await this.refreshBookings();
 
-            if (job.raw_time) {
-                const jobStart = new Date(job.raw_time).getTime();
-                // Default 2h if duration missing
-                const durationMinutes = job.duration || 120;
-                const jobEnd = jobStart + (durationMinutes * 60000);
+            // 2. Calculate Availability
+            this.busyTechs = {};
+            const reqSlotId = job.time_slot_id;
+            const reqStart = job.raw_time ? new Date(job.raw_time).getTime() : 0;
+            const reqDuration = job.duration || 120;
+            const reqEnd = reqStart + (reqDuration * 60000);
 
-                // Check against all other active jobs
-                const allJobs = this.getAllJobs();
+            // Start of conflict check loop
+            allJobs.forEach(otherJob => {
+                if (otherJob.id === job.id) return;
+                const techId = otherJob.staff_id || otherJob.technician_id;
+                if (!techId) return;
+                if (['completed', 'cancelled'].includes(otherJob.status)) return;
 
-                const busySet = new Set();
+                // Check 1: Slot ID
+                if (reqSlotId && otherJob.time_slot_id && otherJob.time_slot_id === reqSlotId) {
+                    this.busyTechs[techId] = 'Trùng Slot cố định';
+                    return;
+                }
 
-                allJobs.forEach(otherJob => {
-                    // Skip self and ignored statuses
-                    if (otherJob.id === job.id) return;
-                    if (!otherJob.staff_id) return; // No tech assigned
-                    if (['completed', 'cancelled'].includes(otherJob.status)) return;
+                // Check 2: Time Overlap
+                if (reqStart > 0 && otherJob.raw_time) {
+                    const otherStart = new Date(otherJob.raw_time).getTime();
+                    const otherDuration = otherJob.duration || 120;
+                    const otherEnd = otherStart + (otherDuration * 60000);
 
-                    // Parse other job time
-                    // BookingJSON now has raw_time too
-                    if (otherJob.raw_time) {
-                        const otherStart = new Date(otherJob.raw_time).getTime();
-                        const otherDuration = otherJob.duration || 120;
-                        const otherEnd = otherStart + (otherDuration * 60000);
-
-                        // Check overlap
-                        // Overlap if (StartA < EndB) and (EndA > StartB)
-                        if (jobStart < otherEnd && jobEnd > otherStart) {
-                            busySet.add(otherJob.staff_id);
-                        }
+                    if (reqStart < otherEnd && reqEnd > otherStart) {
+                        const startStr = new Date(otherStart).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+                        const endStr = new Date(otherEnd).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+                        this.busyTechs[techId] = `Bận: ${startStr} - ${endStr}`;
                     }
-                });
+                }
+            });
 
-                this.busyTechs = Array.from(busySet);
-                console.log('Busy Techs for ' + job.time + ':', this.busyTechs);
-            }
-
+            console.log('Conflicting assignments:', this.busyTechs);
             document.getElementById('modal-assign-generic').checked = true;
+
         },
 
         async submitAssignment() {

@@ -16,6 +16,7 @@ type BookingRepository interface {
 	FindPending() ([]*Booking, error)
 	FindActiveByTechnician(techID string) ([]*Booking, error)    // Active = Assigned & In Progress (not completed)
 	FindScheduledByTechnician(techID string) ([]*Booking, error) // Scheduled = Not Cancelled (includes completed)
+	FindAllByDate(date string) ([]*Booking, error)               // [NEW] For Dynamic Availability
 
 	// Location and Status Updates
 	UpdateStatus(bookingID string, status string) error
@@ -35,6 +36,9 @@ type TechnicianRepository interface {
 	// FCM Token Management
 	UpdateFCMToken(techID, token string) error
 	ClearFCMTokenExcept(token, exceptTechID string) error // Clear token from all techs except one
+
+	// Helper for Dynamic Availability
+	CountActive() (int, error)
 }
 
 type TimeSlotRepository interface {
@@ -58,7 +62,7 @@ type SettingsRepository interface {
 type TimeSlotControl interface {
 	ReleaseSlot(slotID string) error
 	BookSlot(slotID, bookingID string) error
-	CheckConflict(techID, date, timeStr string, durationMin int) error
+	CheckConflict(techID, date, timeStr string, durationMin int, newSlotID string) error
 }
 
 type AnalyticsRepository interface {
