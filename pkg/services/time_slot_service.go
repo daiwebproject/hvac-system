@@ -2,6 +2,7 @@ package services
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	domain "hvac-system/internal/core"
@@ -266,6 +267,208 @@ func (s *TimeSlotService) GetAvailableSlots(date string) ([]TimeSlot, error) {
 	}
 
 	return slots, nil
+}
+
+// GetAvailableSlotsWithFilters returns available time slots filtered by customer zone and service skill
+// This enables "Smart Booking" - only show slots where qualified techs are available
+func (s *TimeSlotService) GetAvailableSlotsWithFilters(date string, customerZone string, serviceID string) ([]TimeSlot, error) {
+	const StandardSlotDuration = 120 * time.Minute
+	const TravelBuffer = 30 * time.Minute
+
+	// Validate date
+	targetDate, err := time.Parse("2006-01-02", date)
+	if err != nil {
+		return nil, fmt.Errorf("invalid date format: %w", err)
+	}
+	if targetDate.Before(time.Now().Truncate(24 * time.Hour)) {
+		return []TimeSlot{}, nil
+	}
+
+	// Get required skill from service (if any)
+	requiredSkill := ""
+	if serviceID != "" {
+		service, err := s.app.FindRecordById("services", serviceID)
+		if err == nil && service != nil {
+			requiredSkill = service.GetString("required_skill")
+		}
+	}
+
+	// Get all active techs then filter by zone/skill
+	allTechs, err := s.techRepo.GetAvailable()
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch technicians: %w", err)
+	}
+
+	// Filter techs by criteria
+	eligibleTechs := []*domain.Technician{}
+	for _, tech := range allTechs {
+		// Check skill requirement
+		if requiredSkill != "" && !techHasSkill(tech.Skills, requiredSkill) {
+			fmt.Printf("[SMART_BOOKING] Tech %s skipped: missing skill '%s'\n", tech.Name, requiredSkill)
+			continue
+		}
+
+		// Check zone coverage
+		if customerZone != "" && !techCoversZone(tech.ServiceZones, customerZone) {
+			fmt.Printf("[SMART_BOOKING] Tech %s skipped: zone '%s' not covered\n", tech.Name, customerZone)
+			continue
+		}
+
+		eligibleTechs = append(eligibleTechs, tech)
+	}
+
+	dynamicCapacity := len(eligibleTechs)
+	fmt.Printf("[SMART_BOOKING] Date=%s | Eligible Techs: %d/%d (Zone=%s, Skill=%s)\n",
+		date, dynamicCapacity, len(allTechs), customerZone, requiredSkill)
+
+	if dynamicCapacity == 0 {
+		return []TimeSlot{}, nil
+	}
+
+	// Build schedules for eligible techs only
+	bookings, _ := s.bookingRepo.FindAllByDate(date)
+	techSchedules := make(map[string][]TimeBlock)
+	var unassignedBlocks []TimeBlock
+
+	for _, b := range bookings {
+		startT, err := time.Parse("2006-01-02 15:04", b.BookingTime)
+		if err != nil {
+			continue
+		}
+		duration := 60 * time.Minute
+		endT := startT.Add(duration).Add(TravelBuffer)
+
+		if b.TechnicianID != "" {
+			techSchedules[b.TechnicianID] = append(techSchedules[b.TechnicianID], TimeBlock{Start: startT, End: endT})
+		} else {
+			unassignedBlocks = append(unassignedBlocks, TimeBlock{Start: startT, End: endT})
+		}
+	}
+
+	// Fetch slot definitions
+	filter := fmt.Sprintf("date = '%s'", date)
+	records, err := s.app.FindRecordsByFilter("time_slots", filter, "start_time", 100, 0, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	// Auto-generate if needed
+	if len(records) == 0 {
+		if err := s.GenerateDefaultSlots(date, dynamicCapacity); err == nil {
+			records, _ = s.app.FindRecordsByFilter("time_slots", filter, "start_time", 100, 0, nil)
+		}
+	}
+
+	slots := make([]TimeSlot, 0, len(records))
+	now := time.Now()
+
+	for _, record := range records {
+		startTimeStr := record.GetString("start_time")
+		slotStart, _ := time.Parse("2006-01-02 15:04", date+" "+startTimeStr)
+		slotEnd := slotStart.Add(StandardSlotDuration)
+
+		// Skip past slots
+		if date == now.Format("2006-01-02") && slotStart.Sub(now).Hours() < 2 {
+			continue
+		}
+
+		// Count eligible free techs
+		availableTechsCount := 0
+		for _, tech := range eligibleTechs {
+			timeline := techSchedules[tech.ID]
+			isFree := true
+			for _, block := range timeline {
+				if slotStart.Before(block.End) && slotEnd.After(block.Start) {
+					isFree = false
+					break
+				}
+			}
+			if isFree {
+				availableTechsCount++
+			}
+		}
+
+		// Subtract unassigned overlaps
+		for _, block := range unassignedBlocks {
+			if slotStart.Before(block.End) && slotEnd.After(block.Start) {
+				availableTechsCount--
+			}
+		}
+		if availableTechsCount < 0 {
+			availableTechsCount = 0
+		}
+
+		// Determine status
+		status := "full"
+		isAvailable := false
+		if availableTechsCount >= 2 {
+			status = "available"
+			isAvailable = true
+		} else if availableTechsCount > 0 {
+			status = "limited"
+			isAvailable = true
+		} else {
+			persistentBookings := int(record.GetFloat("current_bookings"))
+			if persistentBookings < dynamicCapacity+2 {
+				status = "waitlist"
+				isAvailable = true
+			}
+		}
+
+		slots = append(slots, TimeSlot{
+			ID:              record.Id,
+			Date:            record.GetString("date"),
+			StartTime:       startTimeStr,
+			EndTime:         record.GetString("end_time"),
+			MaxCapacity:     dynamicCapacity,
+			CurrentBookings: dynamicCapacity - availableTechsCount,
+			IsAvailable:     isAvailable,
+			Status:          status,
+		})
+	}
+
+	return slots, nil
+}
+
+// techHasSkill checks if technician has the required skill
+func techHasSkill(techSkills []string, requiredSkill string) bool {
+	for _, skill := range techSkills {
+		if skill == requiredSkill {
+			return true
+		}
+	}
+	return false
+}
+
+// techCoversZone checks if technician covers the customer's zone
+// Matching logic: exact match OR partial match (district/province level)
+func techCoversZone(techZones []string, customerZone string) bool {
+	if len(techZones) == 0 {
+		return true // No zone restriction = covers all
+	}
+	for _, zone := range techZones {
+		// Exact match
+		if zone == customerZone {
+			return true
+		}
+		// Partial match: if both contain same district or province
+		// Zone format: "Xã ABC, Huyện XYZ, Tỉnh DEF"
+		techParts := strings.Split(zone, ", ")
+		custParts := strings.Split(customerZone, ", ")
+
+		// Match at district level (2nd part) or province level (3rd part)
+		if len(techParts) >= 2 && len(custParts) >= 2 {
+			if techParts[1] == custParts[1] { // Same district
+				return true
+			}
+		}
+		if len(techParts) >= 3 && len(custParts) >= 3 {
+			if techParts[2] == custParts[2] { // Same province
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // BookSlot reserves a time slot (Legacy Wrapper)

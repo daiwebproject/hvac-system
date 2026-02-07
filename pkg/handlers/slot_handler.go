@@ -14,7 +14,7 @@ type SlotHandler struct {
 }
 
 // GetAvailableSlots returns available slots for a date
-// GET /api/slots/available?date=2026-01-28
+// GET /api/slots/available?date=2026-01-28&zone=Quận+1&service_id=abc123
 func (h *SlotHandler) GetAvailableSlots(e *core.RequestEvent) error {
 	dateStr := e.Request.URL.Query().Get("date")
 	if dateStr == "" {
@@ -22,7 +22,20 @@ func (h *SlotHandler) GetAvailableSlots(e *core.RequestEvent) error {
 		dateStr = time.Now().AddDate(0, 0, 1).Format("2006-01-02")
 	}
 
-	slots, err := h.SlotService.GetAvailableSlots(dateStr)
+	// Smart Booking filters (optional)
+	zone := e.Request.URL.Query().Get("zone")
+	serviceID := e.Request.URL.Query().Get("service_id")
+
+	var slots []services.TimeSlot
+	var err error
+
+	// Use filtered version if zone or service specified
+	if zone != "" || serviceID != "" {
+		slots, err = h.SlotService.GetAvailableSlotsWithFilters(dateStr, zone, serviceID)
+	} else {
+		slots, err = h.SlotService.GetAvailableSlots(dateStr)
+	}
+
 	if err != nil {
 		return e.JSON(400, map[string]string{"error": err.Error()})
 	}

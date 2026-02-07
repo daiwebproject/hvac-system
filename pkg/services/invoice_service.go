@@ -105,6 +105,38 @@ func (s *InvoiceService) GenerateInvoice(bookingID string) (*core.Record, error)
 	invoice.Set("labor_total", laborTotal)
 	invoice.Set("total_amount", totalAmount)
 
+	// [NEW] Calculate Tech Commission
+	// Priority: Tech Rate > Service Rate > Default 10%
+	techID := booking.GetString("technician_id")
+	techCommission := 0.0
+	if techID != "" && laborTotal > 0 {
+		commissionRate := 10.0 // Default 10%
+
+		// Check technician's personal rate
+		tech, err := s.app.FindRecordById("technicians", techID)
+		if err == nil && tech != nil {
+			techRate := tech.GetFloat("commission_rate")
+			if techRate > 0 {
+				commissionRate = techRate
+				fmt.Printf("✅ COMMISSION: Using Tech rate %.1f%%\n", commissionRate)
+			} else if serviceID != "" {
+				// Fallback to service rate
+				service, err := s.app.FindRecordById("services", serviceID)
+				if err == nil && service != nil {
+					serviceRate := service.GetFloat("commission_rate")
+					if serviceRate > 0 {
+						commissionRate = serviceRate
+						fmt.Printf("✅ COMMISSION: Using Service rate %.1f%%\n", commissionRate)
+					}
+				}
+			}
+		}
+
+		techCommission = laborTotal * (commissionRate / 100)
+		fmt.Printf("✅ COMMISSION: Calculated %.2f (%.1f%% of %.2f labor)\n", techCommission, commissionRate, laborTotal)
+	}
+	invoice.Set("tech_commission", techCommission)
+
 	if err := s.app.Save(invoice); err != nil {
 		return nil, err
 	}

@@ -102,6 +102,7 @@ window.bookingWizard = function () {
         },
 
         // Lấy danh sách khung giờ trống từ Backend
+        // [Smart Booking] Truyền zone và serviceId để lọc theo khu vực và kỹ năng
         async fetchSlots() {
             if (!this.selectedDate) return;
             this.loadingSlots = true;
@@ -110,7 +111,20 @@ window.bookingWizard = function () {
             this.formData.time = this.selectedDate;
 
             try {
-                const response = await fetch(`/api/slots/available?date=${this.selectedDate}`);
+                // Build URL with optional filters
+                let url = `/api/slots/available?date=${this.selectedDate}`;
+
+                // Add zone filter (use address as zone identifier)
+                if (this.formData.address) {
+                    url += `&zone=${encodeURIComponent(this.formData.address)}`;
+                }
+
+                // Add service filter for skill-based matching
+                if (this.formData.serviceId) {
+                    url += `&service_id=${encodeURIComponent(this.formData.serviceId)}`;
+                }
+
+                const response = await fetch(url);
                 if (response.ok) {
                     this.availableSlots = await response.json();
                 }
