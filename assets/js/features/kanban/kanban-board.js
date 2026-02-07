@@ -447,6 +447,53 @@ export function kanbanBoard(initialActive = [], initialCompleted = []) {
             }
         },
 
+        // === Create Job from Admin Form ===
+        async createJob() {
+            const form = document.getElementById('create-job-form');
+            if (!form) {
+                toast.error('Lỗi: Không tìm thấy form');
+                return;
+            }
+
+            // Validate required fields
+            const customerName = form.querySelector('[name="customer_name"]')?.value?.trim();
+            const customerPhone = form.querySelector('[name="customer_phone"]')?.value?.trim();
+            const bookingTime = form.querySelector('[name="booking_time"]')?.value?.trim();
+
+            if (!customerName || !customerPhone || !bookingTime) {
+                toast.error('Vui lòng điền đầy đủ thông tin bắt buộc');
+                return;
+            }
+
+            const formData = new FormData(form);
+
+            try {
+                const response = await apiClient.post('/admin/bookings/create', Object.fromEntries(formData));
+
+                if (response.ok) {
+                    const result = await response.json();
+
+                    // Close modal safely
+                    const modalToggle = document.getElementById('modal-create-job');
+                    if (modalToggle) modalToggle.checked = false;
+
+                    // Reset form
+                    form.reset();
+
+                    // Show success toast
+                    toast.success('Đã tạo đơn hàng mới!');
+
+                    // SSE will handle adding the job to the board via booking.created event
+                } else {
+                    const errText = await response.text();
+                    toast.error('Lỗi tạo đơn: ' + errText);
+                }
+            } catch (err) {
+                console.error('CreateJob error:', err);
+                toast.error('Lỗi kết nối máy chủ');
+            }
+        },
+
         // === Map Functions ===
         toggleMapSidebar() {
             this.showMapSidebar = !this.showMapSidebar;

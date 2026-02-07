@@ -456,10 +456,6 @@ func (h *AdminHandler) CreateBooking(e *core.RequestEvent) error {
 	record.Set("job_status", "pending")
 	record.Set("created", time.Now().Format("2006-01-02 15:04:05.000Z"))
 
-	if err := h.App.Save(record); err != nil {
-		return e.String(500, "Lỗi lưu đơn hàng: "+err.Error())
-	}
-
 	// [REFACTORED] Use BookingService to trigger notifications
 	// Ideally we should use h.BookingService.CreateBooking, but that requires constructing domain props.
 	// For now, the EASIEST fix is to manually trigger the service's notification helper?
