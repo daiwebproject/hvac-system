@@ -1,0 +1,198 @@
+{{define "content"}}
+<div x-data="techStockManager({
+    techs: {{.TechsJSON}},
+    items: {{.ItemsJSON}}
+})" class="space-y-6">
+
+    <!-- Header & Search -->
+    <div
+        class="flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                <i class="fa-solid fa-truck-ramp-box text-blue-600"></i>
+                Kho Trên Xe
+            </h1>
+            <p class="text-gray-500 text-sm mt-1">Quản lý vật tư cho từng kỹ thuật viên</p>
+        </div>
+
+        <div class="flex items-center gap-3 w-full md:w-auto">
+            <div class="relative w-full md:w-64">
+                <input type="text" x-model="searchQuery" placeholder="Tìm kiếm thợ..."
+                    class="input input-bordered w-full pl-10 h-10">
+                <i class="fa-solid fa-search absolute left-3 top-3 text-gray-400"></i>
+            </div>
+
+            <button @click="openTransferModal()" class="btn btn-primary btn-sm h-10 gap-2">
+                <i class="fa-solid fa-plus"></i>
+                Cấp hàng
+            </button>
+        </div>
+    </div>
+
+    <!-- Technicians Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <template x-for="tech in filteredTechs" :key="tech.id">
+            <div
+                class="card bg-white shadow-sm hover:shadow-md transition-all duration-200 border border-gray-100 group">
+                <div class="card-body p-5">
+                    <!-- Card Header -->
+                    <div class="flex items-start justify-between">
+                        <div class="flex items-center gap-3 cursor-pointer" @click="viewTechDetail(tech.id)">
+                            <div class="avatar placeholder">
+                                <div
+                                    class="bg-gradient-to-br from-blue-500 to-indigo-600 text-white rounded-full w-12 h-12 shadow-sm">
+                                    <span class="text-lg font-bold" x-text="tech.name.charAt(0).toUpperCase()"></span>
+                                </div>
+                            </div>
+                            <div>
+                                <h3 class="font-bold text-gray-800 group-hover:text-blue-600 transition-colors"
+                                    x-text="tech.name"></h3>
+                                <p class="text-xs text-gray-500 flex items-center gap-1">
+                                    <i class="fa-solid fa-phone text-[10px]"></i>
+                                    <span x-text="tech.phone"></span>
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Quick Transfer Button -->
+                        <button
+                            class="btn btn-circle btn-ghost btn-sm text-blue-600 bg-blue-50 hover:bg-blue-100 tooltip tooltip-left"
+                            data-tip="Cấp hàng nhanh" @click="openTransferModal(tech.id)">
+                            <i class="fa-solid fa-arrow-right-to-bracket"></i>
+                        </button>
+                    </div>
+
+                    <div class="divider my-3"></div>
+
+                    <!-- Stats -->
+                    <div class="grid grid-cols-2 gap-3 cursor-pointer" @click="viewTechDetail(tech.id)">
+                        <div
+                            class="bg-slate-50 rounded-lg p-3 text-center border border-slate-100 hover:border-blue-200 transition-colors">
+                            <div class="text-2xl font-bold text-slate-700" x-text="tech.item_count"></div>
+                            <div class="text-xs text-slate-500 uppercase font-semibold">Mặt hàng</div>
+                        </div>
+                        <div
+                            class="bg-emerald-50 rounded-lg p-3 text-center border border-emerald-100 hover:border-emerald-200 transition-colors">
+                            <div class="text-lg font-bold text-emerald-600" x-text="formatMoney(tech.total_value)">
+                            </div>
+                            <div class="text-xs text-emerald-500 uppercase font-semibold">Tổng giá trị</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </template>
+
+        <!-- Empty State -->
+        <template x-if="filteredTechs.length === 0">
+            <div class="col-span-full text-center py-16 bg-white rounded-xl border border-dashed border-gray-300">
+                <div class="bg-gray-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fa-solid fa-magnifying-glass text-2xl text-gray-400"></i>
+                </div>
+                <h3 class="text-lg font-bold text-gray-700">Không tìm thấy kết quả</h3>
+                <p class="text-gray-500">Thử tìm kiếm với từ khóa khác</p>
+                <button @click="searchQuery = ''" class="btn btn-link btn-sm mt-2">Xóa bộ lọc</button>
+            </div>
+        </template>
+    </div>
+
+    <!-- Transfer Modal -->
+    <div class="modal" :class="{'modal-open': showTransferModal}">
+        <div class="modal-box">
+            <h3 class="font-bold text-lg flex items-center gap-2">
+                <i class="fa-solid fa-dolly text-blue-500"></i>
+                Cấp hàng từ kho chính
+            </h3>
+
+            <form @submit.prevent="submitTransfer()" class="space-y-4 mt-4">
+                <!-- Tech Select -->
+                <div class="form-control">
+                    <label class="label">
+                        <span class="label-text font-bold">Kỹ thuật viên <span class="text-red-500">*</span></span>
+                    </label>
+                    <select x-model="transfer.techId" class="select select-bordered w-full" required>
+                        <option value="">-- Chọn thợ --</option>
+                        <template x-for="tech in techs">
+                            <option :value="tech.id" x-text="tech.name"></option>
+                        </template>
+                    </select>
+                </div>
+
+                <!-- Item Select -->
+                <div class="form-control">
+                    <label class="label">
+                        <span class="label-text font-bold">Vật tư <span class="text-red-500">*</span></span>
+                    </label>
+                    <select x-model="transfer.itemId" class="select select-bordered w-full" required
+                        @change="updateSelectedItem()">
+                        <option value="">-- Chọn vật tư --</option>
+                        <template x-for="item in items">
+                            <option :value="item.id"
+                                x-text="`${item.name} (Còn: ${item.stock_quantity} ${item.unit || ''})`"></option>
+                        </template>
+                    </select>
+                </div>
+
+                <!-- Quantity -->
+                <div class="form-control">
+                    <label class="label">
+                        <span class="label-text font-bold">Số lượng <span class="text-red-500">*</span></span>
+                        <span class="label-text-alt text-gray-400"
+                            x-text="selectedItem ? `Tối đa: ${selectedItem.stock_quantity}` : ''"></span>
+                    </label>
+                    <input type="number" x-model="transfer.quantity" class="input input-bordered w-full" min="0.1"
+                        step="0.1" :max="selectedItem?.stock_quantity || 9999" required>
+                </div>
+
+                <div class="modal-action">
+                    <button type="button" @click="showTransferModal = false" class="btn btn-ghost">Hủy</button>
+                    <button type="submit" class="btn btn-primary" :disabled="loading">
+                        <span x-show="loading" class="loading loading-spinner loading-sm"></span>
+                        <span x-show="!loading">Cấp hàng</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+        <label class="modal-backdrop bg-slate-900/50" @click="showTransferModal = false"></label>
+    </div>
+
+    <!-- Tech Detail Modal -->
+    <div class="modal" :class="{'modal-open': showDetailModal}">
+        <div class="modal-box max-w-2xl">
+            <h3 class="font-bold text-lg flex items-center gap-2">
+                <i class="fa-solid fa-warehouse text-blue-500"></i>
+                Kho của <span x-text="selectedTech?.name || 'Thợ'"></span>
+            </h3>
+
+            <div class="mt-4">
+                <div x-show="techItems.length === 0" class="text-center py-8 text-gray-400">
+                    <i class="fa-solid fa-box-open text-3xl mb-2"></i>
+                    <p>Chưa có vật tư trong kho xe</p>
+                </div>
+
+                <div class="space-y-2">
+                    <template x-for="item in techItems" :key="item.ID">
+                        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                            <div>
+                                <div class="font-medium" x-text="item.ItemName"></div>
+                                <div class="text-xs text-gray-500"
+                                    x-text="`${formatMoney(item.Price)} / ${item.Unit || 'đơn vị'}`"></div>
+                            </div>
+                            <div class="text-right">
+                                <div class="badge badge-primary badge-lg" x-text="item.Quantity"></div>
+                                <div class="text-xs text-gray-400 mt-1"
+                                    x-text="formatMoney(item.Price * item.Quantity)"></div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <div class="modal-action">
+                <button type="button" @click="showDetailModal = false" class="btn">Đóng</button>
+            </div>
+        </div>
+        <label class="modal-backdrop bg-slate-900/50" @click="showDetailModal = false"></label>
+    </div>
+</div>
+
+{{end}}

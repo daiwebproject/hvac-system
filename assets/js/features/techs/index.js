@@ -3,7 +3,7 @@
  * @module features/techs
  */
 
-import { techManager } from './tech-manager.js';
+import { techManager } from './tech-manager.js?v=3';
 
 /**
  * Initialize Technician management features

@@ -195,6 +195,7 @@ func RegisterRoutes(pb *pocketbase.PocketBase, c *internalApp.Container) {
 		// Admin Tech Management
 		adminGroup.GET("/techs", admin.TechsList)
 		adminGroup.POST("/techs/create", admin.CreateTech)
+		adminGroup.POST("/techs/{id}/update", admin.UpdateTechInfo)
 		adminGroup.POST("/techs/{id}/password", admin.ResetTechPassword)
 		adminGroup.POST("/techs/{id}/toggle", admin.ToggleTechStatus)
 
@@ -208,12 +209,24 @@ func RegisterRoutes(pb *pocketbase.PocketBase, c *internalApp.Container) {
 		adminGroup.GET("/tools/inventory", adminTools.ShowInventoryManager)
 		adminGroup.POST("/tools/inventory/create", adminTools.CreateInventoryItem)
 		adminGroup.POST("/tools/inventory/{id}/stock", adminTools.UpdateInventoryStock)
+		adminGroup.POST("/tools/inventory/{id}/update", adminTools.UpdateInventoryItem)
+		adminGroup.POST("/tools/inventory/{id}/delete", adminTools.DeleteInventoryItem)
+		adminGroup.POST("/tools/inventory/import", adminTools.ImportToMain)
+		adminGroup.GET("/tools/inventory/alerts", adminTools.GetLowStockAlerts)
+
+		// Tech Stock (Kho Trên Xe) Routes
+		adminGroup.GET("/tools/tech-stock", adminTools.ShowTechStock)
+		adminGroup.GET("/tools/tech-stock/{id}", adminTools.ShowTechStockDetail)
+		adminGroup.POST("/tools/tech-stock/transfer", adminTools.TransferStock)
+		adminGroup.POST("/tools/tech-stock/return", adminTools.ReturnStock)
+
 		adminGroup.GET("/api/slots", admin.GetSlots)
 
 		// Service Management
 		adminGroup.GET("/services", admin.ServicesList)
 		adminGroup.POST("/services", admin.ServiceSave)
 		adminGroup.POST("/services/{id}/delete", admin.ServiceDelete)
+		adminGroup.POST("/services/{id}/toggle", admin.ToggleServiceStatus)
 
 		// Category Management
 		adminGroup.GET("/categories", admin.CategoriesList)

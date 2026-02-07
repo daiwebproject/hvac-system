@@ -1,176 +1,268 @@
 {{ define "content" }}
 <div class="container mx-auto p-4 md:p-6"
     x-data="inventoryManager({{ if .ItemsJSON }}{{ .ItemsJSON }}{{ else }}[]{{ end }})">
-    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+    <!-- Header & Toolbar -->
+    <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6">
         <div>
             <h1 class="text-3xl font-black tracking-tight text-gray-800">Quản lý Kho <span class="text-primary">Linh
                     Kiện</span></h1>
-            <div class="h-1 w-20 bg-primary rounded-full mt-2"></div>
-            <p class="text-gray-500 mt-2">Theo dõi vật tư, in mã QR và quản lý tồn kho</p>
+            <p class="text-gray-500 mt-1">Theo dõi vật tư, in mã QR và quản lý tồn kho</p>
         </div>
-        <a href="/admin" class="btn btn-ghost bg-base-100 shadow-sm border-base-200">
-            <i class="fa-solid fa-arrow-left"></i> Quay lại Dashboard
-        </a>
+        <div class="flex flex-wrap gap-2 w-full lg:w-auto">
+            <button @click="showImportModal = true" class="btn btn-success text-white gap-2 shadow flex-1 lg:flex-none">
+                <i class="fa-solid fa-dolly"></i> Nhập kho
+            </button>
+            <button @click="resetForm(); showAddModal = true" class="btn btn-primary gap-2 shadow flex-1 lg:flex-none">
+                <i class="fa-solid fa-plus"></i> Thêm mới
+            </button>
+            <a href="/admin" class="btn btn-ghost bg-base-100 shadow-sm border-base-200">
+                <i class="fa-solid fa-arrow-left"></i>
+            </a>
+        </div>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div class="lg:col-span-1">
-            <div class="card bg-base-100 shadow-xl border border-base-200 sticky top-24">
-                <div class="card-body p-6">
-                    <h2 class="card-title text-xl font-bold mb-4 flex items-center gap-2">
-                        <div class="w-10 h-10 bg-success/10 rounded-lg flex items-center justify-center text-success">
-                            <i class="fa-solid fa-plus-circle"></i>
-                        </div>
-                        Thêm Linh Kiện Mới
-                    </h2>
+    <!-- Filters -->
+    <div class="bg-base-100 p-4 rounded-xl shadow-sm border border-base-200 mb-6 sticky top-20 z-20">
+        <div class="flex flex-col md:flex-row gap-4">
+            <div class="form-control flex-1 relative">
+                <i class="fa-solid fa-search absolute left-4 top-3.5 text-gray-400"></i>
+                <input type="text" x-model="searchQuery" placeholder="Tìm kiếm theo tên hoặc SKU..."
+                    class="input input-bordered w-full pl-10 focus:border-primary">
+            </div>
+            <select x-model="selectedCategory" class="select select-bordered w-full md:w-48">
+                <option value="">Tất cả danh mục</option>
+                <option value="capacitors">Tụ điện</option>
+                <option value="gas">Gas lạnh</option>
+                <option value="pipes">Ống đồng</option>
+                <option value="motors">Động cơ</option>
+                <option value="filters">Lọc</option>
+                <option value="sensors">Cảm biến</option>
+                <option value="other">Khác</option>
+            </select>
+        </div>
+    </div>
 
-                    <div class="space-y-4">
-                        <div class="form-control">
-                            <label class="label"><span class="label-text font-semibold">Tên linh kiện *</span></label>
-                            <input type="text" x-model="newItem.name" class="input input-bordered focus:border-primary"
-                                placeholder="Ví dụ: Tụ điện 50uF">
-                        </div>
-
-                        <div class="grid grid-cols-2 gap-4">
-                            <div class="form-control">
-                                <label class="label"><span class="label-text font-semibold">Mã SKU</span></label>
-                                <input type="text" x-model="newItem.sku" class="input input-bordered"
-                                    placeholder="CAP-50UF">
-                            </div>
-
-                            <div class="form-control">
-                                <label class="label"><span class="label-text font-semibold">Loại</span></label>
-                                <select x-model="newItem.category" class="select select-bordered">
-                                    <option value="capacitors">Tụ điện</option>
-                                    <option value="gas">Gas lạnh</option>
-                                    <option value="pipes">Ống đồng</option>
-                                    <option value="motors">Động cơ</option>
-                                    <option value="filters">Lọc</option>
-                                    <option value="sensors">Cảm biến</option>
-                                    <option value="other">Khác</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <div class="grid grid-cols-2 gap-4">
-                            <div class="form-control">
-                                <label class="label"><span class="label-text font-semibold">Giá (VNĐ) *</span></label>
-                                <input type="number" x-model="newItem.price" class="input input-bordered"
-                                    placeholder="150000">
-                            </div>
-
-                            <div class="form-control">
-                                <label class="label"><span class="label-text font-semibold">Tồn kho</span></label>
-                                <input type="number" x-model="newItem.stock_quantity" class="input input-bordered"
-                                    placeholder="50">
-                            </div>
-                        </div>
-
-                        <div class="form-control">
-                            <label class="label"><span class="label-text font-semibold">Đơn vị</span></label>
-                            <input type="text" x-model="newItem.unit" class="input input-bordered"
-                                placeholder="cái, kg, mét">
-                        </div>
-
-                        <div class="form-control">
-                            <label class="label"><span class="label-text font-semibold">Mô tả</span></label>
-                            <textarea x-model="newItem.description" class="textarea textarea-bordered h-24"
-                                placeholder="Ghi chú về linh kiện..."></textarea>
-                        </div>
+    <!-- Low Stock Alerts -->
+    <div x-show="alerts.length > 0" x-transition class="mb-6">
+        <div class="alert alert-warning shadow-lg">
+            <i class="fa-solid fa-triangle-exclamation text-xl"></i>
+            <div>
+                <h3 class="font-bold">Cảnh báo tồn kho thấp!</h3>
+                <div class="text-xs">Có <span x-text="alerts.length" class="font-bold"></span> sản phẩm dưới mức tồn kho
+                    tối thiểu</div>
+            </div>
+            <div class="flex flex-wrap gap-2">
+                <template x-for="alert in alerts.slice(0, 5)" :key="alert.product.id">
+                    <div class="badge badge-error gap-1">
+                        <span x-text="alert.product.name"></span>:
+                        <span x-text="alert.main_stock + '/' + alert.product.min_threshold"></span>
                     </div>
-
-                    <div class="card-actions justify-end mt-6">
-                        <button @click="addItem()" :disabled="loading" class="btn btn-primary w-full shadow-lg">
-                            <span x-show="!loading"><i class="fa-solid fa-save"></i> THÊM LINH KIỆN</span>
-                            <span x-show="loading" class="loading loading-spinner"></span>
-                        </button>
-                    </div>
-
-                    <div x-show="message" x-transition class="alert mt-4 shadow-sm"
-                        :class="success ? 'alert-success' : 'alert-error'">
-                        <span x-text="message" class="text-sm font-medium"></span>
-                    </div>
-                </div>
+                </template>
+                <span x-show="alerts.length > 5" class="badge badge-neutral"
+                    x-text="'+' + (alerts.length - 5) + ' khác'"></span>
             </div>
         </div>
+    </div>
 
-        <div class="lg:col-span-2">
-            <div class="card bg-base-100 shadow-xl border border-base-200 overflow-hidden">
-                <div class="bg-gray-50 p-6 border-b border-base-200 flex justify-between items-center">
-                    <h2 class="card-title text-xl font-bold flex items-center gap-2">
-                        <div class="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center text-primary">
-                            <i class="fa-solid fa-warehouse"></i>
-                        </div>
-                        Danh Sách Vật Tư
-                    </h2>
-                    <div class="badge badge-primary badge-outline" x-text="items.length + ' sản phẩm'"></div>
+    <!-- Inventory List (Full Width) -->
+    <div class="card bg-base-100 shadow-xl border border-base-200 overflow-hidden">
+        <div class="bg-gray-50 p-4 border-b border-base-200 flex justify-between items-center">
+            <span class="font-bold text-gray-600">Danh sách vật tư</span>
+            <div class="badge badge-primary badge-outline" x-text="filteredItems.length + ' sản phẩm'"></div>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="table table-zebra w-full">
+                <thead class="bg-base-200/50">
+                    <tr>
+                        <th class="py-4 pl-6">Linh kiện</th>
+                        <th>Danh mục</th>
+                        <th>Giá bán</th>
+                        <th>Tồn kho</th>
+                        <th>Mô tả</th>
+                        <th class="text-right pr-6">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <template x-if="filteredItems.length === 0">
+                        <tr>
+                            <td colspan="6" class="text-center py-12 text-gray-400 italic">
+                                <i class="fa-solid fa-box-open text-4xl mb-4 block opacity-20"></i>
+                                <span x-text="searchQuery ? 'Không tìm thấy kết quả' : 'Chưa có linh kiện nào'"></span>
+                            </td>
+                        </tr>
+                    </template>
+
+                    <template x-for="item in filteredItems" :key="item.id">
+                        <tr class="hover group">
+                            <td class="pl-6">
+                                <div class="font-bold text-gray-800 text-lg" x-text="item.name"></div>
+                                <div class="text-xs text-gray-500 font-mono tracking-tighter badge badge-ghost badge-sm mt-1"
+                                    x-text="item.sku || 'No SKU'"></div>
+                            </td>
+                            <td>
+                                <div class="badge badge-outline capitalize" x-text="item.category"></div>
+                            </td>
+                            <td>
+                                <span class="text-primary font-black whitespace-nowrap text-base"
+                                    x-text="formatMoney(item.price)"></span>
+                                <div class="text-[10px] text-gray-400 mt-1" x-text="'/' + (item.unit || 'cái')"></div>
+                            </td>
+                            <td>
+                                <div class="flex items-center gap-2">
+                                    <div class="badge font-bold p-3"
+                                        :class="item.stock_quantity < 5 ? 'badge-error text-white' : 'badge-success text-white'"
+                                        x-text="item.stock_quantity"></div>
+                                </div>
+                            </td>
+                            <td class="max-w-xs truncate text-gray-500 text-sm" x-text="item.description || '-'"></td>
+                            <td class="text-right pr-6">
+                                <div class="join">
+                                    <button @click="showStockUpdate(item)"
+                                        class="btn btn-sm btn-ghost join-item text-gray-600 hover:text-orange-600 tooltip"
+                                        data-tip="Sửa nhanh tồn kho">
+                                        <i class="fa-solid fa-boxes-stacked"></i>
+                                    </button>
+                                    <button @click="openEditModal(item)"
+                                        class="btn btn-sm btn-ghost join-item text-gray-600 hover:text-blue-600 tooltip"
+                                        data-tip="Chỉnh sửa thông tin">
+                                        <i class="fa-solid fa-pen"></i>
+                                    </button>
+                                    <button @click="deleteItem(item)"
+                                        class="btn btn-sm btn-ghost join-item text-gray-600 hover:text-red-600 tooltip"
+                                        data-tip="Xóa vật tư">
+                                        <i class="fa-solid fa-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Manage Item Modal -->
+    <div class="modal" :class="{'modal-open': showAddModal}">
+        <div class="modal-box w-11/12 max-w-2xl">
+            <h3 class="font-bold text-lg flex items-center gap-2 mb-6">
+                <div class="w-8 h-8 rounded-lg flex items-center justify-center"
+                    :class="isEditing ? 'bg-blue-100 text-blue-600' : 'bg-primary/10 text-primary'">
+                    <i class="fa-solid" :class="isEditing ? 'fa-pen' : 'fa-plus'"></i>
+                </div>
+                <span x-text="isEditing ? 'Cập Nhật Linh Kiện' : 'Thêm Linh Kiện Mới'"></span>
+            </h3>
+
+            <div class="space-y-4">
+                <div class="form-control">
+                    <label class="label"><span class="label-text font-semibold">Tên linh kiện *</span></label>
+                    <input type="text" x-model="newItem.name" class="input input-bordered focus:border-primary w-full"
+                        placeholder="Ví dụ: Tụ điện 50uF">
                 </div>
 
-                <div class="p-0 overflow-x-auto">
-                    <table class="table table-zebra w-full">
-                        <thead class="bg-base-200/50">
-                            <tr>
-                                <th class="py-4">Linh kiện</th>
-                                <th>Thông tin</th>
-                                <th>Giá bán</th>
-                                <th>Tồn kho</th>
-                                <th class="text-right">Thao tác</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <template x-if="items.length === 0">
-                                <tr>
-                                    <td colspan="5" class="text-center py-12 text-gray-400 italic">
-                                        <i class="fa-solid fa-folder-open text-4xl mb-4 block opacity-20"></i>
-                                        Chưa có linh kiện nào
-                                    </td>
-                                </tr>
-                            </template>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="form-control">
+                        <label class="label"><span class="label-text font-semibold">Mã SKU</span></label>
+                        <input type="text" x-model="newItem.sku" class="input input-bordered w-full"
+                            placeholder="CAP-50UF">
+                    </div>
 
-                            <template x-for="item in items" :key="item.id">
-                                <tr class="hover group">
-                                    <td>
-                                        <div class="font-bold text-gray-800" x-text="item.name"></div>
-                                        <div class="text-xs text-gray-500 font-mono tracking-tighter"
-                                            x-text="item.sku || 'No SKU'"></div>
-                                    </td>
-                                    <td>
-                                        <div class="badge badge-sm badge-ghost" x-text="item.category"></div>
-                                        <div class="text-[10px] text-gray-400 mt-1"
-                                            x-text="'Đơn vị: ' + (item.unit || 'cái')"></div>
-                                    </td>
-                                    <td>
-                                        <span class="text-primary font-black whitespace-nowrap"
-                                            x-text="formatMoney(item.price)"></span>
-                                    </td>
-                                    <td>
-                                        <div class="flex items-center gap-2">
-                                            <div class="badge font-bold"
-                                                :class="item.stock_quantity < 5 ? 'badge-error text-white' : 'badge-success text-white'"
-                                                x-text="item.stock_quantity"></div>
-                                        </div>
-                                    </td>
-                                    <td class="text-right">
-                                        <div class="join opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <button @click="printQR(item)"
-                                                class="btn btn-sm btn-ghost join-item text-gray-600 hover:text-blue-600 tooltip"
-                                                data-tip="In mã QR">
-                                                <i class="fa-solid fa-qrcode"></i>
-                                            </button>
-                                            <button @click="showStockUpdate(item)"
-                                                class="btn btn-sm btn-ghost join-item text-gray-600 hover:text-orange-600 tooltip"
-                                                data-tip="Sửa tồn kho">
-                                                <i class="fa-solid fa-pen-to-square"></i>
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            </template>
-                        </tbody>
-                    </table>
+                    <div class="form-control">
+                        <label class="label"><span class="label-text font-semibold">Loại</span></label>
+                        <select x-model="newItem.category" class="select select-bordered w-full">
+                            <option value="capacitors">Tụ điện</option>
+                            <option value="gas">Gas lạnh</option>
+                            <option value="pipes">Ống đồng</option>
+                            <option value="motors">Động cơ</option>
+                            <option value="filters">Lọc</option>
+                            <option value="sensors">Cảm biến</option>
+                            <option value="other">Khác</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="form-control">
+                        <label class="label"><span class="label-text font-semibold">Giá (VNĐ) *</span></label>
+                        <input type="number" x-model="newItem.price" class="input input-bordered w-full"
+                            placeholder="150000">
+                    </div>
+
+                    <div class="form-control">
+                        <label class="label"><span class="label-text font-semibold">Tồn kho</span></label>
+                        <input type="number" x-model="newItem.stock_quantity" class="input input-bordered w-full"
+                            placeholder="0">
+                    </div>
+
+                    <div class="form-control">
+                        <label class="label"><span class="label-text font-semibold">Đơn vị</span></label>
+                        <input type="text" x-model="newItem.unit" class="input input-bordered w-full"
+                            placeholder="cái, kg...">
+                    </div>
+                </div>
+
+                <div class="form-control">
+                    <label class="label"><span class="label-text font-semibold">Mô tả</span></label>
+                    <textarea x-model="newItem.description" class="textarea textarea-bordered h-24 w-full"
+                        placeholder="Ghi chú về linh kiện..."></textarea>
+                </div>
+
+                <div x-show="message" x-transition class="alert mt-4 shadow-sm"
+                    :class="success ? 'alert-success' : 'alert-error'">
+                    <span x-text="message" class="text-sm font-medium"></span>
                 </div>
             </div>
+
+            <div class="modal-action">
+                <button type="button" @click="showAddModal = false" class="btn btn-ghost">Hủy bỏ</button>
+                <button @click="saveItem()" :disabled="loading" class="btn min-w-[120px]"
+                    :class="isEditing ? 'btn-info' : 'btn-primary'">
+                    <span x-show="!loading" x-text="isEditing ? 'Cập nhật' : 'Lưu lại'"></span>
+                    <span x-show="loading" class="loading loading-spinner"></span>
+                </button>
+            </div>
         </div>
+        <label class="modal-backdrop bg-slate-900/50" @click="showAddModal = false"></label>
+    </div>
+
+    <!-- Import Modal -->
+    <div class="modal" :class="{'modal-open': showImportModal}">
+        <div class="modal-box">
+            <h3 class="font-bold text-lg flex items-center gap-2">
+                <i class="fa-solid fa-truck-loading text-green-500"></i>
+                Nhập hàng vào kho tổng
+            </h3>
+            <form @submit.prevent="submitImport()" class="space-y-4 mt-4">
+                <div class="form-control">
+                    <label class="label"><span class="label-text font-bold">Sản phẩm *</span></label>
+                    <select x-model="importData.product_id" class="select select-bordered w-full" required>
+                        <option value="">-- Chọn sản phẩm --</option>
+                        <template x-for="item in items">
+                            <option :value="item.id"
+                                x-text="`${item.name} (Tồn: ${item.stock_quantity} ${item.unit || ''})`"></option>
+                        </template>
+                    </select>
+                </div>
+                <div class="form-control">
+                    <label class="label"><span class="label-text font-bold">Số lượng nhập *</span></label>
+                    <input type="number" x-model="importData.quantity" class="input input-bordered w-full" min="0.1"
+                        step="0.1" required placeholder="VD: 10">
+                </div>
+                <div class="form-control">
+                    <label class="label"><span class="label-text font-bold">Ghi chú</span></label>
+                    <input type="text" x-model="importData.note" class="input input-bordered w-full"
+                        placeholder="Nhập từ NCC, số hóa đơn...">
+                </div>
+                <div class="modal-action">
+                    <button type="button" @click="showImportModal = false" class="btn btn-ghost">Hủy</button>
+                    <button type="submit" class="btn btn-success" :disabled="loading">
+                        <span x-show="loading" class="loading loading-spinner loading-sm"></span>
+                        <span x-show="!loading">Xác nhận nhập</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+        <label class="modal-backdrop bg-slate-900/50" @click="showImportModal = false"></label>
     </div>
 </div>
 {{ end }}

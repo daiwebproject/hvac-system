@@ -1,22 +1,28 @@
 {{ define "content" }}
-<div x-data="techManager()" class="p-4 space-y-6">
+<div x-data="techManager({{.AllServicesJSON}})" class="p-4 space-y-6">
 
     <div
         class="flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-4 rounded-xl shadow-sm border border-gray-100">
         <div>
             <h2 class="text-2xl font-bold text-gray-800"><i class="fa-solid fa-users-gear text-blue-600 mr-2"></i>Quản
                 Lý Kỹ Thuật Viên</h2>
-            <p class="text-sm text-gray-500">Danh sách nhân viên và trạng thái hoạt động</p>
+            <p class="text-sm text-gray-500">Danh sách nhân viên và cấu hình kỹ năng</p>
         </div>
-        <button onclick="document.getElementById('modal_add_tech').showModal()"
-            class="btn btn-primary gap-2 shadow-lg shadow-blue-500/30">
-            <i class="fa-solid fa-user-plus"></i> Thêm Thợ Mới
-        </button>
+        <div class="flex items-center gap-3">
+            <div class="relative">
+                <i class="fa-solid fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                <input type="text" x-model="searchQuery" placeholder="Tìm theo tên..."
+                    class="input input-bordered input-sm pl-9 w-48 focus:w-64 transition-all">
+            </div>
+            <button onclick="document.getElementById('modal_add_tech').showModal()"
+                class="btn btn-primary btn-sm gap-2 shadow-lg shadow-blue-500/30">
+                <i class="fa-solid fa-user-plus"></i> Thêm Thợ
+            </button>
+        </div>
     </div>
 
     <div id="tech-list-container" hx-get="/admin/techs" hx-trigger="load, techListUpdated from:body" hx-target="this"
         class="min-h-[200px] relative">
-
         <div class="flex justify-center items-center h-40">
             <span class="loading loading-spinner loading-lg text-primary"></span>
         </div>
@@ -26,42 +32,340 @@
         <div class="modal-box">
             <h3 class="font-bold text-lg mb-4 text-primary"><i class="fa-solid fa-user-plus mr-2"></i>Thêm Kỹ Thuật Viên
             </h3>
-
             <form hx-post="/admin/techs/create" hx-swap="none"
                 hx-on::after-request="if(event.detail.successful) { document.getElementById('modal_add_tech').close(); this.reset(); Swal.fire('Thành công', 'Đã thêm nhân viên mới', 'success'); } else { Swal.fire('Lỗi', 'Không thể tạo nhân viên', 'error'); }">
-
                 <div class="form-control w-full mb-3">
                     <label class="label"><span class="label-text font-semibold">Họ và Tên</span></label>
                     <input type="text" name="name" placeholder="Nguyễn Văn A" class="input input-bordered w-full"
                         required />
                 </div>
-
                 <div class="form-control w-full mb-3">
                     <label class="label"><span class="label-text font-semibold">Email Đăng Nhập</span></label>
                     <input type="email" name="email" placeholder="tech@example.com" class="input input-bordered w-full"
                         required />
                 </div>
-
                 <div class="form-control w-full mb-6">
                     <label class="label"><span class="label-text font-semibold">Mật Khẩu</span></label>
                     <input type="password" name="password" placeholder="******" class="input input-bordered w-full"
                         required minlength="8" />
                 </div>
-
                 <div class="modal-action">
                     <button type="button" class="btn"
                         onclick="document.getElementById('modal_add_tech').close()">Hủy</button>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fa-regular fa-paper-plane mr-2"></i> Tạo Tài Khoản
-                    </button>
+                    <button type="submit" class="btn btn-primary">Tạo Tài Khoản</button>
                 </div>
             </form>
         </div>
-        <form method="dialog" class="modal-backdrop">
-            <button>close</button>
-        </form>
+        <form method="dialog" class="modal-backdrop"><button>close</button></form>
     </dialog>
 
+    <dialog class="modal modal-bottom sm:modal-middle" :class="{ 'modal-open': editModalOpen }">
+        <template x-if="editingTech">
+            <div class="modal-box w-11/12 max-w-5xl bg-base-100 p-0 rounded-2xl overflow-hidden shadow-2xl flex h-[85vh]"
+                x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 scale-95"
+                x-transition:enter-end="opacity-100 scale-100" x-transition:leave="transition ease-in duration-200"
+                x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95">
+
+                <!-- LEFT SIDEBAR -->
+                <div class="w-56 bg-gradient-to-b from-slate-800 to-slate-900 text-white flex flex-col shrink-0">
+                    <!-- Profile -->
+                    <div class="p-5 text-center border-b border-slate-700/50">
+                        <div class="avatar placeholder mb-3">
+                            <div class="bg-gradient-to-br from-blue-400 to-indigo-600 text-white rounded-2xl w-16 h-16 shadow-lg ring ring-offset-2 ring-offset-slate-800"
+                                :class="editingTech.active ? 'ring-success' : 'ring-slate-600'">
+                                <span class="text-2xl font-black"
+                                    x-text="editingTech.name?.charAt(0).toUpperCase()"></span>
+                            </div>
+                        </div>
+                        <h3 class="font-bold text-sm truncate" x-text="editingTech.name"></h3>
+                        <p class="text-slate-400 text-xs truncate" x-text="editingTech.email"></p>
+                        <span class="badge badge-sm mt-2 uppercase" :class="{
+                            'badge-primary text-white': editingTech.level === 'master',
+                            'badge-secondary text-white': editingTech.level === 'senior',
+                            'badge-ghost bg-slate-700 text-slate-300': !editingTech.level || editingTech.level === 'junior'
+                        }" x-text="editingTech.level || 'Junior'"></span>
+                    </div>
+
+                    <!-- Quick Stats -->
+                    <div class="px-4 py-3 border-b border-slate-700/50 grid grid-cols-2 gap-2 text-center">
+                        <div>
+                            <div class="text-[10px] text-slate-500 uppercase">Lương</div>
+                            <div class="text-xs font-bold text-emerald-400"
+                                x-text="formatMoney(editingTech.base_salary || 0)"></div>
+                        </div>
+                        <div>
+                            <div class="text-[10px] text-slate-500 uppercase">Hoa hồng</div>
+                            <div class="text-xs font-bold text-blue-400"
+                                x-text="(editingTech.commission_rate || 0) + '%'"></div>
+                        </div>
+                    </div>
+
+                    <!-- Navigation -->
+                    <nav class="flex-1 p-3 space-y-1">
+                        <button type="button" @click="activeTab = 'info'"
+                            class="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm text-left transition-all"
+                            :class="activeTab === 'info' ? 'bg-white text-slate-800 font-semibold shadow' : 'text-slate-300 hover:bg-white/10'">
+                            <i class="fa-solid fa-user w-5"></i> Thông Tin
+                        </button>
+                        <button type="button" @click="activeTab = 'skills'"
+                            class="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm text-left transition-all"
+                            :class="activeTab === 'skills' ? 'bg-orange-500 text-white font-semibold shadow' : 'text-slate-300 hover:bg-white/10'">
+                            <i class="fa-solid fa-wrench w-5"></i> Kỹ Năng
+                        </button>
+                        <button type="button" @click="activeTab = 'finance'"
+                            class="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm text-left transition-all"
+                            :class="activeTab === 'finance' ? 'bg-emerald-500 text-white font-semibold shadow' : 'text-slate-300 hover:bg-white/10'">
+                            <i class="fa-solid fa-coins w-5"></i> Lương
+                        </button>
+                    </nav>
+
+                    <!-- Close -->
+                    <div class="p-3 border-t border-slate-700/50">
+                        <button type="button" @click="editModalOpen = false"
+                            class="btn btn-ghost btn-sm w-full text-slate-400 hover:text-white">
+                            <i class="fa-solid fa-times mr-1"></i> Đóng
+                        </button>
+                    </div>
+                </div>
+
+                <!-- RIGHT CONTENT -->
+                <div class="flex-1 flex flex-col bg-slate-50 min-w-0">
+                    <!-- Header -->
+                    <div class="bg-white px-6 py-4 border-b flex items-center justify-between shrink-0">
+                        <div>
+                            <h2 class="font-bold text-lg text-slate-800"
+                                x-text="activeTab === 'info' ? 'Thông Tin Cá Nhân' : activeTab === 'skills' ? 'Kỹ Năng & Khu Vực' : 'Cấu Hình Lương'">
+                            </h2>
+                            <p class="text-slate-500 text-sm"
+                                x-text="activeTab === 'info' ? 'Cập nhật thông tin liên hệ' : activeTab === 'skills' ? 'Quản lý chuyên môn và vùng hoạt động' : 'Thiết lập lương cứng và hoa hồng'">
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Scrollable Form -->
+                    <form id="techForm" hx-disable @submit.prevent="submitForm" class="flex-1 overflow-y-auto p-6">
+
+                        <!-- TAB: INFO -->
+                        <div x-show="activeTab === 'info'" x-cloak class="space-y-5">
+                            <!-- Name -->
+                            <div class="form-control">
+                                <label class="label"><span class="label-text font-medium">Họ và Tên <span
+                                            class="text-red-500">*</span></span></label>
+                                <div class="relative">
+                                    <i
+                                        class="fa-solid fa-user absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                                    <input type="text" name="name" :value="editingTech.name" required
+                                        placeholder="Nhập họ và tên" class="input input-bordered w-full pl-11 bg-white">
+                                </div>
+                            </div>
+
+                            <!-- Email & Phone -->
+                            <div class="grid grid-cols-2 gap-4">
+                                <div class="form-control">
+                                    <label class="label"><span class="label-text font-medium">Email <span
+                                                class="text-red-500">*</span></span></label>
+                                    <div class="relative">
+                                        <i
+                                            class="fa-solid fa-envelope absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                                        <input type="email" name="email" :value="editingTech.email" required
+                                            placeholder="email@example.com"
+                                            class="input input-bordered w-full pl-11 bg-white">
+                                    </div>
+                                </div>
+                                <div class="form-control">
+                                    <label class="label"><span class="label-text font-medium">Số Điện
+                                            Thoại</span></label>
+                                    <div class="relative">
+                                        <i
+                                            class="fa-solid fa-phone absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                                        <input type="text" name="phone" :value="editingTech.phone"
+                                            placeholder="0912 345 678"
+                                            class="input input-bordered w-full pl-11 bg-white">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Level Selection -->
+                            <div>
+                                <label class="label"><span class="label-text font-medium">Cấp Bậc Kỹ
+                                        Thuật</span></label>
+                                <div class="grid grid-cols-3 gap-3 mt-1">
+                                    <label class="cursor-pointer">
+                                        <input type="radio" name="level" value="junior" class="peer sr-only"
+                                            :checked="editingTech.level === 'junior'">
+                                        <div
+                                            class="p-4 rounded-xl border-2 border-slate-200 bg-white text-center transition-all
+                                            hover:border-amber-400 peer-checked:border-amber-500 peer-checked:bg-amber-50 peer-checked:shadow-md">
+                                            <div class="text-4xl mb-1">🌱</div>
+                                            <div class="font-bold text-sm">Junior</div>
+                                            <div class="text-xs text-slate-500">Học việc</div>
+                                        </div>
+                                    </label>
+                                    <label class="cursor-pointer">
+                                        <input type="radio" name="level" value="senior" class="peer sr-only"
+                                            :checked="editingTech.level === 'senior'">
+                                        <div
+                                            class="p-4 rounded-xl border-2 border-slate-200 bg-white text-center transition-all
+                                            hover:border-blue-400 peer-checked:border-blue-500 peer-checked:bg-blue-50 peer-checked:shadow-md">
+                                            <div class="text-4xl mb-1">⭐</div>
+                                            <div class="font-bold text-sm">Senior</div>
+                                            <div class="text-xs text-slate-500">Thợ chính</div>
+                                        </div>
+                                    </label>
+                                    <label class="cursor-pointer">
+                                        <input type="radio" name="level" value="master" class="peer sr-only"
+                                            :checked="editingTech.level === 'master'">
+                                        <div
+                                            class="p-4 rounded-xl border-2 border-slate-200 bg-white text-center transition-all
+                                            hover:border-purple-400 peer-checked:border-purple-500 peer-checked:bg-purple-50 peer-checked:shadow-md">
+                                            <div class="text-4xl mb-1">👑</div>
+                                            <div class="font-bold text-sm">Master</div>
+                                            <div class="text-xs text-slate-500">Quản lý</div>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- TAB: SKILLS -->
+                        <div x-show="activeTab === 'skills'" x-cloak class="space-y-6">
+                            <!-- Skills -->
+                            <div class="bg-white rounded-xl border p-5">
+                                <h4 class="font-bold text-slate-700 mb-3 flex items-center gap-2">
+                                    <i class="fa-solid fa-screwdriver-wrench text-orange-500"></i> Dịch Vụ Có Thể Thực
+                                    Hiện
+                                </h4>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <template x-for="svc in allServices" :key="svc.id">
+                                        <label
+                                            class="flex items-center gap-3 p-3 rounded-lg border border-slate-200 bg-slate-50 cursor-pointer
+                                            hover:bg-orange-50 hover:border-orange-300 transition-colors
+                                            has-[:checked]:bg-orange-500 has-[:checked]:border-orange-500 has-[:checked]:text-white">
+                                            <input type="checkbox" name="skills" :value="svc.id"
+                                                class="checkbox checkbox-sm checkbox-warning"
+                                                :checked="hasSkill(svc.id)">
+                                            <span x-text="svc.name" class="text-sm font-medium truncate"></span>
+                                        </label>
+                                    </template>
+                                </div>
+                            </div>
+
+                            <!-- Zones -->
+                            <div class="bg-white rounded-xl border p-5">
+                                <h4 class="font-bold text-slate-700 mb-3 flex items-center gap-2">
+                                    <i class="fa-solid fa-map-location-dot text-blue-500"></i> Khu Vực Phụ Trách
+                                </h4>
+
+                                <!-- Location Selectors -->
+                                <div class="grid grid-cols-4 gap-2 mb-4">
+                                    <select class="select select-bordered select-sm bg-white" x-model="selectedProvince"
+                                        @change="fetchDistricts()">
+                                        <option value="">Tỉnh/TP</option>
+                                        <template x-for="p in provinces" :key="p.id">
+                                            <option :value="p.id" x-text="p.full_name"></option>
+                                        </template>
+                                    </select>
+                                    <select class="select select-bordered select-sm bg-white" x-model="selectedDistrict"
+                                        @change="fetchWards()" :disabled="!selectedProvince">
+                                        <option value="">Quận/Huyện</option>
+                                        <template x-for="d in districts" :key="d.id">
+                                            <option :value="d.id" x-text="d.full_name"></option>
+                                        </template>
+                                    </select>
+                                    <select class="select select-bordered select-sm bg-white" x-model="selectedWard"
+                                        :disabled="!selectedDistrict">
+                                        <option value="">Phường/Xã</option>
+                                        <template x-for="w in wards" :key="w.id">
+                                            <option :value="w.id" x-text="w.full_name"></option>
+                                        </template>
+                                    </select>
+                                    <button type="button" @click="addZone()" class="btn btn-primary btn-sm"
+                                        :disabled="!selectedWard">
+                                        <i class="fa-solid fa-plus"></i> Thêm
+                                    </button>
+                                </div>
+
+                                <!-- Selected Zones -->
+                                <div
+                                    class="min-h-[80px] bg-slate-50 rounded-lg border-2 border-dashed border-slate-200 p-3">
+                                    <div class="flex flex-wrap gap-2"
+                                        x-show="editingTech.service_zones && editingTech.service_zones.length > 0">
+                                        <template x-for="(zone, index) in editingTech.service_zones" :key="index">
+                                            <div
+                                                class="inline-flex items-center gap-1 bg-blue-500 text-white text-sm px-3 py-1.5 rounded-full">
+                                                <i class="fa-solid fa-location-dot text-xs"></i>
+                                                <span x-text="zone" class="max-w-[150px] truncate"></span>
+                                                <input type="hidden" name="service_zones" :value="zone">
+                                                <button type="button" @click="removeZone(index)"
+                                                    class="ml-1 hover:text-red-200">
+                                                    <i class="fa-solid fa-times text-xs"></i>
+                                                </button>
+                                            </div>
+                                        </template>
+                                    </div>
+                                    <div x-show="!editingTech.service_zones || editingTech.service_zones.length === 0"
+                                        class="text-center text-slate-400 text-sm py-4">
+                                        <i class="fa-solid fa-map-marker-alt text-2xl mb-2 opacity-40"></i>
+                                        <p>Chưa có khu vực. Chọn địa chỉ và bấm Thêm.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- TAB: FINANCE -->
+                        <div x-show="activeTab === 'finance'" x-cloak class="space-y-5">
+                            <!-- Base Salary -->
+                            <div class="form-control">
+                                <label class="label">
+                                    <span class="label-text font-bold flex items-center gap-2">
+                                        <span class="w-8 h-8 rounded bg-green-500 flex items-center justify-center">
+                                            <i class="fa-solid fa-wallet text-white text-sm"></i>
+                                        </span>
+                                        Lương Cứng (VNĐ/tháng)
+                                    </span>
+                                </label>
+                                <label class="input-group">
+                                    <input type="number" name="base_salary" :value="editingTech.base_salary || 0"
+                                        class="input input-bordered w-full text-right text-lg font-bold"
+                                        placeholder="0">
+                                    <span class="bg-green-500 text-white font-bold">VNĐ</span>
+                                </label>
+                            </div>
+
+                            <!-- Commission -->
+                            <div class="form-control">
+                                <label class="label">
+                                    <span class="label-text font-bold flex items-center gap-2">
+                                        <span class="w-8 h-8 rounded bg-purple-500 flex items-center justify-center">
+                                            <i class="fa-solid fa-percent text-white text-sm"></i>
+                                        </span>
+                                        Hoa Hồng (% từ đơn hàng)
+                                    </span>
+                                </label>
+                                <label class="input-group">
+                                    <input type="number" name="commission_rate" step="0.1"
+                                        :value="editingTech.commission_rate || 0"
+                                        class="input input-bordered w-full text-right text-lg font-bold"
+                                        placeholder="0">
+                                    <span class="bg-purple-500 text-white font-bold">%</span>
+                                </label>
+                            </div>
+                        </div>
+                    </form>
+
+                    <!-- Footer -->
+                    <div class="bg-white border-t px-6 py-4 flex justify-end shrink-0">
+                        <button type="submit" form="techForm"
+                            class="btn btn-primary gap-2 px-8 shadow-lg hover:shadow-xl transition-all"
+                            :class="{ 'loading': isSubmitting }" :disabled="isSubmitting">
+                            <i class="fa-solid fa-check-circle text-lg" x-show="!isSubmitting"></i>
+                            <span class="font-semibold" x-text="isSubmitting ? 'Đang lưu...' : 'Lưu Thay Đổi'"></span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </template>
+    </dialog>
 </div>
 
 {{ end }}

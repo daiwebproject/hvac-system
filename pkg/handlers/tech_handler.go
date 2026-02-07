@@ -350,6 +350,7 @@ func (h *TechHandler) JobDetail(e *core.RequestEvent) error {
 // GET /tech/job/{id}/complete
 func (h *TechHandler) ShowCompleteJob(e *core.RequestEvent) error {
 	jobID := e.Request.PathValue("id")
+	techID := e.Auth.Id // Get tech ID from auth
 
 	var err error // [FIX] Declare err
 	// 1. Fetch Job from Repository (or Fallback)
@@ -373,8 +374,8 @@ func (h *TechHandler) ShowCompleteJob(e *core.RequestEvent) error {
 		}
 	}
 
-	// Get active inventory for selection
-	inventory, _ := h.Inventory.GetActiveItems()
+	// [TRUCK STOCK] Get technician's truck inventory instead of main inventory
+	techInventory, _ := h.Inventory.GetTechInventory(techID)
 
 	// Get base service price
 	serviceID := job.ServiceID
@@ -387,11 +388,12 @@ func (h *TechHandler) ShowCompleteJob(e *core.RequestEvent) error {
 	// settings handled by middleware
 
 	data := map[string]interface{}{
-		"Booking":    job,
-		"Inventory":  inventory,
-		"LaborPrice": laborPrice,
-		"IsTech":     true,
-		"PageType":   "job_detail", // Hide main nav
+		"Booking":       job,
+		"TechInventory": techInventory, // [TRUCK STOCK] Tech's own inventory
+		"LaborPrice":    laborPrice,
+		"IsTech":        true,
+		"TechID":        techID,
+		"PageType":      "job_detail", // Hide main nav
 	}
 
 	// Use layout inheritance - Form specific (V2 with parts and invoice recalculation)
@@ -447,8 +449,9 @@ func (h *TechHandler) SubmitCompleteJob(e *core.RequestEvent) error {
 			return e.String(400, "Lỗi phân tích dữ liệu vật tư: "+err.Error())
 		}
 
-		// Record parts usage and deduct inventory
-		totalPartsCost, err := h.Inventory.RecordPartsUsage(report.Id, jobParts)
+		// [TRUCK STOCK] Record parts usage and deduct from TECH's inventory
+		techID := e.Auth.Id
+		totalPartsCost, err := h.Inventory.RecordPartsUsageFromTech(report.Id, techID, jobID, jobParts)
 		if err != nil {
 			fmt.Printf("Error recording parts usage: %v\n", err)
 			return e.String(400, "Lỗi xử lý vật tư: "+err.Error())

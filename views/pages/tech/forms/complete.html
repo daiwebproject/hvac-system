@@ -91,10 +91,10 @@
             </div>
 
             <select x-model="selectedPartId" @change="addManualPart()" class="select select-bordered select-sm w-full">
-                <option value="">+ Chọn vật tư từ danh sách...</option>
-                {{range .Inventory}}
-                <option value="{{.ID}}" data-price="{{.Price}}" data-name="{{.Name}}">
-                    {{.Name}} - {{.Price}}đ
+                <option value="">+ Chọn vật tư từ kho xe...</option>
+                {{range .TechInventory}}
+                <option value="{{.ItemID}}" data-price="{{.Price}}" data-name="{{.ItemName}}" data-qty="{{.Quantity}}">
+                    {{.ItemName}} (Còn: {{.Quantity}} {{.Unit}}) - {{.Price}}đ
                 </option>
                 {{end}}
             </select>

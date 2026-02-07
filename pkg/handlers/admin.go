@@ -871,33 +871,68 @@ func (h *AdminHandler) UpdateSettings(e *core.RequestEvent) error {
 // SERVICE MANAGEMENT HANDLERS
 // -------------------------------------------------------------------
 
+// Helper for grouped view
+type ServiceGroup struct {
+	Category *core.Record
+	Services []*core.Record
+}
+
 // GET /admin/services
 func (h *AdminHandler) ServicesList(e *core.RequestEvent) error {
-	services, err := h.App.FindRecordsByFilter("services", "1=1", "-created", 100, 0, nil)
+	// Fetch all services
+	services, err := h.App.FindRecordsByFilter("services", "1=1", "+name", 500, 0, nil)
 	if err != nil {
 		fmt.Println("Error fetching services:", err)
 		services = []*core.Record{}
 	}
 
-	// Expand category relations
-	for _, service := range services {
-		if categoryID := service.GetString("category_id"); categoryID != "" {
-			if category, err := h.App.FindRecordById("categories", categoryID); err == nil {
-				service.SetExpand(map[string]any{
-					"category_id": category,
-				})
-			}
+	// Fetch all categories
+	categories, err := h.App.FindRecordsByFilter("categories", "1=1", "+sort_order", 100, 0, nil)
+	if err != nil {
+		categories = []*core.Record{}
+	}
+
+	// Group services by Category
+	// 1. Create a map for quick access
+	groupsMap := make(map[string]*ServiceGroup)
+
+	// Initialize groups for all categories
+	var groups []*ServiceGroup
+	for _, cat := range categories {
+		g := &ServiceGroup{
+			Category: cat,
+			Services: []*core.Record{},
+		}
+		groups = append(groups, g)
+		groupsMap[cat.Id] = g
+	}
+
+	// Uncategorized group
+	uncategorized := &ServiceGroup{
+		Category: nil, // Special marker
+		Services: []*core.Record{},
+	}
+
+	// Distribute services
+	for _, s := range services {
+		catID := s.GetString("category_id")
+		if group, ok := groupsMap[catID]; ok {
+			group.Services = append(group.Services, s)
+		} else {
+			uncategorized.Services = append(uncategorized.Services, s)
 		}
 	}
 
-	// Fetch Categories for Dropdown
-	categories, _ := h.App.FindRecordsByFilter("categories", "active=true", "+sort_order", 100, 0, nil)
+	// Append uncategorized if has items
+	if len(uncategorized.Services) > 0 {
+		groups = append(groups, uncategorized)
+	}
 
 	data := map[string]interface{}{
-		"Services":   services,
-		"Categories": categories,
-		"IsAdmin":    true,
-		"PageType":   "services",
+		"ServiceGroups": groups,
+		"Categories":    categories,
+		"IsAdmin":       true,
+		"PageType":      "services",
 	}
 
 	return RenderPage(h.Templates, e, "layouts/admin.html", "admin/services.html", data)
@@ -906,15 +941,6 @@ func (h *AdminHandler) ServicesList(e *core.RequestEvent) error {
 // POST /admin/services (Create or Update)
 func (h *AdminHandler) ServiceSave(e *core.RequestEvent) error {
 	id := e.Request.FormValue("id")
-	name := e.Request.FormValue("name")
-	price := e.Request.FormValue("price")
-	duration := e.Request.FormValue("duration_minutes")
-	description := e.Request.FormValue("description")
-	intro := e.Request.FormValue("intro_text")
-	video := e.Request.FormValue("video_url")
-
-	// Rich text content
-	detailContent := e.Request.FormValue("detail_content")
 
 	collection, err := h.App.FindCollectionByNameOrId("services")
 	if err != nil {
@@ -932,93 +958,71 @@ func (h *AdminHandler) ServiceSave(e *core.RequestEvent) error {
 		record.Set("active", true) // Default active
 	}
 
-	// Set fields
-	record.Set("name", name)
-	record.Set("price", price)
-	record.Set("duration_minutes", duration)
-	record.Set("description", description)
-	record.Set("intro_text", intro)
-	record.Set("detail_content", detailContent)
+	// Basic Fields
+	record.Set("name", e.Request.FormValue("name"))
+	record.Set("price", e.Request.FormValue("price"))
+	record.Set("duration_minutes", e.Request.FormValue("duration_minutes"))
+	record.Set("description", e.Request.FormValue("description"))
+	record.Set("intro_text", e.Request.FormValue("intro_text"))
+	record.Set("detail_content", e.Request.FormValue("detail_content"))
+	record.Set("category_id", e.Request.FormValue("category_id"))
 
-	// Process YouTube URL - convert any format to embed URL
+	// [NEW] Professional Fields
+	record.Set("warranty_months", e.Request.FormValue("warranty_months"))
+	record.Set("commission_rate", e.Request.FormValue("commission_rate"))
+	record.Set("required_skill", e.Request.FormValue("required_skill"))
+
+	// Process YouTube URL
+	video := e.Request.FormValue("video_url")
 	if video != "" {
 		embedURL := GetYouTubeEmbedURL(video)
 		if embedURL != "" {
 			record.Set("video_url", embedURL)
 		} else {
-			// If not a YouTube URL, save as is
 			record.Set("video_url", video)
 		}
 	} else {
 		record.Set("video_url", "")
 	}
 
-	// Category handling
-	categoryID := e.Request.FormValue("category_id")
-	if categoryID != "" {
-		record.Set("category_id", categoryID)
-	}
-
-	// Handle Main Image Deletion
-	deleteImage := e.Request.FormValue("delete_image")
-	if deleteImage == "1" {
+	// Image Handling (Main)
+	if e.Request.FormValue("delete_image") == "1" {
 		record.Set("image", "")
 	}
-
-	// Handle Main Image Upload
-	imgFile, _ := e.FindUploadedFiles("image")
-	if len(imgFile) > 0 {
+	if imgFile, _ := e.FindUploadedFiles("image"); len(imgFile) > 0 {
 		record.Set("image", imgFile[0])
 	}
 
-	// Handle Gallery Image Deletion
-	deleteGallery := e.Request.FormValue("delete_gallery")
-	if deleteGallery != "" {
-		// Get current gallery
+	// Gallery Handling
+	if deleteGallery := e.Request.FormValue("delete_gallery"); deleteGallery != "" {
 		currentGallery := record.GetStringSlice("gallery")
-
-		// Parse delete list (format: "id/file1.jpg,id/file2.jpg,")
 		deleteList := strings.Split(strings.TrimSuffix(deleteGallery, ","), ",")
 
-		// Extract just filenames from delete list
 		deleteFiles := make(map[string]bool)
 		for _, item := range deleteList {
-			if item != "" {
-				parts := strings.Split(item, "/")
-				if len(parts) == 2 {
-					deleteFiles[parts[1]] = true
-				}
+			if parts := strings.Split(item, "/"); len(parts) == 2 {
+				deleteFiles[parts[1]] = true
 			}
 		}
 
-		// Filter out deleted images
 		updatedGallery := []string{}
 		for _, img := range currentGallery {
 			if !deleteFiles[img] {
 				updatedGallery = append(updatedGallery, img)
 			}
 		}
-
 		record.Set("gallery", updatedGallery)
 	}
 
-	// Handle New Gallery Images (Append to existing)
-	galleryFiles, _ := e.FindUploadedFiles("gallery")
-	if len(galleryFiles) > 0 {
-		// Get current gallery filenames
-		currentGalleryNames := record.GetStringSlice("gallery")
-
-		// Convert to interface slice to mix strings and file objects
+	if galleryFiles, _ := e.FindUploadedFiles("gallery"); len(galleryFiles) > 0 {
+		currentGallery := record.GetStringSlice("gallery")
 		var galleryData []interface{}
-		for _, name := range currentGalleryNames {
+		for _, name := range currentGallery {
 			galleryData = append(galleryData, name)
 		}
-
-		// Append new file objects
 		for _, file := range galleryFiles {
 			galleryData = append(galleryData, file)
 		}
-
 		record.Set("gallery", galleryData)
 	}
 
@@ -1028,6 +1032,28 @@ func (h *AdminHandler) ServiceSave(e *core.RequestEvent) error {
 	}
 
 	return e.Redirect(http.StatusSeeOther, "/admin/services")
+}
+
+// POST /admin/services/{id}/toggle
+func (h *AdminHandler) ToggleServiceStatus(e *core.RequestEvent) error {
+	id := e.Request.PathValue("id")
+	record, err := h.App.FindRecordById("services", id)
+	if err != nil {
+		return e.JSON(404, map[string]string{"error": "Service not found"})
+	}
+
+	// Toggle
+	isActive := record.GetBool("active")
+	record.Set("active", !isActive)
+
+	if err := h.App.Save(record); err != nil {
+		return e.JSON(500, map[string]string{"error": "Failed to save"})
+	}
+
+	return e.JSON(200, map[string]interface{}{
+		"success": true,
+		"active":  !isActive,
+	})
 }
 
 // POST /admin/services/{id}/delete
@@ -1068,11 +1094,6 @@ func (h *AdminHandler) CategoriesList(e *core.RequestEvent) error {
 // POST /admin/categories
 func (h *AdminHandler) CategorySave(e *core.RequestEvent) error {
 	id := e.Request.FormValue("id")
-	name := e.Request.FormValue("name")
-	slug := e.Request.FormValue("slug")
-	sortOrder := e.Request.FormValue("sort_order")
-	description := e.Request.FormValue("description")
-	active := e.Request.FormValue("active") == "on"
 
 	collection, err := h.App.FindCollectionByNameOrId("categories")
 	if err != nil {
@@ -1089,13 +1110,23 @@ func (h *AdminHandler) CategorySave(e *core.RequestEvent) error {
 		record = core.NewRecord(collection)
 	}
 
-	record.Set("name", name)
-	record.Set("slug", slug)
-	record.Set("description", description)
-	if sortOrder != "" {
+	record.Set("name", e.Request.FormValue("name"))
+	record.Set("slug", e.Request.FormValue("slug"))
+	record.Set("description", e.Request.FormValue("description"))
+
+	if sortOrder := e.Request.FormValue("sort_order"); sortOrder != "" {
 		record.Set("sort_order", sortOrder)
 	}
-	record.Set("active", active)
+	record.Set("active", e.Request.FormValue("active") == "on")
+
+	// [NEW] Professional Fields
+	record.Set("parent_id", e.Request.FormValue("parent_id"))
+	record.Set("color", e.Request.FormValue("color"))
+
+	// Icon upload
+	if iconFiles, _ := e.FindUploadedFiles("icon"); len(iconFiles) > 0 {
+		record.Set("icon", iconFiles[0])
+	}
 
 	if err := h.App.Save(record); err != nil {
 		fmt.Println("Error saving category:", err)

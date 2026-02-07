@@ -41,7 +41,17 @@ type Technician struct {
 	Avatar   string `json:"avatar"`
 	Active   bool   `json:"active"`
 	Verified bool   `json:"verified"`
-	FCMToken string `json:"fcm_token"` // [NEW]
+	FCMToken string `json:"fcm_token"`
+
+	// [UPGRADE] Professional Management Fields
+	Phone          string   `json:"phone"`           // Contact number
+	Rating         float64  `json:"rating"`          // Average Rating (0-5)
+	Level          string   `json:"level"`           // Junior, Senior, Master
+	ServiceZones   []string `json:"service_zones"`   // JSON Array of Zone IDs
+	Skills         []string `json:"skills"`          // JSON Array of Service/Skill IDs
+	SkillNames     []string `json:"skill_names"`     // [Display] Resolved Names
+	BaseSalary     float64  `json:"base_salary"`     // Monthly base salary
+	CommissionRate float64  `json:"commission_rate"` // Personal override rate (%)
 }
 
 // TimeSlot represents a bookable time window
@@ -56,11 +66,30 @@ type TimeSlot struct {
 	IsBooked        bool   `json:"is_booked"`
 }
 
+// Category represents a grouping of services
+type Category struct {
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	ParentID  string `json:"parent_id"` // For nested categories
+	Icon      string `json:"icon"`      // CSS class or URL
+	Color     string `json:"color"`     // Hex code
+	SortOrder int    `json:"sort_order"`
+	IsActive  bool   `json:"is_active"`
+}
+
 // Service represents a service offering
 type Service struct {
-	ID              string `json:"id"`
-	Name            string `json:"name"`
-	DurationMinutes int    `json:"duration_minutes"`
+	ID              string  `json:"id"`
+	CategoryID      string  `json:"category_id"`
+	Name            string  `json:"name"`
+	BasePrice       float64 `json:"base_price"`
+	DurationMinutes int     `json:"duration_minutes"` // Estimated time
+
+	// [UPGRADE]
+	WarrantyMonths int     `json:"warranty_months"`
+	CommissionRate float64 `json:"commission_rate"` // Default commission for this service (%)
+	RequiredSkill  string  `json:"required_skill"`  // Skill tag required to perform
+	IsActive       bool    `json:"is_active"`
 }
 
 // Analytics Models

@@ -7,9 +7,20 @@
         this.$refs.serviceForm.reset();
     },
     editService(service) {
-        console.log('Edit service called with:', service);
         this.editingService = service;
         this.editModalOpen = true;
+    },
+    cloneService(service) {
+        this.editingService = service;
+        this.editModalOpen = true;
+    },
+    async toggleService(id) {
+        try {
+            await fetch(`/admin/services/${id}/toggle`, { method: 'POST' });
+        } catch (e) {
+            console.error(e);
+            alert('Lỗi kết nối');
+        }
     }
 }">
 
@@ -23,86 +34,146 @@
         </button>
     </div>
 
-    <!-- Services Table -->
+    <!-- Services Table - Grouped List -->
     <div class="overflow-x-auto bg-white rounded-xl shadow-sm border border-gray-100">
         <table class="table w-full">
             <thead>
                 <tr class="bg-gray-50 text-gray-600 uppercase text-xs">
-                    <th class="w-20">Ảnh</th>
-                    <th>Tên Dịch Vụ</th>
-                    <th>Danh Mục</th>
-                    <th class="w-32 text-center">Giá (k)</th>
+                    <th class="w-16">Active</th>
+                    <th>Dịch Vụ / Sản Phẩm</th>
+                    <th class="w-24 text-center">Bảo hành</th>
+                    <th class="w-32 text-right">Giá vốn</th>
+                    <th class="w-32 text-right">Giá bán</th>
+                    <th class="w-24 text-center">Hoa hồng</th>
                     <th class="w-24 text-center">Thời gian</th>
-                    <th class="w-24 text-center">Trạng thái</th>
                     <th class="w-32 text-center">Hành động</th>
                 </tr>
             </thead>
             <tbody>
+                {{ range .ServiceGroups }}
+                <!-- Category Header -->
+                <tr class="bg-blue-50/50">
+                    <td colspan="8" class="font-bold text-blue-800 py-3">
+                        <div class="flex items-center gap-2">
+                            {{ if .Category }}
+                            {{ if .Category.GetString "icon" }}
+                            <img src="/api/files/categories/{{.Category.Id}}/{{.Category.GetString " icon"}}"
+                                class="w-6 h-6 object-contain">
+                            {{ else }}
+                            <i class="fa-solid fa-folder text-blue-400"></i>
+                            {{ end }}
+                            <span>{{ .Category.GetString "name" }}</span>
+                            {{ else }}
+                            <i class="fa-regular fa-folder-open text-gray-400"></i>
+                            <span class="text-gray-500 italic">Chưa phân loại</span>
+                            {{ end }}
+                            <span class="badge badge-sm badge-ghost">{{ len .Services }} dịch vụ</span>
+                        </div>
+                    </td>
+                </tr>
+
+                <!-- Services in Group -->
                 {{ range .Services }}
-                <tr class="hover:bg-gray-50 transition-colors">
-                    <td>
-                        {{ if .GetString "image" }}
-                        <img src="/api/files/services/{{.Id}}/{{.GetString "image"}}"
-                            class="w-16 h-16 rounded-lg object-cover shadow-sm">
-                        {{ else }}
-                        <div class="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">
-                            <i class="fa-solid fa-image text-xl"></i>
-                        </div>
-                        {{ end }}
-                    </td>
-                    <td>
-                        <div class="font-bold text-gray-800">{{ .GetString "name" }}</div>
-                        <div class="text-xs text-gray-400 mt-1 line-clamp-1">{{ .GetString "description" }}</div>
-                        {{ if .GetString "video_url" }}
-                        <div class="mt-1 text-xs text-red-500 flex items-center">
-                            <i class="fa-brands fa-youtube mr-1"></i> Video
-                        </div>
-                        {{ end }}
-                    </td>
-                    <td class="text-gray-500 text-sm">
-                        {{ if .GetString "category_id" }}
-                        {{ $category := .ExpandedOne "category_id" }}
-                        {{ if $category }}
-                        <span class="badge badge-outline badge-sm">{{ $category.GetString "name" }}</span>
-                        {{ else }}
-                        <span class="text-gray-300 text-xs italic">Chưa phân loại</span>
-                        {{ end }}
-                        {{ else }}
-                        <span class="text-gray-300 text-xs italic">Chưa phân loại</span>
-                        {{ end }}
-                    </td>
-                    <td class="text-center font-bold text-blue-600 text-base">{{ .GetFloat "price" | printf "%.0f" }}k
-                    </td>
-                    <td class="text-center text-gray-600">
-                        <i class="fa-regular fa-clock mr-1 text-xs"></i>{{ .GetInt "duration_minutes" }}p
-                    </td>
+                <tr class="hover:bg-gray-50 transition-colors border-b border-gray-50">
+                    <!-- Toggle Active -->
                     <td class="text-center">
-                        {{ if .GetBool "active" }}
-                        <div class="badge badge-success badge-sm text-white">Hiện</div>
+                        <input type="checkbox" class="toggle toggle-success toggle-sm" {{ if .GetBool "active"
+                            }}checked{{ end }} @change="toggleService('{{.Id}}')" />
+                    </td>
+
+                    <!-- Service Info -->
+                    <td>
+                        <div class="flex items-center gap-3">
+                            <div class="avatar">
+                                <div class="w-12 h-12 rounded-lg bg-gray-100 ring-1 ring-gray-100">
+                                    {{ if .GetString "image" }}
+                                    <img src="/api/files/services/{{.Id}}/{{.GetString " image"}}">
+                                    {{ else }}
+                                    <div class="flex items-center justify-center w-full h-full text-gray-400">
+                                        <i class="fa-solid fa-box"></i>
+                                    </div>
+                                    {{ end }}
+                                </div>
+                            </div>
+                            <div>
+                                <div class="font-bold text-gray-800">{{ .GetString "name" }}</div>
+                                {{ if .GetString "required_skill" }}
+                                <div class="badge badge-xs badge-warning gap-1">
+                                    <i class="fa-solid fa-wrench"></i> {{ .GetString "required_skill" }}
+                                </div>
+                                {{ end }}
+                            </div>
+                        </div>
+                    </td>
+
+                    <!-- Warranty -->
+                    <td class="text-center">
+                        {{ if gt (.GetInt "warranty_months") 0 }}
+                        <span class="badge badge-ghost">{{ .GetInt "warranty_months" }} tháng</span>
                         {{ else }}
-                        <div class="badge badge-ghost badge-sm">Ẩn</div>
+                        -
                         {{ end }}
                     </td>
+
+                    <!-- Cost / Price Matrix (Placeholder for Cost) -->
+                    <td class="text-right text-gray-400 font-mono text-xs">
+                        <!-- Cost field not yet in DB, using placeholder -->
+                        -
+                    </td>
+
+                    <!-- Sell Price -->
+                    <td class="text-right font-bold text-blue-600 font-mono">
+                        {{ .GetFloat "price" | printf "%.0f" }}k
+                    </td>
+
+                    <!-- Commission -->
+                    <td class="text-center font-mono text-xs">
+                        {{ if gt (.GetFloat "commission_rate") 0.0 }}
+                        <span class="text-green-600 font-bold">{{ .GetFloat "commission_rate" }}%</span>
+                        {{ else }}
+                        <span class="text-gray-400">Mặc định</span>
+                        {{ end }}
+                    </td>
+
+                    <!-- Duration -->
+                    <td class="text-center text-gray-500 text-xs">
+                        <i class="fa-regular fa-clock"></i> {{ .GetInt "duration_minutes" }}p
+                    </td>
+
+                    <!-- Actions -->
                     <td>
-                        <div class="flex justify-center gap-2">
+                        <div class="flex justify-center gap-1">
+                            <!-- Clone Button -->
+                            <button @click="cloneService({
+                                name: '{{.GetString " name" | js}} (Copy)', price: {{.GetFloat "price" }}, duration:
+                                {{.GetInt "duration_minutes" }}, category_id: '{{.GetString "category_id"}}' , warranty:
+                                {{.GetInt "warranty_months" }}, commission: {{.GetFloat "commission_rate" }},
+                                skill: '{{.GetString "required_skill"}}' })"
+                                class="btn btn-sm btn-ghost text-gray-500 hover:text-blue-600 tooltip"
+                                data-tip="Nhân bản">
+                                <i class="fa-regular fa-copy"></i>
+                            </button>
+
+                            <!-- Edit Button -->
                             <button @click="editService({
                                 id: '{{.Id}}', 
-                                name: '{{.GetString "name" | js}}', price: {{.GetFloat "price" }}, duration:
+                                name: '{{.GetString " name" | js}}', price: {{.GetFloat "price" }}, duration:
                                 {{.GetInt "duration_minutes" }}, description: '{{.GetString "description" | js}}' ,
                                 intro: '{{.GetString "intro_text" | js}}' , video: '{{.GetString "video_url" | js}}' ,
-                                category_id: '{{.GetString "category_id"}}' ,
+                                category_id: '{{.GetString "category_id"}}' , warranty: {{.GetInt "warranty_months" }},
+                                commission: {{.GetFloat "commission_rate" }},
+                                skill: '{{.GetString "required_skill" | js}}' ,
                                 content: '{{.GetString "detail_content" | js}}' ,
                                 current_image: '{{.GetString "image"}}' , current_gallery: [{{ range $i, $img
                                 :=.GetStringSlice "gallery" }}{{ if $i }},{{ end }}'{{$img}}'{{ end }}] })"
-                                class="btn btn-sm btn-square btn-ghost text-blue-600 hover:bg-blue-50 tooltip"
-                                data-tip="Sửa">
+                                class="btn btn-sm btn-ghost text-blue-600 hover:bg-blue-50 tooltip" data-tip="Sửa">
                                 <i class="fa-solid fa-pen"></i>
                             </button>
 
+                            <!-- Delete Button -->
                             <form action="/admin/services/{{.Id}}/delete" method="POST"
-                                onsubmit="return confirm('Xóa dịch vụ này? Hành động không thể hoàn tác.')">
-                                <button type="submit"
-                                    class="btn btn-sm btn-square btn-ghost text-red-500 hover:bg-red-50 tooltip"
+                                onsubmit="return confirm('Xóa dịch vụ này?')">
+                                <button type="submit" class="btn btn-sm btn-ghost text-red-500 hover:bg-red-50 tooltip"
                                     data-tip="Xóa">
                                     <i class="fa-solid fa-trash"></i>
                                 </button>
@@ -110,11 +181,12 @@
                         </div>
                     </td>
                 </tr>
-                {{ end }}
+                {{ end }} <!-- End Services Range -->
+                {{ end }} <!-- End Groups Range -->
             </tbody>
         </table>
 
-        {{ if not .Services }}
+        {{ if not .ServiceGroups }}
         <div class="p-12 text-center text-gray-400">
             <i class="fa-solid fa-screwdriver-wrench text-4xl mb-4"></i>
             <p>Chưa có dịch vụ nào.</p>
@@ -153,113 +225,96 @@
                         </select>
                     </div>
 
+
                     <div class="form-control">
-                        <label class="label font-bold">Giá (VND)</label>
-                        <input type="number" name="price" :value="editingService ? editingService.price : ''" required
-                            class="input input-bordered w-full">
+                        <label class="label font-bold">Giới thiệu (Hiển thị đầu trang chi tiết)</label>
+                        <textarea name="intro_text" class="textarea textarea-bordered h-20"
+                            placeholder="Giới thiệu tóm tắt..."
+                            x-text="editingService ? editingService.intro : ''"></textarea>
                     </div>
 
                     <div class="form-control">
-                        <label class="label font-bold">Thời gian (phút)</label>
-                        <input type="number" name="duration_minutes"
-                            :value="editingService ? editingService.duration : 60" required
-                            class="input input-bordered w-full">
+                        <label class="label font-bold">Nội dung chi tiết</label>
+                        <textarea id="tinymce_editor" name="detail_content" class="tinymce-editor"></textarea>
+                        <label class="label"><span class="label-text-alt">Soạn thảo nội dung với trình
+                                editor</span></label>
                     </div>
-                </div>
 
-                <div class="form-control">
-                    <label class="label font-bold">Mô tả ngắn</label>
-                    <textarea name="description" class="textarea textarea-bordered h-20"
-                        placeholder="Hiển thị ở danh sách..."
-                        x-text="editingService ? editingService.description : ''"></textarea>
-                </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="form-control">
+                            <label class="label font-bold">Video URL (Youtube/TikTok)</label>
+                            <input type="text" id="video_url_input" name="video_url"
+                                :value="editingService ? editingService.video : ''" class="input input-bordered w-full"
+                                placeholder="https://youtube.com/...">
 
-                <div class="form-control">
-                    <label class="label font-bold">Giới thiệu (Hiển thị đầu trang chi tiết)</label>
-                    <textarea name="intro_text" class="textarea textarea-bordered h-20"
-                        placeholder="Giới thiệu tóm tắt..."
-                        x-text="editingService ? editingService.intro : ''"></textarea>
-                </div>
-
-                <div class="form-control">
-                    <label class="label font-bold">Nội dung chi tiết</label>
-                    <textarea id="tinymce_editor" name="detail_content" class="tinymce-editor"></textarea>
-                    <label class="label"><span class="label-text-alt">Soạn thảo nội dung với trình editor</span></label>
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div class="form-control">
-                        <label class="label font-bold">Video URL (Youtube/TikTok)</label>
-                        <input type="text" id="video_url_input" name="video_url"
-                            :value="editingService ? editingService.video : ''" class="input input-bordered w-full"
-                            placeholder="https://youtube.com/...">
-
-                        <!-- YouTube Preview -->
-                        <div id="youtube_preview" class="mt-3" style="display:none;">
-                            <div class="aspect-video bg-black rounded-lg overflow-hidden">
-                                <iframe id="youtube_iframe" class="w-full h-full" frameborder="0"
-                                    allowfullscreen></iframe>
-                            </div>
-                            <p class="text-xs text-gray-500 mt-1">Preview video YouTube</p>
-                        </div>
-                    </div>
-                    <div class="form-control">
-                        <label class="label font-bold">Ảnh đại diện</label>
-
-                        <!-- Current Image Preview -->
-                        <div x-show="editingService && editingService.id" class="mb-2">
-                            <div class="relative inline-block">
-                                <img :src="editingService ? `/api/files/services/${editingService.id}/${editingService.current_image}` : ''"
-                                    class="w-32 h-32 object-cover rounded-lg border border-gray-200"
-                                    x-show="editingService && editingService.current_image">
-                                <button type="button"
-                                    @click="if(confirm('Xóa ảnh đại diện?')) { $refs.deleteImageInput.value = '1' }"
-                                    class="absolute -top-2 -right-2 btn btn-xs btn-circle btn-error text-white"
-                                    x-show="editingService && editingService.current_image">
-                                    <i class="fa-solid fa-xmark"></i>
-                                </button>
+                            <!-- YouTube Preview -->
+                            <div id="youtube_preview" class="mt-3" style="display:none;">
+                                <div class="aspect-video bg-black rounded-lg overflow-hidden">
+                                    <iframe id="youtube_iframe" class="w-full h-full" frameborder="0"
+                                        allowfullscreen></iframe>
+                                </div>
+                                <p class="text-xs text-gray-500 mt-1">Preview video YouTube</p>
                             </div>
                         </div>
-                        <input type="hidden" x-ref="deleteImageInput" name="delete_image" value="">
+                        <div class="form-control">
+                            <label class="label font-bold">Ảnh đại diện</label>
 
-                        <input type="file" name="image" class="file-input file-input-bordered w-full" accept="image/*">
-                        <label class="label"><span class="label-text-alt">Upload ảnh mới để thay thế</span></label>
-                    </div>
-                </div>
-
-                <div class="form-control">
-                    <label class="label font-bold">Thư viện ảnh</label>
-
-                    <!-- Current Gallery Preview -->
-                    <div x-show="editingService && editingService.id && editingService.current_gallery && editingService.current_gallery.length > 0"
-                        class="grid grid-cols-4 gap-3 mb-3">
-                        <template x-for="(img, idx) in (editingService ? editingService.current_gallery : [])"
-                            :key="idx">
-                            <div class="relative group">
-                                <img :src="`/api/files/services/${editingService.id}/${img}`"
-                                    class="w-full h-24 object-cover rounded-lg border border-gray-200">
-                                <button type="button" @click="if(confirm('Xóa ảnh này?')) { 
-                                        $refs.deleteGalleryInput.value += (editingService.id + '/' + img + ',');
-                                        editingService.current_gallery = editingService.current_gallery.filter(i => i !== img);
-                                    }"
-                                    class="absolute -top-2 -right-2 btn btn-xs btn-circle btn-error text-white opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <i class="fa-solid fa-xmark"></i>
-                                </button>
+                            <!-- Current Image Preview -->
+                            <div x-show="editingService && editingService.id" class="mb-2">
+                                <div class="relative inline-block">
+                                    <img :src="editingService ? `/api/files/services/${editingService.id}/${editingService.current_image}` : ''"
+                                        class="w-32 h-32 object-cover rounded-lg border border-gray-200"
+                                        x-show="editingService && editingService.current_image">
+                                    <button type="button"
+                                        @click="if(confirm('Xóa ảnh đại diện?')) { $refs.deleteImageInput.value = '1' }"
+                                        class="absolute -top-2 -right-2 btn btn-xs btn-circle btn-error text-white"
+                                        x-show="editingService && editingService.current_image">
+                                        <i class="fa-solid fa-xmark"></i>
+                                    </button>
+                                </div>
                             </div>
-                        </template>
+                            <input type="hidden" x-ref="deleteImageInput" name="delete_image" value="">
+
+                            <input type="file" name="image" class="file-input file-input-bordered w-full"
+                                accept="image/*">
+                            <label class="label"><span class="label-text-alt">Upload ảnh mới để thay thế</span></label>
+                        </div>
                     </div>
-                    <input type="hidden" x-ref="deleteGalleryInput" name="delete_gallery" value="">
 
-                    <input type="file" name="gallery" class="file-input file-input-bordered w-full" accept="image/*"
-                        multiple>
-                    <label class="label"><span class="label-text-alt">Giữ Ctrl để chọn nhiều ảnh. Ảnh mới sẽ được thêm
-                            vào gallery.</span></label>
-                </div>
+                    <div class="form-control">
+                        <label class="label font-bold">Thư viện ảnh</label>
 
-                <div class="modal-action">
-                    <button type="button" @click="editModalOpen = false" class="btn">Hủy</button>
-                    <button type="submit" class="btn btn-primary text-white">Lưu Dịch Vụ</button>
-                </div>
+                        <!-- Current Gallery Preview -->
+                        <div x-show="editingService && editingService.id && editingService.current_gallery && editingService.current_gallery.length > 0"
+                            class="grid grid-cols-4 gap-3 mb-3">
+                            <template x-for="(img, idx) in (editingService ? editingService.current_gallery : [])"
+                                :key="idx">
+                                <div class="relative group">
+                                    <img :src="`/api/files/services/${editingService.id}/${img}`"
+                                        class="w-full h-24 object-cover rounded-lg border border-gray-200">
+                                    <button type="button" @click="if(confirm('Xóa ảnh này?')) { 
+                                            $refs.deleteGalleryInput.value += (editingService.id + '/' + img + ',');
+                                            editingService.current_gallery = editingService.current_gallery.filter(i => i !== img);
+                                        }"
+                                        class="absolute -top-2 -right-2 btn btn-xs btn-circle btn-error text-white opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <i class="fa-solid fa-xmark"></i>
+                                    </button>
+                                </div>
+                            </template>
+                        </div>
+                        <input type="hidden" x-ref="deleteGalleryInput" name="delete_gallery" value="">
+
+                        <input type="file" name="gallery" class="file-input file-input-bordered w-full" accept="image/*"
+                            multiple>
+                        <label class="label"><span class="label-text-alt">Giữ Ctrl để chọn nhiều ảnh. Ảnh mới sẽ được
+                                thêm
+                                vào gallery.</span></label>
+                    </div>
+
+                    <div class="modal-action">
+                        <button type="button" @click="editModalOpen = false" class="btn">Hủy</button>
+                        <button type="submit" class="btn btn-primary text-white">Lưu Dịch Vụ</button>
+                    </div>
             </form>
         </div>
     </dialog>
@@ -269,14 +324,13 @@
     (function () {
         let tinymceInstance = null;
 
-        // TinyMCE initialization (Exact PocketBase config)
+        // TinyMCE initialization
         function initTinyMCE() {
             if (typeof tinymce === 'undefined') {
                 console.error('TinyMCE not loaded!');
                 return;
             }
 
-            // Remove existing instance if any
             if (tinymceInstance) {
                 tinymce.remove(tinymceInstance);
                 tinymceInstance = null;
@@ -284,7 +338,6 @@
 
             tinymce.init({
                 selector: '#tinymce_editor',
-                // PocketBase exact config
                 branding: false,
                 promotion: false,
                 menubar: false,
@@ -292,43 +345,19 @@
                 height: 400,
                 max_height: 700,
                 autoresize_bottom_margin: 30,
-                content_style: 'body { font-size: 14px }',
                 plugins: [
-                    'autoresize',
-                    'autolink',
-                    'lists',
-                    'link',
-                    'image',
-                    'searchreplace',
-                    'fullscreen',
-                    'media',
-                    'table',
-                    'code',
-                    'codesample',
-                    'directionality'
+                    'autoresize', 'autolink', 'lists', 'link', 'image',
+                    'searchreplace', 'fullscreen', 'media', 'table', 'code', 'codesample', 'directionality'
                 ],
                 toolbar: 'styles | alignleft aligncenter alignright | bold italic forecolor backcolor | bullist numlist | link image table codesample | code fullscreen',
-                codesample_global_prismjs: true,
-                codesample_languages: [
-                    { text: 'HTML/XML', value: 'markup' },
-                    { text: 'CSS', value: 'css' },
-                    { text: 'JavaScript', value: 'javascript' },
-                    { text: 'Python', value: 'python' },
-                    { text: 'PHP', value: 'php' },
-                    { text: 'Java', value: 'java' },
-                    { text: 'C#', value: 'csharp' },
-                    { text: 'SQL', value: 'sql' }
-                ],
                 setup: function (editor) {
                     editor.on('init', function () {
                         tinymceInstance = editor;
-                        console.log('TinyMCE initialized (PocketBase style)');
                     });
                 }
             });
         }
 
-        // Load content into TinyMCE
         function loadContentToTinyMCE(content) {
             if (tinymceInstance) {
                 tinymceInstance.setContent(content || '');
@@ -337,31 +366,45 @@
 
         // Watch for modal open/close
         document.addEventListener('alpine:initialized', () => {
-            const modalEl = document.getElementById('edit_service_modal');
-            if (modalEl) {
+            const modalEl = document.querySelector('.modal[x-data]'); // Wait, x-data is on the top div.
+            // We need to watch 'editModalOpen'.
+            // Ideally, Alpine's x-init or $watch is better, but since this script is outside x-data scope:
+
+            // We can use MutationObserver on the dialog class or attributes if we can pinpoint it.
+            // The dialog has :class="{ 'modal-open': editModalOpen }"
+
+            // Easier: Use Alpine $watch inside the x-data init, but I can't easily inject there now.
+            // Let's stick to the MutationObserver on the dialog element if possible.
+            // The dialog is the one with class "modal modal-bottom..."
+            const dialogs = document.querySelectorAll('dialog.modal');
+            // The edit modal is likely the second one (first is add modal? No, Services page only has one big edit/create modal now?)
+            // Actually I removed the 'add' modal? Check file content.
+            // Services page has a "modal-box" inside a dialog.
+            // Line 198: <dialog class="modal ...">
+            // I'll grab it by class or structure.
+
+            const editModal = Array.from(dialogs).find(d => d.getAttribute(':class') && d.getAttribute(':class').includes('editModalOpen'));
+
+            if (editModal) {
                 const observer = new MutationObserver((mutations) => {
                     mutations.forEach((mutation) => {
-                        if (mutation.attributeName === 'open') {
-                            if (modalEl.open) {
-                                // Modal opened - init TinyMCE
+                        if (mutation.attributeName === 'class') {
+                            if (editModal.classList.contains('modal-open')) {
+                                // Opened
                                 setTimeout(() => {
-                                    console.log('Initializing TinyMCE...');
                                     initTinyMCE();
-
-                                    // Wait for TinyMCE to be ready, then load content
                                     const checkReady = setInterval(() => {
                                         if (tinymceInstance) {
                                             clearInterval(checkReady);
-                                            if (modalEl.__x && modalEl.__x.$data.editingService) {
-                                                const content = modalEl.__x.$data.editingService.content || '';
-                                                console.log('Loading content...');
-                                                loadContentToTinyMCE(content);
+                                            // Access Alpine data
+                                            if (editModal.__x && editModal.__x.$data.editingService) {
+                                                loadContentToTinyMCE(editModal.__x.$data.editingService.content);
                                             }
                                         }
                                     }, 100);
-                                }, 200);
+                                }, 100);
                             } else {
-                                // Modal closed - destroy TinyMCE
+                                // Closed
                                 if (tinymceInstance) {
                                     tinymce.remove(tinymceInstance);
                                     tinymceInstance = null;
@@ -370,122 +413,44 @@
                         }
                     });
                 });
-
-                observer.observe(modalEl, { attributes: true });
-            }
-
-            // Image preview for main image
-            const imageInput = document.querySelector('input[name="image"]');
-            if (imageInput) {
-                imageInput.addEventListener('change', function (e) {
-                    const file = e.target.files[0];
-                    if (file && file.type.startsWith('image/')) {
-                        const reader = new FileReader();
-                        reader.onload = function (e) {
-                            // Find or create preview container
-                            let preview = imageInput.parentElement.querySelector('.new-image-preview');
-                            if (!preview) {
-                                preview = document.createElement('div');
-                                preview.className = 'new-image-preview mt-2';
-                                imageInput.parentElement.insertBefore(preview, imageInput.nextSibling);
-                            }
-                            preview.innerHTML = `
-                            <div class="relative inline-block">
-                                <img src="${e.target.result}" class="w-32 h-32 object-cover rounded-lg border border-gray-200">
-                                <div class="absolute top-0 right-0 bg-green-500 text-white text-xs px-2 py-1 rounded-bl">Mới</div>
-                            </div>
-                        `;
-                        };
-                        reader.readAsDataURL(file);
-                    }
-                });
-            }
-
-            // Image preview for gallery
-            const galleryInput = document.querySelector('input[name="gallery"]');
-            if (galleryInput) {
-                galleryInput.addEventListener('change', function (e) {
-                    const files = Array.from(e.target.files);
-                    let previewContainer = galleryInput.parentElement.querySelector('.new-gallery-preview');
-                    if (!previewContainer) {
-                        previewContainer = document.createElement('div');
-                        previewContainer.className = 'new-gallery-preview grid grid-cols-4 gap-3 mt-3';
-                        galleryInput.parentElement.insertBefore(previewContainer, galleryInput.nextSibling);
-                    }
-
-                    previewContainer.innerHTML = '';
-                    files.forEach(file => {
-                        if (file.type.startsWith('image/')) {
-                            const reader = new FileReader();
-                            reader.onload = function (e) {
-                                const div = document.createElement('div');
-                                div.className = 'relative group';
-                                div.innerHTML = `
-                                <img src="${e.target.result}" class="w-full h-24 object-cover rounded-lg border border-gray-200">
-                                <div class="absolute top-0 right-0 bg-green-500 text-white text-xs px-1 rounded-bl">Mới</div>
-                            `;
-                                previewContainer.appendChild(div);
-                            };
-                            reader.readAsDataURL(file);
-                        }
-                    });
-                });
-            }
-
-            // YouTube URL Preview
-            const videoUrlInput = document.getElementById('video_url_input');
-            if (videoUrlInput) {
-                videoUrlInput.addEventListener('input', function (e) {
-                    const url = e.target.value.trim();
-                    const preview = document.getElementById('youtube_preview');
-                    const iframe = document.getElementById('youtube_iframe');
-
-                    if (url) {
-                        // Extract video ID using our helper function logic
-                        let videoId = '';
-                        const patterns = [
-                            /(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/,
-                            /youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/
-                        ];
-
-                        for (const pattern of patterns) {
-                            const match = url.match(pattern);
-                            if (match && match[1]) {
-                                videoId = match[1];
-                                break;
-                            }
-                        }
-
-                        if (videoId) {
-                            iframe.src = `https://www.youtube.com/embed/${videoId}`;
-                            preview.style.display = 'block';
-                        } else {
-                            preview.style.display = 'none';
-                        }
-                    } else {
-                        preview.style.display = 'none';
-                    }
-                });
-
-                // Trigger preview on modal open if video URL exists
-                const modalEl = document.getElementById('edit_service_modal');
-                if (modalEl) {
-                    const obs = new MutationObserver(() => {
-                        if (modalEl.open && modalEl.__x && modalEl.__x.$data.editingService) {
-                            const videoUrl = modalEl.__x.$data.editingService.video || '';
-                            if (videoUrl) {
-                                videoUrlInput.value = videoUrl;
-                                videoUrlInput.dispatchEvent(new Event('input'));
-                            }
-                        }
-                    });
-                    obs.observe(modalEl, { attributes: true });
-                }
+                observer.observe(editModal, { attributes: true });
             }
         });
 
-        // Debug Quill loading
-        console.log('Quill loaded:', typeof Quill !== 'undefined');
-    })(); // Close IIFE
+        // YouTube URL Preview
+        const videoUrlInput = document.getElementById('video_url_input');
+        if (videoUrlInput) {
+            videoUrlInput.addEventListener('input', function (e) {
+                const url = e.target.value.trim();
+                const preview = document.getElementById('youtube_preview');
+                const iframe = document.getElementById('youtube_iframe');
+
+                if (url) {
+                    let videoId = '';
+                    const patterns = [
+                        /(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/,
+                        /youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/
+                    ];
+
+                    for (const pattern of patterns) {
+                        const match = url.match(pattern);
+                        if (match && match[1]) {
+                            videoId = match[1];
+                            break;
+                        }
+                    }
+
+                    if (videoId) {
+                        iframe.src = `https://www.youtube.com/embed/${videoId}`;
+                        preview.style.display = 'block';
+                    } else {
+                        preview.style.display = 'none';
+                    }
+                } else {
+                    preview.style.display = 'none';
+                }
+            });
+        }
+    })();
 </script>
 {{ end }}

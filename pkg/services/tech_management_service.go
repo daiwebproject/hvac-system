@@ -32,15 +32,29 @@ func (s *TechManagementService) CreateTech(name, email, password string) error {
 	return s.repo.Create(tech, password)
 }
 
-func (s *TechManagementService) UpdateTech(id, name, email string) error {
+type UpdateTechInput struct {
+	Name           string
+	Email          string
+	Level          string
+	BaseSalary     float64
+	CommissionRate float64
+	Skills         []string
+	ServiceZones   []string
+}
+
+func (s *TechManagementService) UpdateTech(id string, input UpdateTechInput) error {
 	tech, err := s.repo.GetByID(id)
 	if err != nil {
 		return err
 	}
 
-	tech.Name = name
-	tech.Email = email
-	// Avatar handling could be here or separate
+	tech.Name = input.Name
+	tech.Email = input.Email
+	tech.Level = input.Level
+	tech.BaseSalary = input.BaseSalary
+	tech.CommissionRate = input.CommissionRate
+	tech.Skills = input.Skills
+	tech.ServiceZones = input.ServiceZones
 
 	return s.repo.Update(tech)
 }

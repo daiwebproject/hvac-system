@@ -16,13 +16,20 @@ func NewTechnicianRepo(app pbCore.App) core.TechnicianRepository {
 
 func (r *PBTechnicianRepo) toDomain(record *pbCore.Record) *core.Technician {
 	return &core.Technician{
-		ID:       record.Id,
-		Name:     record.GetString("name"),
-		Email:    record.Email(),
-		Avatar:   record.GetString("avatar"),
-		Active:   record.GetBool("active"),
-		Verified: record.GetBool("verified"),
-		FCMToken: record.GetString("fcm_token"), // [NEW]
+		ID:             record.Id,
+		Name:           record.GetString("name"),
+		Email:          record.Email(),
+		Avatar:         record.GetString("avatar"),
+		Active:         record.GetBool("active"),
+		Verified:       record.GetBool("verified"),
+		FCMToken:       record.GetString("fcm_token"),
+		Phone:          record.GetString("phone"),
+		Rating:         record.GetFloat("rating"),
+		Level:          record.GetString("level"),
+		Skills:         record.GetStringSlice("skills"),
+		ServiceZones:   record.GetStringSlice("service_zones"),
+		BaseSalary:     record.GetFloat("base_salary"),
+		CommissionRate: record.GetFloat("commission_rate"),
 	}
 }
 
@@ -70,6 +77,11 @@ func (r *PBTechnicianRepo) Create(tech *core.Technician, password string) error 
 	record.Set("name", tech.Name)
 	record.Set("verified", tech.Verified)
 	record.Set("active", tech.Active)
+	record.Set("level", tech.Level)
+	record.Set("skills", tech.Skills)
+	record.Set("service_zones", tech.ServiceZones)
+	record.Set("base_salary", tech.BaseSalary)
+	record.Set("commission_rate", tech.CommissionRate)
 	record.SetPassword(password)
 
 	return r.app.Save(record)
@@ -84,6 +96,11 @@ func (r *PBTechnicianRepo) Update(tech *core.Technician) error {
 	record.Set("email", tech.Email)
 	record.Set("name", tech.Name)
 	record.Set("active", tech.Active)
+	record.Set("level", tech.Level)
+	record.Set("skills", tech.Skills)
+	record.Set("service_zones", tech.ServiceZones)
+	record.Set("base_salary", tech.BaseSalary)
+	record.Set("commission_rate", tech.CommissionRate)
 	// Don't update password here
 
 	return r.app.Save(record)

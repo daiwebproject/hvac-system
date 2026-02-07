@@ -1,77 +1,155 @@
-<div class="overflow-x-auto bg-base-100 rounded-lg shadow">
-    <table class="table w-full">
-        <thead>
-            <tr class="bg-base-200">
-                <th>Avatar</th>
-                <th>Thông Tin</th>
-                <th>Trạng Thái</th>
-                <th>Thao Tác</th>
-            </tr>
-        </thead>
-        <tbody>
-            {{ range .Techs }}
-            <tr class="hover">
-                <td>
-                    <div class="avatar placeholder">
-                        <div class="bg-neutral-focus text-neutral-content rounded-full w-12">
-                            {{ if .Avatar }}
-                            <img src="/api/files/technicians/{{.ID}}/{{.Avatar}}" />
-                            {{ else }}
-                            <span class="text-xl">{{ printf "%.1s" .Name }}</span>
-                            {{ end }}
-                        </div>
-                    </div>
-                </td>
-                <td>
-                    <div class="font-bold">{{ .Name }}</div>
-                    <div class="text-sm opacity-50">{{ .Email }}</div>
-                </td>
-                <td>
-                    {{ if .Active }}
-                    <div class="badge badge-success gap-2">
-                        <div class="w-2 h-2 rounded-full bg-white"></div> Online
-                    </div>
-                    {{ else }}
-                    <div class="badge badge-ghost gap-2">Offline</div>
-                    {{ end }}
-                </td>
-                <th>
-                    <div class="flex gap-2">
-                        <button class="btn btn-xs btn-outline"
-                            onclick="document.getElementById('modal-reset-{{.ID}}').showModal()">
-                            <i class="fa-solid fa-key"></i> Đổi Pass
-                        </button>
-                        <button class="btn btn-xs {{if .Active}}btn-error{{else}}btn-success{{end}}"
-                            hx-post="/admin/techs/{{.ID}}/toggle" hx-swap="none">
-                            <i class="fa-solid fa-power-off"></i>
-                        </button>
-                    </div>
+<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 pb-20">
+    {{ range .Techs }}
+    <div class="group bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-xl hover:border-blue-200 hover:-translate-y-1 transition-all duration-300 cursor-pointer overflow-hidden"
+        x-data="{ active: {{.Active}} }"
+        x-show="!searchQuery || '{{.Name}}'.toLowerCase().includes(searchQuery.toLowerCase())" @click="openEditModal({
+            id: '{{.ID}}',
+            name: '{{.Name}}',
+            email: '{{.Email}}',
+            phone: '{{.Phone}}',
+            rating: {{.Rating}},
+            level: '{{.Level}}',
+            active: {{.Active}},
+            base_salary: {{.BaseSalary}},
+            commission_rate: {{.CommissionRate}},
+            skills: [{{ range .Skills }}'{{.}}',{{ end }}],
+            service_zones: [{{ range .ServiceZones }}'{{.}}',{{ end }}]
+        })">
 
-                    <!-- Modal Reset Password -->
-                    <dialog id="modal-reset-{{.ID}}" class="modal font-normal">
-                        <div class="modal-box">
-                            <h3 class="font-bold text-lg mb-4">Đổi Mật Khẩu: {{.Name}}</h3>
-                            <form hx-post="/admin/techs/{{.ID}}/password" hx-swap="none"
-                                hx-on::after-request="if(event.detail.successful) { document.getElementById('modal-reset-{{.ID}}').close(); Swal.fire('Thành công', 'Đã đổi mật khẩu', 'success'); }">
-                                <div class="form-control mb-4">
-                                    <input type="text" name="password" class="input input-bordered"
-                                        placeholder="Nhập mật khẩu mới..." required minlength="8" />
-                                </div>
-                                <div class="modal-action">
-                                    <button type="button" class="btn"
-                                        onclick="document.getElementById('modal-reset-{{.ID}}').close()">Đóng</button>
-                                    <button type="submit" class="btn btn-warning">Lưu thay đổi</button>
-                                </div>
-                            </form>
-                        </div>
-                    </dialog>
-                </th>
-            </tr>
-            {{ else }}
-            <tr>
-                <td colspan="4" class="text-center py-8 text-gray-500">Chưa có kỹ thuật viên nào</td>
-            </tr>
-            {{ end }}
-        </tbody>
-    </table>
+        <!-- Header with Avatar - REACTIVE to active state -->
+        <div class="relative p-4 pb-8 transition-all duration-300 bg-gradient-to-br"
+            :class="active ? 'from-blue-500 to-indigo-600' : 'from-gray-400 to-gray-500'">
+            <!-- Status dot -->
+            <div class="absolute top-2 right-2">
+                <span class="flex h-3 w-3">
+                    <span class="absolute inline-flex h-full w-full rounded-full opacity-75 transition-colors"
+                        :class="active ? 'animate-ping bg-green-400' : 'bg-gray-300'"></span>
+                    <span class="relative inline-flex rounded-full h-3 w-3 transition-colors"
+                        :class="active ? 'bg-green-500' : 'bg-gray-400'"></span>
+                </span>
+            </div>
+
+            <!-- Avatar centered -->
+            <div class="flex justify-center">
+                <div
+                    class="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur flex items-center justify-center ring-4 ring-white/30 shadow-lg">
+                    {{ if .Avatar }}
+                    <img src="/api/files/technicians/{{.ID}}/{{.Avatar}}"
+                        class="w-full h-full rounded-2xl object-cover" />
+                    {{ else }}
+                    <span class="text-2xl font-black text-white">{{ printf "%.1s" .Name }}</span>
+                    {{ end }}
+                </div>
+            </div>
+        </div>
+
+        <!-- Level Badge overlapping -->
+        <div class="flex justify-center -mt-3 relative z-10">
+            <span class="badge px-3 py-1 font-bold uppercase text-xs shadow-md border-2 border-white
+                {{if eq .Level " master"}}bg-gradient-to-r from-amber-500 to-orange-500 text-white{{else if eq
+                .Level "senior" }}bg-gradient-to-r from-violet-500 to-purple-500 text-white{{else}}bg-gray-100
+                text-gray-600{{end}}">
+                {{if eq .Level "master"}}⭐ Master{{else if eq .Level "senior"}}Senior{{else}}Junior{{end}}
+            </span>
+        </div>
+
+        <!-- Content -->
+        <div class="p-4 pt-2 text-center">
+            <h4 class="font-bold text-gray-800 truncate group-hover:text-blue-600 transition-colors">{{.Name}}</h4>
+
+            <!-- Contact Info -->
+            <div class="mt-1 space-y-0.5">
+                <p class="text-xs text-gray-400 truncate flex items-center justify-center gap-1">
+                    <i class="fa-solid fa-phone text-[10px]"></i> {{if .Phone}}{{.Phone}}{{else}}--{{end}}
+                </p>
+            </div>
+
+            <!-- Quick Stats -->
+            <div class="mt-3 grid grid-cols-2 gap-2 text-center">
+                <div class="bg-emerald-50 rounded-lg px-2 py-1.5">
+                    <div class="text-[10px] text-emerald-600 font-medium">Lương</div>
+                    <div class="text-xs font-bold text-emerald-700" x-text="formatMoney({{.BaseSalary}})">0</div>
+                </div>
+                <div class="bg-blue-50 rounded-lg px-2 py-1.5">
+                    <div class="text-[10px] text-blue-600 font-medium">Hoa hồng</div>
+                    <div class="text-xs font-bold text-blue-700">{{if
+                        .CommissionRate}}{{.CommissionRate}}%{{else}}0%{{end}}</div>
+                </div>
+            </div>
+
+            <!-- Rating Stars -->
+            <div class="mt-2 flex items-center justify-center gap-1">
+                <div class="flex text-amber-400 text-xs">
+                    {{if .Rating}}
+                    <i class="fa-solid fa-star"></i>
+                    {{else}}
+                    <i class="fa-regular fa-star text-gray-300"></i>
+                    {{end}}
+                </div>
+                <span class="text-xs font-medium text-gray-500">{{if .Rating}}{{printf "%.1f" .Rating}}{{else}}Chưa
+                    có{{end}}</span>
+            </div>
+        </div>
+
+        <!-- Footer Actions -->
+        <div class="px-4 pb-4 flex items-center justify-between">
+            <label class="cursor-pointer flex items-center gap-2" @click.stop>
+                <input type="checkbox" class="toggle toggle-sm" :class="active ? 'toggle-success' : ''" x-model="active"
+                    hx-post="/admin/techs/{{.ID}}/toggle" hx-swap="none" />
+                <span class="text-xs font-bold transition-colors" :class="active ? 'text-emerald-600' : 'text-gray-400'"
+                    x-text="active ? 'Online' : 'Offline'"></span>
+            </label>
+            <div class="flex gap-1">
+                <a href="tel:{{.Phone}}" @click.stop
+                    class="btn btn-ghost btn-xs btn-circle hover:bg-blue-100 hover:text-blue-600" {{if not
+                    .Phone}}disabled{{end}}>
+                    <i class="fa-solid fa-phone"></i>
+                </a>
+                <button
+                    @click.stop="$event.stopPropagation(); document.getElementById('modal-reset-{{.ID}}').showModal()"
+                    class="btn btn-ghost btn-xs btn-circle hover:bg-orange-100 hover:text-orange-600">
+                    <i class="fa-solid fa-key"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+    {{ else }}
+    <div class="col-span-full py-12 flex flex-col items-center justify-center text-center">
+        <div class="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mb-4">
+            <i class="fa-solid fa-users-slash text-gray-300 text-3xl"></i>
+        </div>
+        <h3 class="text-lg font-bold text-gray-600">Chưa có nhân viên nào</h3>
+        <p class="text-gray-400 text-sm mt-1">Nhấn "Thêm Thợ" để bắt đầu</p>
+    </div>
+    {{ end }}
 </div>
+
+<!-- Password Reset Modals -->
+{{ range .Techs }}
+<dialog id="modal-reset-{{.ID}}" class="modal text-left font-normal">
+    <div class="modal-box max-w-sm">
+        <h3 class="font-bold text-lg mb-3 flex items-center text-warning">
+            <i class="fa-solid fa-key mr-2"></i> Đổi Mật Khẩu
+        </h3>
+        <p class="text-sm text-gray-500 mb-3">
+            Mật khẩu mới cho <span class="font-bold text-gray-800">{{.Name}}</span>
+        </p>
+        <form hx-post="/admin/techs/{{.ID}}/password" hx-swap="none"
+            hx-on::after-request="if(event.detail.successful) { document.getElementById('modal-reset-{{.ID}}').close(); Swal.fire('Thành công', 'Đã đổi mật khẩu', 'success'); }">
+            <div class="form-control mb-4">
+                <div class="relative">
+                    <i class="fa-solid fa-lock absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                    <input type="text" name="password" class="input input-bordered input-sm w-full pl-10"
+                        placeholder="Tối thiểu 8 ký tự" required minlength="8" />
+                </div>
+            </div>
+            <div class="modal-action">
+                <button type="button" class="btn btn-ghost btn-sm"
+                    onclick="document.getElementById('modal-reset-{{.ID}}').close()">Hủy</button>
+                <button type="submit" class="btn btn-warning btn-sm">Lưu</button>
+            </div>
+        </form>
+    </div>
+    <form method="dialog" class="modal-backdrop"><button>close</button></form>
+</dialog>
+{{ end }}
