@@ -2,6 +2,7 @@ package repository
 
 import (
 	"hvac-system/internal/core"
+	"time"
 
 	"github.com/pocketbase/dbx"
 	pbCore "github.com/pocketbase/pocketbase/core"
@@ -214,13 +215,13 @@ func (r *PBBookingRepo) UpdateStatus(bookingID string, status string) error {
 	// Set status-specific timestamps
 	switch status {
 	case "moving":
-		record.Set("moving_start_at", "") // Will be auto-set by PocketBase
+		record.Set("moving_start_at", time.Now())
 	case "arrived":
-		record.Set("arrived_at", "") // Will be auto-set by PocketBase
+		record.Set("arrived_at", time.Now())
 	case "working":
-		record.Set("working_start_at", "") // Will be auto-set by PocketBase
+		record.Set("working_start_at", time.Now())
 	case "completed":
-		record.Set("completed_at", "") // Will be auto-set by PocketBase
+		record.Set("completed_at", time.Now())
 	}
 
 	return r.app.Save(record)

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	domain "hvac-system/internal/core"
 	"hvac-system/pkg/broker"
 	"hvac-system/pkg/notification"
 
@@ -20,13 +21,29 @@ func (h *TechHandler) UpdateJobStatusHTMX(e *core.RequestEvent) error {
 	jobID := e.Request.PathValue("id")
 	newStatus := e.Request.FormValue("status")
 
-	job, err := h.App.FindRecordById("bookings", jobID)
-	if err != nil {
-		return e.String(404, "Job not found")
+	var err error // [FIX] Declare err
+	// 1. Fetch Job from Repository (or Fallback)
+	var job *domain.Booking
+	if h.BookingRepo != nil {
+		job, err = h.BookingRepo.GetByID(jobID)
+		if err != nil {
+			return e.String(404, "Job không tồn tại")
+		}
+	} else {
+		// Fallback for safety during migration
+		rec, err := h.App.FindRecordById("bookings", jobID)
+		if err != nil {
+			return e.String(404, "Job not found")
+		}
+		// Convert to domain
+		job = &domain.Booking{
+			ID:        rec.Id,
+			JobStatus: rec.GetString("job_status"),
+		}
 	}
 
 	// Validate status transition (Updated to match UI flow)
-	currentStatus := job.GetString("job_status")
+	currentStatus := job.JobStatus
 	validTransition := map[string][]string{
 		"pending":  {"moving", "cancelled"},
 		"assigned": {"moving", "cancelled"},
@@ -54,11 +71,18 @@ func (h *TechHandler) UpdateJobStatusHTMX(e *core.RequestEvent) error {
 	}
 
 	// Update job status
-	job.Set("job_status", newStatus)
-	job.Set(fmt.Sprintf("%s_start_at", newStatus), time.Now())
-
-	if err := h.App.Save(job); err != nil {
-		return e.String(500, "Failed to update status: "+err.Error())
+	if h.BookingRepo != nil {
+		if err := h.BookingRepo.UpdateStatus(jobID, newStatus); err != nil {
+			return e.String(500, "Failed to update status: "+err.Error())
+		}
+	} else {
+		// Fallback direct update
+		rec, _ := h.App.FindRecordById("bookings", jobID) // Re-fetch or reuse if we had 'rec'
+		rec.Set("job_status", newStatus)
+		rec.Set(fmt.Sprintf("%s_start_at", newStatus), time.Now())
+		if err := h.App.Save(rec); err != nil {
+			return e.String(500, "Failed to update status: "+err.Error())
+		}
 	}
 
 	// Publish events
@@ -98,10 +122,10 @@ func (h *TechHandler) UpdateJobStatusHTMX(e *core.RequestEvent) error {
 				var title, body string
 				if newStatus == "completed" {
 					title = "✅ Đơn hàng hoàn thành"
-					body = fmt.Sprintf("KTV %s đã hoàn thành đơn %s", e.Auth.GetString("name"), job.GetString("customer_name"))
+					body = fmt.Sprintf("KTV %s đã hoàn thành đơn %s", e.Auth.GetString("name"), job.CustomerName)
 				} else {
 					title = "⚠️ Đơn hàng bị hủy"
-					body = fmt.Sprintf("KTV %s đã hủy đơn %s", e.Auth.GetString("name"), job.GetString("customer_name"))
+					body = fmt.Sprintf("KTV %s đã hủy đơn %s", e.Auth.GetString("name"), job.CustomerName)
 				}
 
 				payload := &notification.NotificationPayload{
@@ -130,13 +154,29 @@ func (h *TechHandler) UpdateJobStatusHTMX(e *core.RequestEvent) error {
 func (h *TechHandler) GetJobInvoice(e *core.RequestEvent) error {
 	jobID := e.Request.PathValue("id")
 
-	job, err := h.App.FindRecordById("bookings", jobID)
-	if err != nil {
-		return e.String(404, "Job not found")
+	// 1. Fetch Job from Repository (or Fallback)
+	var job *domain.Booking
+	var err error
+	if h.BookingRepo != nil {
+		job, err = h.BookingRepo.GetByID(jobID)
+		if err != nil {
+			return e.String(404, "Job không tồn tại")
+		}
+	} else {
+		// Fallback for safety during migration
+		rec, err := h.App.FindRecordById("bookings", jobID)
+		if err != nil {
+			return e.String(404, "Job not found")
+		}
+		// Convert to domain
+		job = &domain.Booking{
+			ID:        rec.Id,
+			ServiceID: rec.GetString("service_id"),
+		}
 	}
 
 	// Get invoice
-	invoices, err := h.App.FindRecordsByFilter(
+	invoices, invoiceErr := h.App.FindRecordsByFilter(
 		"invoices",
 		fmt.Sprintf("booking_id='%s'", jobID),
 		"",
@@ -144,6 +184,9 @@ func (h *TechHandler) GetJobInvoice(e *core.RequestEvent) error {
 		0,
 		nil,
 	)
+	if invoiceErr != nil {
+		// Log or handle error if critical, but here we check len(invoices)
+	}
 
 	if len(invoices) == 0 {
 		// Generate invoice if not exists
@@ -199,7 +242,22 @@ func (h *TechHandler) ProcessPayment(e *core.RequestEvent) error {
 	}
 
 	// 3. Check job status
-	job, err := h.App.FindRecordById("bookings", jobID)
+	// 3. Check job status
+	var job *domain.Booking
+	var err error
+	if h.BookingRepo != nil {
+		job, err = h.BookingRepo.GetByID(jobID)
+	} else {
+		rec, e_err := h.App.FindRecordById("bookings", jobID)
+		err = e_err
+		if err == nil {
+			job = &domain.Booking{
+				ID:        rec.Id,
+				JobStatus: rec.GetString("job_status"),
+			}
+		}
+	}
+
 	if err != nil {
 		return e.JSON(404, map[string]interface{}{
 			"success": false,
@@ -207,7 +265,7 @@ func (h *TechHandler) ProcessPayment(e *core.RequestEvent) error {
 		})
 	}
 
-	if job.GetString("job_status") == "completed" {
+	if job.JobStatus == "completed" {
 		fmt.Printf("⚠️  PAYMENT: Job %s already completed\n", jobID)
 		return e.JSON(200, map[string]interface{}{
 			"success":      true,
@@ -282,12 +340,15 @@ func (h *TechHandler) ProcessPayment(e *core.RequestEvent) error {
 	}
 
 	// 7. Update job status
-	job.Set("payment_status", "paid")
-	job.Set("job_status", "completed")  // Mark as fully completed
-	job.Set("completed_at", time.Now()) // Track completion time
-	if err := h.App.Save(job); err != nil {
-		fmt.Printf("❌ Job Update Error: %v\n", err)
-		// Continue - invoice is paid, this is less critical
+	// 7. Update job status
+	// Fallback direct update for payment_status (not in domain model yet)
+	if rec, err := h.App.FindRecordById("bookings", jobID); err == nil {
+		rec.Set("payment_status", "paid")
+		rec.Set("job_status", "completed")
+		rec.Set("completed_at", time.Now())
+		if err := h.App.Save(rec); err != nil {
+			fmt.Printf("❌ Job Update Error: %v\n", err)
+		}
 	}
 
 	// 8. Publish payment event for Customer
@@ -321,7 +382,7 @@ func (h *TechHandler) ProcessPayment(e *core.RequestEvent) error {
 		go func() {
 			payload := &notification.NotificationPayload{
 				Title: "💰 Đã nhận thanh toán",
-				Body:  fmt.Sprintf("Đơn %s đã hoàn thành - %s", job.GetString("customer_name"), paymentMethod),
+				Body:  fmt.Sprintf("Đơn %s đã hoàn thành - %s", job.CustomerName, paymentMethod),
 				Data: map[string]string{
 					"type":       "job_completed",
 					"booking_id": jobID,

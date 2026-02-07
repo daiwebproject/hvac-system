@@ -292,19 +292,22 @@ func (s *TimeSlotService) CheckConflict(techID string, date string, startTime st
 		jobEnd := jobStart.Add(time.Duration(existingJobDuration) * time.Minute)
 
 		// 4. Kiểm tra xung đột có tính Buffer di chuyển
-		// Vùng an toàn của Job Cũ = [Start - 30p] đến [End + 30p]
+		// Quy tắc:
+		// - Job Mới phải bắt đầu SAU khi Job Cũ kết thúc + 30p
+		// - Job Mới phải kết thúc TRƯỚC khi Job Cũ bắt đầu - 30p (nếu chen vào trước)
+
+		// Thời gian an toàn mà Job Cũ chiếm dụng (bao gồm cả di chuyển đến và đi)
+		// [Start - 30] ... [End + 30]
+		// Nếu Job Mới chạm vào khoảng này thì là Conflict
+
 		bufferedStart := jobStart.Add(-time.Duration(TravelBufferMinutes) * time.Minute)
 		bufferedEnd := jobEnd.Add(time.Duration(TravelBufferMinutes) * time.Minute)
 
-		// Logic giao nhau: (NewStart < BufferedEnd) AND (NewEnd > BufferedStart)
-		if newStart.Before(bufferedEnd) && newEnd.After(bufferedStart) {
-			return fmt.Errorf(
-				"Xung đột lịch trình: Thợ đã có việc từ %s đến %s (Dịch vụ: %dp + 30p di chuyển)",
-				jobStart.Format("15:04"),
-				jobEnd.Format("15:04"),
-				existingJobDuration,
-			)
+		if newEnd.After(bufferedStart) && newStart.Before(bufferedEnd) {
+			return fmt.Errorf("Xung đột lịch trình: Thợ đã có việc từ %s đến %s (cộng thời gian di chuyển)",
+				jobStart.Format("15:04"), jobEnd.Format("15:04"))
 		}
+
 	}
 
 	return nil

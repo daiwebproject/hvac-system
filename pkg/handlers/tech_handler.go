@@ -118,10 +118,30 @@ func (h *TechHandler) getTechCommonData(techID string) map[string]interface{} {
 		}
 	}
 
-	// [NEW] Fetch Fresh Tech Record for Real-time Status
-	techRecord, err := h.App.FindRecordById("technicians", techID)
-	if err != nil {
-		fmt.Printf("Error fetching fresh tech record: %v\n", err)
+	// [REFACTORED] Fetch Fresh Tech from Repository for Real-time Status
+	var tech *domain.Technician
+	var err error
+	if h.TechRepo != nil {
+		tech, err = h.TechRepo.GetByID(techID)
+		if err != nil {
+			fmt.Printf("Error fetching tech from repo: %v\n", err)
+		}
+	} else {
+		// Fallback: convert raw record to domain model
+		techRecord, err := h.App.FindRecordById("technicians", techID)
+		if err != nil {
+			fmt.Printf("Error fetching fresh tech record: %v\n", err)
+		} else {
+			tech = &domain.Technician{
+				ID:       techRecord.Id,
+				Name:     techRecord.GetString("name"),
+				Email:    techRecord.Email(),
+				Avatar:   techRecord.GetString("avatar"),
+				Active:   techRecord.GetBool("active"),
+				Verified: techRecord.GetBool("verified"),
+				FCMToken: techRecord.GetString("fcm_token"),
+			}
+		}
 	}
 
 	// [FIX] Query for New Jobs (Assigned but not started)
@@ -145,9 +165,9 @@ func (h *TechHandler) getTechCommonData(techID string) map[string]interface{} {
 		"TodayEarnings":       todayEarnings,
 		"TotalEarnings":       totalEarnings,
 		"IsTech":              true,
-		"TechRecord":          techRecord, // Fresh data
+		"Tech":                tech, // [REFACTORED] Domain model instead of raw record
 		"NewJobsCount":        len(newJobs),
-		"CompletedTotalCount": completedTotal, // Corrected key name to match template (CompletedTotalCount vs CompletedTotal)
+		"CompletedTotalCount": completedTotal,
 	}
 }
 
@@ -225,17 +245,46 @@ func (h *TechHandler) JobDetail(e *core.RequestEvent) error {
 	jobID := e.Request.PathValue("id")
 
 	// 1. Validate job exists
-	job, err := h.App.FindRecordById("bookings", jobID)
-	if err != nil {
-		// Job not found - render helpful 404 page
-		return RenderPage(h.Templates, e, "layouts/tech.html", "tech/job_not_found.html", map[string]interface{}{
-			"Message": "Công việc này không tồn tại hoặc đã bị xóa khỏi hệ thống.",
-			"JobId":   jobID,
-		})
+	var err error // [FIX] Declare err
+	// 1. Fetch Job from Repository (or Fallback)
+	var job *domain.Booking
+	if h.BookingRepo != nil {
+		job, err = h.BookingRepo.GetByID(jobID)
+		if err != nil {
+			return RenderPage(h.Templates, e, "layouts/tech.html", "tech/job_not_found.html", map[string]interface{}{
+				"Message": "Công việc này không tồn tại hoặc đã bị xóa khỏi hệ thống.",
+				"JobId":   jobID,
+			})
+		}
+	} else {
+		// Fallback for safety during migration
+		rec, err := h.App.FindRecordById("bookings", jobID)
+		if err != nil {
+			return RenderPage(h.Templates, e, "layouts/tech.html", "tech/job_not_found.html", map[string]interface{}{
+				"Message": "Công việc này không tồn tại hoặc đã bị xóa khỏi hệ thống.",
+				"JobId":   jobID,
+			})
+		}
+		// Convert to domain (manual for now, ideally use a mapper)
+		job = &domain.Booking{
+			ID:               rec.Id,
+			TechnicianID:     rec.GetString("technician_id"),
+			JobStatus:        rec.GetString("job_status"),
+			CustomerName:     rec.GetString("customer_name"),
+			CustomerPhone:    rec.GetString("customer_phone"),
+			Address:          rec.GetString("address"),
+			AddressDetails:   rec.GetString("address_details"),
+			DeviceType:       rec.GetString("device_type"),
+			Brand:            rec.GetString("brand"),
+			BookingTime:      rec.GetString("booking_time"),
+			IssueDescription: rec.GetString("issue_description"),
+			Lat:              rec.GetFloat("lat"),
+			Long:             rec.GetFloat("long"),
+		}
 	}
 
 	// 2. Verify job belongs to this technician
-	if job.GetString("technician_id") != e.Auth.Id {
+	if job.TechnicianID != e.Auth.Id {
 		return RenderPage(h.Templates, e, "layouts/tech.html", "tech/job_not_found.html", map[string]interface{}{
 			"Message": "Bạn không có quyền truy cập công việc này.",
 			"JobId":   jobID,
@@ -266,7 +315,7 @@ func (h *TechHandler) JobDetail(e *core.RequestEvent) error {
 
 	// 5. Calculate Progress
 	progress := 0
-	status := job.GetString("job_status")
+	status := job.JobStatus
 	switch status {
 	case "assigned":
 		progress = 0
@@ -292,7 +341,7 @@ func (h *TechHandler) JobDetail(e *core.RequestEvent) error {
 
 	// DEBUG
 	fmt.Printf("🔍 JobDetail render - Job ID: %s, Status: %s, Progress: %d%%\n",
-		job.Id, job.GetString("job_status"), progress)
+		job.ID, job.JobStatus, progress)
 
 	return RenderPage(h.Templates, e, "layouts/tech.html", "tech/job_detail.html", data)
 }
@@ -302,16 +351,33 @@ func (h *TechHandler) JobDetail(e *core.RequestEvent) error {
 func (h *TechHandler) ShowCompleteJob(e *core.RequestEvent) error {
 	jobID := e.Request.PathValue("id")
 
-	job, err := h.App.FindRecordById("bookings", jobID)
-	if err != nil {
-		return e.String(404, "Job không tồn tại")
+	var err error // [FIX] Declare err
+	// 1. Fetch Job from Repository (or Fallback)
+	var job *domain.Booking
+	if h.BookingRepo != nil {
+		job, err = h.BookingRepo.GetByID(jobID)
+		if err != nil {
+			return e.String(404, "Job không tồn tại")
+		}
+	} else {
+		// Fallback for safety during migration
+		rec, err := h.App.FindRecordById("bookings", jobID)
+		if err != nil {
+			return e.String(404, "Job không tồn tại")
+		}
+		// Convert to domain (manual for now, ideally use a mapper)
+		job = &domain.Booking{
+			ID:        rec.Id,
+			ServiceID: rec.GetString("service_id"),
+			// Other fields if needed
+		}
 	}
 
 	// Get active inventory for selection
 	inventory, _ := h.Inventory.GetActiveItems()
 
 	// Get base service price
-	serviceID := job.GetString("service_id")
+	serviceID := job.ServiceID
 	service, _ := h.App.FindRecordById("services", serviceID)
 	laborPrice := 0.0
 	if service != nil {
@@ -335,7 +401,13 @@ func (h *TechHandler) ShowCompleteJob(e *core.RequestEvent) error {
 // SubmitCompleteJob processes the completion form with parts and invoice recalculation
 func (h *TechHandler) SubmitCompleteJob(e *core.RequestEvent) error {
 	jobID := e.Request.PathValue("id")
-	_, err := h.App.FindRecordById("bookings", jobID)
+	var err error
+	if h.BookingRepo != nil {
+		_, err = h.BookingRepo.GetByID(jobID)
+	} else {
+		_, err = h.App.FindRecordById("bookings", jobID)
+	}
+
 	if err != nil {
 		return e.String(404, "Job không tồn tại")
 	}
@@ -417,9 +489,27 @@ func (h *TechHandler) SubmitCompleteJob(e *core.RequestEvent) error {
 func (h *TechHandler) ShowInvoicePayment(e *core.RequestEvent) error {
 	jobID := e.Request.PathValue("id")
 
-	job, err := h.App.FindRecordById("bookings", jobID)
-	if err != nil {
-		return e.String(404, "Job not found")
+	// 1. Fetch Job from Repository (or Fallback)
+	var job *domain.Booking
+	var err error
+	if h.BookingRepo != nil {
+		job, err = h.BookingRepo.GetByID(jobID)
+		if err != nil {
+			return e.String(404, "Job không tồn tại")
+		}
+	} else {
+		// Fallback for safety during migration
+		rec, err := h.App.FindRecordById("bookings", jobID)
+		if err != nil {
+			return e.String(404, "Job không tồn tại")
+		}
+		// Convert to domain
+		job = &domain.Booking{
+			ID:           rec.Id,
+			CustomerName: rec.GetString("customer_name"),
+			TechnicianID: rec.GetString("technician_id"),
+			// Other fields used by template
+		}
 	}
 
 	// Get or Generate Invoice

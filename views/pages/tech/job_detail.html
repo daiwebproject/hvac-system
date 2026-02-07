@@ -1,9 +1,8 @@
 {{ define "content" }}
 <div x-data="JobDetailController({
-        id: '{{.Job.Id}}',
-        lat: {{.Job.GetFloat "lat"}}, long: {{.Job.GetFloat "long" }}, address: {{printf "%q" (or
-    (.Job.GetString "address_details" ) (.Job.GetString "address" ))}}, status: '{{.Job.GetString "job_status"}}' })"
-    class="bg-gray-50 min-h-screen pb-32">
+        id: '{{.Job.ID}}',
+        lat: {{.Job.Lat}}, long: {{.Job.Long}}, address: {{printf " %q" (or .Job.AddressDetails .Job.Address)}},
+    status: '{{.Job.JobStatus}}' })" class="bg-gray-50 min-h-screen pb-32">
 
     <!-- Navbar -->
     <nav class="bg-white/90 backdrop-blur-md shadow-sm sticky top-0 z-40 border-b border-gray-100/50">
@@ -14,7 +13,7 @@
                 </a>
                 <div>
                     <h1 class="font-bold text-gray-800 leading-tight">Chi tiết công việc</h1>
-                    <p class="text-[10px] text-gray-400 font-mono">#{{slice .Job.Id 0 8}}</p>
+                    <p class="text-[10px] text-gray-400 font-mono">#{{slice .Job.ID 0 8}}</p>
                 </div>
             </div>
 
@@ -56,14 +55,13 @@
                 <div class="space-y-4">
                     <div class="flex justify-between items-center py-2 border-b border-dashed border-gray-100">
                         <span class="text-gray-500 text-sm">Thiết bị</span>
-                        <span class="font-bold text-gray-900">{{.Job.GetString "device_type"}} <span
-                                class="text-gray-400">|</span> {{.Job.GetString "brand"}}</span>
+                        <span class="font-bold text-gray-900">{{.Job.DeviceType}} <span class="text-gray-400">|</span>
+                            {{.Job.Brand}}</span>
                     </div>
                     <div class="flex justify-between items-center py-2 border-b border-dashed border-gray-100">
-                        <span class="text-gray-500 text-sm">Hẹn lúc</span>
                         <div
                             class="flex items-center gap-2 bg-blue-50 px-2 py-1 rounded text-blue-700 font-mono text-sm font-bold">
-                            <i class="fa-regular fa-clock text-xs"></i> {{.Job.GetString "booking_time"}}
+                            <i class="fa-regular fa-clock text-xs"></i> {{.Job.BookingTime}}
                         </div>
                     </div>
 
@@ -73,7 +71,7 @@
                             class="bg-amber-50 text-amber-900 p-4 rounded-xl text-sm border border-amber-100/50 flex gap-3 shadow-sm">
                             <i class="fa-solid fa-quote-left text-amber-300 text-lg"></i>
                             <p class="font-medium italic leading-relaxed">
-                                "{{ or (.Job.GetString "issue_description") "Không có mô tả chi tiết" }}"
+                                "{{ or .Job.IssueDescription "Không có mô tả chi tiết" }}"
                             </p>
                         </div>
                     </div>
@@ -81,7 +79,7 @@
             </div>
         </div>
 
-        {{ if eq (.Job.GetString "job_status") "completed" }}
+        {{ if eq .Job.JobStatus "completed" }}
         <div class="card bg-white shadow-sm border border-green-200 rounded-[20px] overflow-hidden">
             <div class="card-body p-6 text-center bg-gradient-to-b from-green-50/50 to-transparent">
                 <div
@@ -99,8 +97,8 @@
         {{ end }}
     </div>
 
-    {{ if ne (.Job.GetString "job_status") "completed" }}
-    {{template "tech/job_actions_bar" dict "JobId" .Job.Id}}
+    {{ if ne .Job.JobStatus "completed" }}
+    {{template "tech/job_actions_bar" dict "JobId" .Job.ID}}
     {{ end }}
 
     {{template "tech/cancel_modal" .}}

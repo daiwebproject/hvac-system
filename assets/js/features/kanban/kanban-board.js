@@ -57,6 +57,7 @@ export function kanbanBoard(initialActive = [], initialCompleted = []) {
         mapMarkers: {},
         assignTechId: '',
         sseConnection: null,
+        busyTechs: [], // [NEW] Track busy technicians for assignment modal
 
         // === Lifecycle ===
         init() {
@@ -177,8 +178,11 @@ export function kanbanBoard(initialActive = [], initialCompleted = []) {
                 lat: raw.lat,
                 long: raw.long,
                 issue: raw.issue || '',
+                issue: raw.issue || '',
                 staff_id: null,
-                technician_id: null
+                technician_id: null,
+                raw_time: raw.raw_time || raw.booking_time, // [NEW]
+                duration: raw.duration || 120 // [NEW]
             };
 
             this.columns.pending.unshift(newJob);
@@ -327,6 +331,46 @@ export function kanbanBoard(initialActive = [], initialCompleted = []) {
         openAssignModal(job) {
             this.selectedJob = job;
             this.assignTechId = '';
+
+            // [NEW] Calculate Availability
+            this.busyTechs = [];
+
+            if (job.raw_time) {
+                const jobStart = new Date(job.raw_time).getTime();
+                // Default 2h if duration missing
+                const durationMinutes = job.duration || 120;
+                const jobEnd = jobStart + (durationMinutes * 60000);
+
+                // Check against all other active jobs
+                const allJobs = this.getAllJobs();
+
+                const busySet = new Set();
+
+                allJobs.forEach(otherJob => {
+                    // Skip self and ignored statuses
+                    if (otherJob.id === job.id) return;
+                    if (!otherJob.staff_id) return; // No tech assigned
+                    if (['completed', 'cancelled'].includes(otherJob.status)) return;
+
+                    // Parse other job time
+                    // BookingJSON now has raw_time too
+                    if (otherJob.raw_time) {
+                        const otherStart = new Date(otherJob.raw_time).getTime();
+                        const otherDuration = otherJob.duration || 120;
+                        const otherEnd = otherStart + (otherDuration * 60000);
+
+                        // Check overlap
+                        // Overlap if (StartA < EndB) and (EndA > StartB)
+                        if (jobStart < otherEnd && jobEnd > otherStart) {
+                            busySet.add(otherJob.staff_id);
+                        }
+                    }
+                });
+
+                this.busyTechs = Array.from(busySet);
+                console.log('Busy Techs for ' + job.time + ':', this.busyTechs);
+            }
+
             document.getElementById('modal-assign-generic').checked = true;
         },
 

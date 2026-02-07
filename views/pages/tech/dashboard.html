@@ -2,24 +2,25 @@
 <script>
     window.TECH_INIT = {
         // Cú pháp chuẩn để khởi tạo trạng thái từ Backend
-        userActive: {{ if .TechRecord }}{{ if .TechRecord.GetBool "active" }}true{{ else }}false{{ end }}{{ else }}{{ if .Auth.GetBool "active" }}true{{ else }}false{{ end }}{{ end }}
+        userActive: {{ if .Tech }}{{ if .Tech.Active }} true{{ else }} false{{ end }}{{ else }}{{ if .Auth.GetBool "active" }} true{{ else }} false{{ end }}{{ end }}
     };
 </script>
 
 <div x-data="techDashboard()" x-init="initDashboard()" class="min-h-screen bg-gray-50 pb-28">
-    <div class="bg-gradient-to-br from-blue-700 via-blue-800 to-blue-900 text-white rounded-b-[40px] shadow-xl relative overflow-hidden">
+    <div
+        class="bg-gradient-to-br from-blue-700 via-blue-800 to-blue-900 text-white rounded-b-[40px] shadow-xl relative overflow-hidden">
         <div class="px-6 pt-10 pb-8">
             <div class="flex justify-between items-center mb-6">
                 <div class="flex items-center gap-3">
                     <div class="avatar online">
                         <div class="w-14 h-14 rounded-2xl border-2 border-white/20 shadow-lg">
-                            <img src="{{if .TechRecord.GetString "avatar"}}/api/files/technicians/{{.TechRecord.Id}}/{{.TechRecord.GetString "avatar"
+                            <img src="{{if .Tech.Avatar}}/api/files/technicians/{{.Tech.ID}}/{{.Tech.Avatar
                                 }}{{else}}/assets/icons/icon-192x192.png{{end}}" alt="Avatar" />
                         </div>
                     </div>
                     <div>
                         <p class="text-blue-200 text-[10px] uppercase tracking-widest font-medium">Kỹ thuật viên</p>
-                        <h2 class="text-xl font-bold tracking-tight">{{.TechRecord.GetString "name"}}</h2>
+                        <h2 class="text-xl font-bold tracking-tight">{{.Tech.Name}}</h2>
                     </div>
                 </div>
 

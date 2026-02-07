@@ -479,10 +479,17 @@
                     <label class="label font-bold text-xs text-gray-500">Chọn kỹ thuật viên:</label>
                     <select x-model="assignTechId" class="select select-bordered w-full">
                         <option value="" disabled selected>-- Chọn người --</option>
-                        {{ range .Technicians }}
-                        <option value="{{.Id}}">{{.GetString "name"}}</option>
-                        {{ end }}
+                        <!-- Use x-for to handle dynamic availability -->
+                        <template x-for="tech in techs" :key="tech.id">
+                            <option :value="tech.id" :disabled="busyTechs.includes(tech.id) || !tech.active"
+                                x-text="tech.name + (busyTechs.includes(tech.id) ? ' (⚠️ Bận - Trùng giờ)' : '') + (!tech.active ? ' (Off)' : '')">
+                            </option>
+                        </template>
                     </select>
+                    <label class="label text-xs text-orange-500" x-show="busyTechs.length > 0">
+                        <span class="flex items-center gap-1"><i class="fa-solid fa-triangle-exclamation"></i> Có thợ
+                            trùng lịch với đơn này</span>
+                    </label>
                 </div>
                 <div class="modal-action">
                     <label for="modal-assign-generic" class="btn btn-sm">Hủy</label>

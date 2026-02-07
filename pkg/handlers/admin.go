@@ -97,6 +97,8 @@ type BookingJSON struct {
 	Issue          string  `json:"issue"`
 	CancelReason   string  `json:"cancel_reason"` // [MỚI] Lý do hủy
 	InvoiceHash    string  `json:"invoice_hash"`  // [MỚI] Thêm trường này
+	RawTime        string  `json:"raw_time"`      // [MỚI] Thời gian bắt đầu (ISO)
+	Duration       int     `json:"duration"`      // [MỚI] Thời lượng (phút)
 }
 
 // Dashboard renders the admin dashboard with Kanban board
@@ -125,7 +127,7 @@ func (h *AdminHandler) Dashboard(e *core.RequestEvent) error {
 	slotIDs := []string{}
 	seenSlots := map[string]bool{}
 	for _, b := range bookings {
-		if sid := b.GetString("slot_id"); sid != "" && !seenSlots[sid] {
+		if sid := b.GetString("time_slot_id"); sid != "" && !seenSlots[sid] {
 			slotIDs = append(slotIDs, sid)
 			seenSlots[sid] = true
 		}
@@ -159,7 +161,7 @@ func (h *AdminHandler) Dashboard(e *core.RequestEvent) error {
 		displayTime := rawTime
 
 		// [Priority 1] Try to use Slot Info
-		slotID := b.GetString("slot_id")
+		slotID := b.GetString("time_slot_id")
 		if slot, ok := slotMap[slotID]; ok && slot != nil {
 			dateStr := slot.GetString("date")
 			startTime := slot.GetString("start_time")
@@ -247,6 +249,8 @@ func (h *AdminHandler) Dashboard(e *core.RequestEvent) error {
 			Issue:          b.GetString("issue_description"),
 			CancelReason:   cancelReason, // [FIX]
 			InvoiceHash:    invoiceHash,  // [MỚI] Gán giá trị
+			RawTime:        b.GetString("booking_time"),
+			Duration:       120, // Default 2h (ToDo: Fetch from Service)
 		})
 	}
 

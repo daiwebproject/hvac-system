@@ -13,12 +13,12 @@
 
             <div class="flex justify-between">
                 <span class="text-gray-600">Công việc:</span>
-                <span class="font-semibold">{{.Job.GetString "id"}}</span>
+                <span class="font-semibold">{{.Job.ID}}</span>
             </div>
 
             <div class="flex justify-between">
                 <span class="text-gray-600">Dịch vụ:</span>
-                <span class="font-semibold">{{.Job.GetString "service_id"}}</span>
+                <span class="font-semibold">{{.Job.ServiceID}}</span>
             </div>
 
             <!-- Costs -->
@@ -79,7 +79,7 @@
 
         {{$status := .Invoice.GetString "status"}}
         {{if ne $status "paid"}}
-        <form hx-post="/api/tech/job/{{.Job.Id}}/payment" hx-swap="innerHTML" hx-target="#payment-card"
+        <form hx-post="/api/tech/job/{{.Job.ID}}/payment" hx-swap="innerHTML" hx-target="#payment-card"
             class="space-y-3">
 
             <!-- Payment Methods -->
