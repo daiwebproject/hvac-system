@@ -176,14 +176,25 @@ func (s *BookingService) AssignTechnician(bookingID, technicianID string) error 
 		})
 		log.Printf("📡 [BOOKING_SERVICE] Published SSE job.assigned to tech %s", technicianID)
 
-		// Notify Admin (Update Kanban/List)
+		// Notify Admin (Update Kanban/List) - Include full job data for immediate UI update
 		s.broker.Publish(broker.ChannelAdmin, "", broker.Event{
 			Type:      "job.assigned",
 			Timestamp: time.Now().Unix(),
 			Data: map[string]interface{}{
-				"booking_id": bookingID,
-				"tech_id":    technicianID,
-				"customer":   booking.CustomerName,
+				"booking_id":   bookingID,
+				"id":           bookingID, // Alias for compatibility
+				"tech_id":      technicianID,
+				"staff_id":     technicianID, // Alias for Kanban
+				"tech_name":    tech.Name,
+				"customer":     booking.CustomerName,
+				"phone":        booking.CustomerPhone,
+				"address":      booking.AddressDetails,
+				"service":      booking.DeviceType,
+				"time":         formatTimeForSSE(booking, s.slotRepo), // [FIX] Include formatted time
+				"status":       "assigned",
+				"status_label": "Đã giao thợ",
+				"lat":          booking.Lat,
+				"long":         booking.Long,
 			},
 		})
 	}

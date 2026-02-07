@@ -23,8 +23,23 @@ type AdminToolsHandler struct {
 
 // ShowSlotManager displays the time slot management page
 func (h *AdminToolsHandler) ShowSlotManager(e *core.RequestEvent) error {
-	// Use layout inheritance
-	return RenderPage(h.Templates, e, "layouts/admin.html", "admin/slots.html", nil)
+	// [SMART SCHEDULING] Fetch active technicians for dynamic capacity display
+	activeTechs, _ := h.App.FindRecordsByFilter("technicians", "active=true", "name", 100, 0, nil)
+
+	techData := []map[string]interface{}{}
+	for _, tech := range activeTechs {
+		techData = append(techData, map[string]interface{}{
+			"id":     tech.Id,
+			"name":   tech.GetString("name"),
+			"phone":  tech.GetString("phone"),
+			"status": tech.GetString("tech_status"),
+		})
+	}
+
+	return RenderPage(h.Templates, e, "layouts/admin.html", "admin/slots.html", map[string]interface{}{
+		"ActiveTechCount": len(activeTechs),
+		"ActiveTechs":     techData,
+	})
 }
 
 // GenerateSlotsForWeek creates slots for the next 7 days
@@ -33,7 +48,12 @@ func (h *AdminToolsHandler) GenerateSlotsForWeek(e *core.RequestEvent) error {
 	techCountStr := e.Request.FormValue("tech_count")
 	techCount, err := strconv.Atoi(techCountStr)
 	if err != nil || techCount < 1 {
-		techCount = 2 // Default to 2 technicians
+		// [SMART SCHEDULING] Auto-detect active technicians count
+		activeTechs, _ := h.App.FindRecordsByFilter("technicians", "active=true", "", 0, 0, nil)
+		techCount = len(activeTechs)
+		if techCount == 0 {
+			return e.JSON(400, map[string]string{"error": "Không có thợ nào đang trực (active=true)"})
+		}
 	}
 
 	var errors []string
@@ -54,6 +74,7 @@ func (h *AdminToolsHandler) GenerateSlotsForWeek(e *core.RequestEvent) error {
 		"success_count": successCount,
 		"errors":        errors,
 		"total_days":    7,
+		"tech_count":    techCount,
 	}
 
 	return e.JSON(200, result)

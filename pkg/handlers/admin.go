@@ -567,7 +567,30 @@ func (h *AdminHandler) AssignJob(e *core.RequestEvent) error {
 		return e.String(404, "Job không tồn tại")
 	}
 
+	// [FIX] Derive booking_time from slot_id if empty
 	bookingTimeStr := booking.GetString("booking_time") // "YYYY-MM-DD HH:MM"
+	slotID := booking.GetString("slot_id")
+
+	// If booking_time is missing but slot_id exists, derive time from slot
+	if len(bookingTimeStr) < 16 && slotID != "" {
+		slot, err := h.App.FindRecordById("time_slots", slotID)
+		if err == nil {
+			slotDate := slot.GetString("date")        // "2024-02-07"
+			slotStart := slot.GetString("start_time") // "08:00"
+			if slotDate != "" && slotStart != "" {
+				bookingTimeStr = slotDate + " " + slotStart // "2024-02-07 08:00"
+				// [CRITICAL] Update booking record so future queries work correctly
+				booking.Set("booking_time", bookingTimeStr)
+				if err := h.App.Save(booking); err != nil {
+					log.Printf("⚠️ [ASSIGN_JOB] Failed to update booking_time: %v", err)
+				} else {
+					log.Printf("✅ [ASSIGN_JOB] Derived booking_time from slot: %s", bookingTimeStr)
+				}
+			}
+		}
+	}
+
+	// Now perform conflict check with validated time
 	if len(bookingTimeStr) >= 16 {
 		date := bookingTimeStr[:10]
 		timeStr := bookingTimeStr[11:16]
@@ -590,6 +613,9 @@ func (h *AdminHandler) AssignJob(e *core.RequestEvent) error {
 		if errStr := h.SlotService.CheckConflict(technicianID, date, timeStr, duration); errStr != nil {
 			return e.String(409, errStr.Error())
 		}
+	} else {
+		// [SAFETY] If still no valid time, warn but allow assignment (legacy data)
+		log.Printf("⚠️ [ASSIGN_JOB] No valid booking_time for job %s, skipping conflict check", bookingID)
 	}
 
 	// Use service layer for business logic

@@ -101,19 +101,21 @@ window.bookingWizard = function () {
         getLocation() {
             this.locationStatus = 'Đang lấy vị trí...';
 
-            // Helper: Detect Chrome
-            const isChrome = /Chrome/.test(navigator.userAgent) && /Google Inc/.test(navigator.vendor);
-            const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+            // Helper: Detect Environment
+            const ua = navigator.userAgent || navigator.vendor || window.opera;
+            const isChrome = /Chrome/.test(ua) && /Google Inc/.test(navigator.vendor);
+            const isIOS = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
+            const isInApp = /FBAN|FBAV|Instagram|Zalo|Line/.test(ua);
 
             if (!navigator.geolocation) {
                 this.locationStatus = 'Trình duyệt không hỗ trợ.';
-                this.suggestChrome(isMobile);
+                this.suggestChrome(true);
                 return;
             }
 
             const options = {
                 enableHighAccuracy: true,
-                timeout: 10000,
+                timeout: 8000,
                 maximumAge: 0
             };
 
@@ -128,36 +130,77 @@ window.bookingWizard = function () {
 
                     let title = 'Lỗi GPS';
                     let html = 'Không thể lấy vị trí. Vui lòng thử lại hoặc chọn trên bản đồ.';
+                    let icon = 'warning';
 
                     if (err.code === 1) { // PERMISSION_DENIED
                         this.locationStatus = 'Quyền vị trí bị chặn.';
                         title = 'Cần quyền truy cập vị trí';
-                        html = 'Bạn đã chặn quyền vị trí. Vui lòng <b>Cho phép</b> trong cài đặt trình duyệt hoặc chuyển sang <b>Google Chrome</b>.';
-                    } else if (err.code === 3) { // TIMEOUT
+
+                        if (isIOS) {
+                            // iOS Safari Instructions + PWA Hint
+                            html = `<div class="text-left text-sm space-y-2">
+                                <p><strong>Cách 1 (Nhanh nhất):</strong> Bật vị trí cho Safari:</p>
+                                <ol class="list-decimal pl-5 space-y-1">
+                                    <li>Bấm <b>'Aa'</b> (hoặc 🔒) trên thanh địa chỉ.</li>
+                                    <li>Chọn <b>Cài đặt trang web</b> → <b>Vị trí</b> → <b>Cho phép</b>.</li>
+                                </ol>
+                                <hr class="my-2"/>
+                                <p><strong>Cách 2 (Khuyên dùng):</strong> Thêm vào màn hình chính để tự động bật GPS mỗi khi vào:</p>
+                                <ol class="list-decimal pl-5 space-y-1">
+                                    <li>Bấm nút <b>Chia sẻ</b> <i class="fa-solid fa-arrow-up-from-bracket"></i></li>
+                                    <li>Chọn <b>Thêm vào MH chính</b> (Add to Home Screen)</li>
+                                </ol>
+                            </div>`;
+                            icon = 'info';
+
+                            // [Fallback] Fetch IP Location silently
+                            this.getIPLocation().then(data => {
+                                if (data) {
+                                    console.log('🌍 IP Location Found:', data);
+                                    // Optionally update map center even if modal is open
+                                    this.mapCenter = { lat: data.lat, lng: data.lon };
+                                }
+                            });
+
+                        } else {
+                            html = 'Bạn đã chặn quyền vị trí. Vui lòng <b>Cho phép</b> trong cài đặt trình duyệt hoặc chuyển sang <b>Google Chrome</b>.';
+
+                            // [Fallback] Fetch IP Location
+                            this.getIPLocation().then(data => {
+                                if (data) {
+                                    this.formData.lat = data.lat;
+                                    this.formData.long = data.lon;
+                                    this.mapCenter = { lat: data.lat, lng: data.lon };
+                                    this.locationStatus = `Đã lấy vị trí gần đúng (IP: ${data.city})`;
+
+                                    // Auto reverse geocode roughly
+                                    this.reverseGeocode(data.lat, data.lon);
+                                }
+                            });
+                        }
+
+                    } else if (err.code === 3 || err.code === 2) { // TIMEOUT / UNAVAILABLE
                         this.locationStatus = 'Không tìm thấy GPS.';
                         title = 'Không tìm thấy tín hiệu';
                         html = 'Vui lòng kiểm tra GPS hoặc chuyển sang <b>Google Chrome</b> để chính xác hơn.';
                     }
 
-                    // Auto suggest Chrome prompt
+                    // Auto suggest Chrome or Show iOS Guide
                     Swal.fire({
                         title: title,
                         html: html,
-                        icon: 'warning',
-                        showCancelButton: isMobile, // Show 'Open Chrome' on mobile
-                        confirmButtonText: 'Đã hiểu',
-                        cancelButtonText: 'Mở bằng Chrome 🌐',
-                        cancelButtonColor: '#3085d6'
+                        icon: icon,
+                        confirmButtonText: 'Chọn trên bản đồ 🗺️',
+                        showCancelButton: false, // Hide cancel button to focus on Map or Instructions
+                        footer: isIOS ? '<span class="text-xs text-gray-500">Mẹo: Thêm vào màn hình chính để dùng App mượt mà hơn!</span>' : ''
                     }).then((result) => {
-                        if (result.dismiss === Swal.DismissReason.cancel && isMobile) {
-                            // Try to open Chrome on mobile
+                        if (result.isConfirmed) {
+                            this.showMap(); // Fallback to map immediately
+                        } else if (result.dismiss === Swal.DismissReason.cancel) {
+                            // Try to open Chrome (Android mainly)
                             const url = window.location.href;
-                            // Intent scheme for Android
                             if (/Android/i.test(navigator.userAgent)) {
                                 window.location.href = `intent://${url.replace(/^https?:\/\//, '')}#Intent;scheme=https;package=com.android.chrome;end`;
-                            } else if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-                                // iOS Chrome scheme
-                                window.location.href = `googlechrome://${url.replace(/^https?:\/\//, '')}`;
                             }
                         }
                     });
@@ -166,30 +209,88 @@ window.bookingWizard = function () {
             );
         },
 
-        suggestChrome(isMobile) {
-            Swal.fire({
-                title: 'Lỗi Trình Duyệt',
-                html: 'Vui lòng sử dụng <b>Google Chrome</b> để có trải nghiệm tốt nhất.',
-                icon: 'error',
-                showCancelButton: isMobile,
-                cancelButtonText: 'Mở bằng Chrome 🌐',
-            }).then((result) => {
-                if (result.dismiss === Swal.DismissReason.cancel && isMobile) {
-                    const url = window.location.href;
-                    if (/Android/i.test(navigator.userAgent)) {
-                        window.location.href = `intent://${url.replace(/^https?:\/\//, '')}#Intent;scheme=https;package=com.android.chrome;end`;
-                    } else if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-                        window.location.href = `googlechrome://${url.replace(/^https?:\/\//, '')}`;
+        suggestChrome() {
+            // Simplified suggestion
+        },
+
+        async getIPLocation() {
+            // [Cache] Check localStorage first (cache for 1 hour)
+            const cached = localStorage.getItem('ipGeoCache');
+            if (cached) {
+                try {
+                    const { data, timestamp } = JSON.parse(cached);
+                    if (Date.now() - timestamp < 3600000) { // 1 hour
+                        console.log('📍 Using cached IP location:', data.city);
+                        return data;
                     }
+                } catch (e) { }
+            }
+
+            // [Fallback Chain] Try multiple APIs in sequence
+            const apis = [
+                {
+                    name: 'ipwho.is',
+                    url: 'https://ipwho.is/',
+                    parse: (d) => d.success ? { lat: d.latitude, lon: d.longitude, city: d.city, country: d.country, ip: d.ip } : null
+                },
+                {
+                    name: 'ipapi.co',
+                    url: 'https://ipapi.co/json/',
+                    parse: (d) => d.latitude ? { lat: d.latitude, lon: d.longitude, city: d.city, country: d.country_name, ip: d.ip } : null
+                },
+                {
+                    name: 'ip-api.com',
+                    url: 'http://ip-api.com/json/?fields=status,lat,lon,city,country,query',
+                    parse: (d) => d.status === 'success' ? { lat: d.lat, lon: d.lon, city: d.city, country: d.country, ip: d.query } : null
                 }
-            });
+            ];
+
+            for (const api of apis) {
+                try {
+                    const response = await fetch(api.url, { timeout: 3000 });
+                    if (!response.ok) continue;
+
+                    const data = await response.json();
+                    const result = api.parse(data);
+
+                    if (result) {
+                        console.log(`📍 IP Location from ${api.name}:`, result.city);
+                        // Cache the result
+                        localStorage.setItem('ipGeoCache', JSON.stringify({ data: result, timestamp: Date.now() }));
+                        return result;
+                    }
+                } catch (err) {
+                    console.warn(`IP API ${api.name} failed:`, err.message);
+                }
+            }
+
+            // [Final Fallback] Return default Hanoi center
+            console.log('📍 Using default location (Hanoi)');
+            return { lat: 21.0285, lon: 105.8542, city: 'Hà Nội', country: 'Vietnam', ip: 'fallback' };
         },
 
         // Mở bản đồ chọn vị trí thủ công
-        showMap() {
+        async showMap() {
+            // [Logic] 1. Get IP Location first to zone the map (if no data yet)
+            if (!this.formData.lat) {
+                const ipData = await this.getIPLocation();
+                if (ipData) {
+                    console.log('🌍 Auto-centering Map via IP:', ipData.city);
+                    this.mapCenter = { lat: ipData.lat, lng: ipData.lon };
+                }
+            }
+
             this.showMapModal = true;
+
             this.$nextTick(() => {
                 this.initMap();
+
+                // [Logic] 2. Then try GPS automatically (if no data yet)
+                // This gives better UX: User sees their city immediately (IP), then zooms to street (GPS)
+                if (!this.formData.lat) {
+                    // Creating a non-intrusive auto-locate
+                    this.locateOnMap(true);
+                }
             });
         },
 
@@ -229,11 +330,6 @@ window.bookingWizard = function () {
 
             tiles.addTo(this.mapInstance);
 
-            // Debug Tile Loading
-            tiles.on('loading', () => console.log('🗺️ Tiles loading...'));
-            tiles.on('load', () => console.log('🗺️ Tiles loaded'));
-            tiles.on('tileerror', (err) => console.error('🗺️ Tile Error:', err));
-
             // Add center icon behavior
             this.mapInstance.on('moveend', () => {
                 const center = this.mapInstance.getCenter();
@@ -243,14 +339,7 @@ window.bookingWizard = function () {
             // [Fix] Force resize after modal animation
             setTimeout(() => {
                 this.mapInstance.invalidateSize();
-                const size = this.mapInstance.getSize();
-                console.log(`🗺️ Force Resize (v11) - Size: ${size.x}x${size.y}`);
             }, 300);
-
-            // Double check
-            setTimeout(() => {
-                this.mapInstance.invalidateSize();
-            }, 800);
         },
 
         async confirmLocation() {
@@ -290,15 +379,39 @@ window.bookingWizard = function () {
                 },
                 (err) => {
                     Swal.close();
+
+                    // Helper: Detect Environment
+                    const ua = navigator.userAgent || navigator.vendor || window.opera;
+                    const isIOS = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
+
                     let title = 'Lỗi GPS';
-                    let msg = 'Không thể lấy vị trí.';
+                    let html = 'Không thể lấy vị trí. Vui lòng thử lại hoặc chọn trên bản đồ.';
                     let icon = 'error';
 
                     if (err.code === 1) {
                         // Permission denied
-                        title = 'Quyền GPS bị chặn';
-                        msg = 'Trình duyệt này không cho phép định vị chính xác. Vui lòng dùng <b>Google Chrome</b> để có độ chính xác cao nhất, hoặc kéo bản đồ để chọn vị trí thủ công.';
-                        icon = 'warning';
+                        title = 'Cần quyền truy cập vị trí';
+
+                        if (isIOS) {
+                            // iOS Safari Instructions + PWA Hint
+                            html = `<div class="text-left text-sm space-y-2">
+                                <p><strong>Cách 1 (Nhanh nhất):</strong> Bật vị trí cho Safari:</p>
+                                <ol class="list-decimal pl-5 space-y-1">
+                                    <li>Bấm <b>'Aa'</b> (hoặc 🔒) trên thanh địa chỉ.</li>
+                                    <li>Chọn <b>Cài đặt trang web</b> → <b>Vị trí</b> → <b>Cho phép</b>.</li>
+                                </ol>
+                                <hr class="my-2"/>
+                                <p><strong>Cách 2 (Khuyên dùng):</strong> Thêm vào màn hình chính để tự động bật GPS mỗi khi vào:</p>
+                                <ol class="list-decimal pl-5 space-y-1">
+                                    <li>Bấm nút <b>Chia sẻ</b> <i class="fa-solid fa-arrow-up-from-bracket"></i></li>
+                                    <li>Chọn <b>Thêm vào MH chính</b> (Add to Home Screen)</li>
+                                </ol>
+                            </div>`;
+                            icon = 'info';
+                        } else {
+                            html = 'Bạn đã chặn quyền vị trí. Vui lòng <b>Cho phép</b> trong cài đặt trình duyệt hoặc chuyển sang <b>Google Chrome</b>.';
+                            icon = 'warning';
+                        }
                     } else if (err.code === 2) {
                         msg = 'Không tìm thấy tín hiệu GPS. Vui lòng thử lại hoặc kéo bản đồ để chọn vị trí.';
                     } else if (err.code === 3) {
@@ -307,8 +420,10 @@ window.bookingWizard = function () {
 
                     Swal.fire({
                         title: title,
-                        html: msg,
-                        icon: icon
+                        html: html,
+                        icon: icon,
+                        confirmButtonText: 'Đã hiểu',
+                        footer: isIOS ? '<span class="text-xs text-gray-500">Mẹo: Thêm vào màn hình chính để dùng App mượt mà hơn!</span>' : ''
                     });
                 },
                 { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }

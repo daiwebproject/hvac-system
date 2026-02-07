@@ -3,7 +3,7 @@
     <div class="flex justify-between items-center mb-6">
         <div>
             <h1 class="text-3xl font-bold text-gray-800">Quản lý Khung Giờ</h1>
-            <p class="text-gray-500">Thiết lập và theo dõi lịch làm việc của đội thợ</p>
+            <p class="text-gray-500">Hệ thống lập lịch thông minh - Tự động đồng bộ với số thợ đang trực</p>
         </div>
         <a href="/admin" class="btn btn-ghost">
             <i class="fa-solid fa-arrow-left"></i> Quay lại Dashboard
@@ -12,57 +12,112 @@
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6" x-data="slotManager()" x-init="init()">
 
-        <div class="lg:col-span-1">
-            <div class="card bg-base-100 shadow-xl border border-base-200 sticky top-6">
-                <div class="card-body">
-                    <h2 class="card-title text-xl text-primary">
-                        <i class="fa-solid fa-wand-magic-sparkles"></i>
-                        Tạo Lịch Tự Động
-                    </h2>
-                    <p class="text-sm text-gray-500 mb-4">Tạo nhanh khung giờ cho 7 ngày tới (6 ca/ngày).</p>
+        <div class="lg:col-span-1 space-y-4">
 
-                    <div class="form-control w-full">
-                        <label class="label">
-                            <span class="label-text font-semibold">Số thợ tối đa (Capacity)</span>
-                        </label>
-                        <div class="join w-full">
-                            <button @click="techCount > 1 ? techCount-- : null"
-                                class="btn btn-square join-item">-</button>
-                            <input type="number" x-model="techCount"
-                                class="input input-bordered w-full text-center join-item font-bold" min="1" max="20">
-                            <button @click="techCount++" class="btn btn-square join-item">+</button>
+            <!-- Smart Scheduling Info Card -->
+            <div class="card bg-gradient-to-br from-blue-500 to-cyan-500 text-white shadow-xl">
+                <div class="card-body">
+                    <h2 class="card-title text-xl">
+                        <i class="fa-solid fa-brain"></i>
+                        Lịch Thông Minh
+                    </h2>
+                    <p class="text-blue-100 text-sm">
+                        Khung giờ được <strong>tự động tạo</strong> khi khách đặt lịch, dựa trên số thợ đang trực.
+                    </p>
+
+                    <div class="divider divider-neutral my-2 opacity-30"></div>
+
+                    <div class="stats stats-vertical bg-white/10 backdrop-blur rounded-xl">
+                        <div class="stat py-2">
+                            <div class="stat-title text-blue-100 text-xs">Thợ đang trực (Active)</div>
+                            <div class="stat-value text-3xl">{{ .ActiveTechCount }}</div>
+                            <div class="stat-desc text-blue-200">= Capacity mỗi ca</div>
                         </div>
-                        <label class="label">
-                            <span class="label-text-alt text-gray-500">Số lượng đơn tối đa mỗi khung giờ</span>
-                        </label>
                     </div>
 
-                    <div class="card-actions justify-end mt-4">
-                        <button @click="generateWeek()" :disabled="loading" class="btn btn-primary w-full shadow-lg">
-                            <span x-show="!loading"><i class="fa-solid fa-calendar-plus"></i> TẠO LỊCH 7 NGÀY</span>
-                            <span x-show="loading" class="loading loading-spinner"></span>
+                    <div class="text-xs text-blue-100 mt-2 bg-white/10 p-3 rounded-lg">
+                        <i class="fa-solid fa-circle-info mr-1"></i>
+                        Mỗi khung giờ sẽ nhận tối đa <strong>{{ .ActiveTechCount }} đơn</strong> (1 đơn/thợ).
+                        Khi thêm hoặc tắt thợ, capacity tự động điều chỉnh.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Active Technicians List -->
+            <div class="card bg-base-100 shadow-xl border border-base-200">
+                <div class="card-body">
+                    <h2 class="card-title text-lg">
+                        <i class="fa-solid fa-users-gear text-green-500"></i>
+                        Thợ Đang Trực
+                    </h2>
+
+                    {{ if .ActiveTechs }}
+                    <div class="space-y-2 mt-2">
+                        {{ range .ActiveTechs }}
+                        <div class="flex items-center gap-3 p-2 bg-gray-50 rounded-lg">
+                            <div class="avatar placeholder">
+                                <div class="bg-green-500 text-white rounded-full w-8">
+                                    <span class="text-xs">{{ slice .name 0 1 }}</span>
+                                </div>
+                            </div>
+                            <div class="flex-1">
+                                <div class="font-semibold text-sm">{{ .name }}</div>
+                                <div class="text-xs text-gray-500">{{ .phone }}</div>
+                            </div>
+                            <span class="badge badge-success badge-sm">Online</span>
+                        </div>
+                        {{ end }}
+                    </div>
+                    {{ else }}
+                    <div class="text-center py-4 text-gray-400">
+                        <i class="fa-solid fa-user-slash text-2xl mb-2"></i>
+                        <p>Chưa có thợ nào đang trực</p>
+                        <p class="text-xs">Khách sẽ không thể đặt lịch</p>
+                    </div>
+                    {{ end }}
+
+                    <a href="/admin/techs" class="btn btn-ghost btn-sm mt-2">
+                        <i class="fa-solid fa-arrow-right"></i> Quản lý Thợ
+                    </a>
+                </div>
+            </div>
+
+            <!-- Optional: Pre-generate for week -->
+            <div class="card bg-base-100 shadow border border-base-200">
+                <div class="card-body">
+                    <h2 class="card-title text-sm text-gray-600">
+                        <i class="fa-solid fa-calendar-plus"></i>
+                        Tạo trước (Tùy chọn)
+                    </h2>
+                    <p class="text-xs text-gray-500">
+                        Tạo sẵn khung giờ cho 7 ngày tới. Hệ thống sẽ dùng số thợ hiện tại (<strong>{{ .ActiveTechCount
+                            }}</strong>) làm capacity.
+                    </p>
+                    <div class="card-actions mt-3">
+                        <button @click="generateWeek()" :disabled="loading" class="btn btn-outline btn-sm w-full">
+                            <span x-show="!loading"><i class="fa-solid fa-wand-magic-sparkles"></i> Tạo Lịch 7
+                                Ngày</span>
+                            <span x-show="loading" class="loading loading-spinner loading-sm"></span>
                         </button>
                     </div>
-
-                    <div x-show="message" x-transition class="alert mt-4 text-sm py-2"
+                    <div x-show="message" x-transition class="alert mt-2 text-xs py-2"
                         :class="success ? 'alert-success' : 'alert-error'">
                         <span x-text="message"></span>
                     </div>
-
-                    <div class="divider"></div>
-
-                    <div class="text-xs text-gray-500">
-                        <p class="font-bold mb-1"><i class="fa-solid fa-circle-info"></i> Quy tắc hệ thống:</p>
-                        <ul class="list-disc pl-4 space-y-1">
-                            <li>Ca 1: 08:00 - 10:00</li>
-                            <li>Ca 2: 10:00 - 12:00</li>
-                            <li>Ca 3: 13:00 - 15:00</li>
-                            <li>Ca 4: 15:00 - 17:00</li>
-                            <li>Ca 5: 17:00 - 19:00</li>
-                            <li>Ca 6: 19:00 - 21:00</li>
-                        </ul>
-                    </div>
                 </div>
+            </div>
+
+            <!-- System Rules -->
+            <div class="text-xs text-gray-500 bg-gray-50 p-4 rounded-xl">
+                <p class="font-bold mb-2"><i class="fa-solid fa-clock"></i> Khung giờ mặc định:</p>
+                <ul class="list-none space-y-1">
+                    <li>🌅 Ca 1: 08:00 - 10:00</li>
+                    <li>☀️ Ca 2: 10:00 - 12:00</li>
+                    <li>🌤️ Ca 3: 13:00 - 15:00</li>
+                    <li>🌇 Ca 4: 15:00 - 17:00</li>
+                    <li>🌆 Ca 5: 17:00 - 19:00</li>
+                    <li>🌙 Ca 6: 19:00 - 21:00</li>
+                </ul>
             </div>
         </div>
 
@@ -71,7 +126,7 @@
                 <div class="card-body p-0">
                     <div class="p-4 border-b border-base-200 flex justify-between items-center bg-gray-50 rounded-t-xl">
                         <h2 class="font-bold text-lg"><i class="fa-regular fa-calendar-check mr-2"></i> Lịch Đang Mở
-                            (Sắp tới)</h2>
+                            (7 Ngày Tới)</h2>
                         <button @click="fetchSlots()" class="btn btn-ghost btn-sm btn-circle tooltip"
                             data-tip="Làm mới">
                             <i class="fa-solid fa-rotate" :class="loadingList ? 'fa-spin' : ''"></i>
@@ -84,7 +139,7 @@
                                 <tr>
                                     <th>Ngày</th>
                                     <th>Giờ</th>
-                                    <th>Tình trạng (Đã đặt / Tổng)</th>
+                                    <th>Tình trạng (Đã đặt / Capacity)</th>
                                     <th>Trạng thái</th>
                                 </tr>
                             </thead>
@@ -99,9 +154,12 @@
                                 <template x-if="!loadingList && slots.length === 0">
                                     <tr>
                                         <td colspan="4" class="text-center py-10 text-gray-400">
-                                            <i class="fa-regular fa-calendar-xmark text-4xl mb-2"></i>
-                                            <p>Chưa có lịch nào được tạo cho 7 ngày tới.</p>
-                                            <p class="text-sm">Hãy dùng công cụ bên trái để tạo lịch.</p>
+                                            <i class="fa-solid fa-robot text-4xl mb-3 text-blue-300"></i>
+                                            <p class="font-bold text-gray-600">Chế độ tự động đang bật</p>
+                                            <p class="text-sm mt-1">Khung giờ sẽ được tạo khi khách chọn ngày đặt lịch.
+                                            </p>
+                                            <p class="text-xs mt-2 text-gray-400">Hoặc bấm "Tạo Lịch 7 Ngày" bên trái để
+                                                tạo trước.</p>
                                         </td>
                                     </tr>
                                 </template>
@@ -129,7 +187,7 @@
                                         <td>
                                             <span class="badge badge-sm"
                                                 :class="slot.is_active ? 'badge-success badge-outline' : 'badge-ghost'">
-                                                <span x-text="slot.is_active ? 'Đang mở' : 'Đã khóa'"></span>
+                                                <span x-text="slot.is_active ? 'Còn chỗ' : 'Đã đầy'"></span>
                                             </span>
                                         </td>
                                     </tr>
@@ -142,6 +200,5 @@
         </div>
     </div>
 </div>
-
 
 {{ end }}

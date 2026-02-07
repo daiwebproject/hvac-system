@@ -112,6 +112,17 @@ func (s *TimeSlotService) GetAvailableSlots(date string) ([]TimeSlot, error) {
 		return nil, fmt.Errorf("failed to fetch slot definitions: %w", err)
 	}
 
+	// [AUTO-GENERATE] If no slots exist for this date, create them on-the-fly
+	if len(records) == 0 && dynamicCapacity > 0 {
+		// Only auto-generate for future dates (not past)
+		if !targetDate.Before(time.Now().Truncate(24 * time.Hour)) {
+			if err := s.GenerateDefaultSlots(date, dynamicCapacity); err == nil {
+				// Re-fetch after generation
+				records, _ = s.app.FindRecordsByFilter("time_slots", filter, "start_time", 100, 0, nil)
+			}
+		}
+	}
+
 	slots := make([]TimeSlot, 0, len(records))
 	now := time.Now()
 

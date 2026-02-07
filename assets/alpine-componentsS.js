@@ -542,32 +542,25 @@ window.slotManager = function () {
         },
 
         async generateWeek() {
-            if (this.techCount < 1) {
-                this.showMessage('Số thợ phải lớn hơn 0', false);
-                return;
-            }
-
             this.loading = true;
             this.message = '';
 
             try {
-                const formData = new FormData();
-                formData.append('tech_count', this.techCount);
-
+                // [SMART SCHEDULING] Server automatically uses active tech count
                 const response = await fetch('/admin/tools/slots/generate-week', {
                     method: 'POST',
-                    body: formData
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: 'tech_count=0' // Signal to use auto count
                 });
 
                 const result = await response.json();
 
                 if (response.ok) {
                     this.showMessage(
-                        `✅ Đã tạo ${result.success_count} khung giờ. ${result.errors?.length > 0 ? '(Một số đã tồn tại)' : ''}`,
+                        `✅ Đã tạo lịch cho ${result.success_count} ngày. ${result.errors?.length > 0 ? '(Một số đã tồn tại)' : ''}`,
                         true
                     );
                     setTimeout(() => this.fetchSlots(), 1000);
-                    // Không cần reload trang, chỉ cần fetch lại list
                 } else {
                     this.showMessage('❌ Lỗi: ' + (result.error || 'Không xác định'), false);
                 }
@@ -615,19 +608,19 @@ console.log('✅ Alpine.js: slotManager loaded');
  * Inventory Manager Component
  * @param {Array} initialItems - Dữ liệu danh sách vật tư từ Server
  */
-window.inventoryManager = function(initialItems) {
+window.inventoryManager = function (initialItems) {
     return {
         // Nhận dữ liệu từ tham số truyền vào, nếu null thì gán mảng rỗng
         items: initialItems || [],
-        
-        newItem: { 
-            name: '', 
-            sku: '', 
-            category: 'capacitors', 
-            price: '', 
-            stock_quantity: 0, 
-            unit: 'cái', 
-            description: '' 
+
+        newItem: {
+            name: '',
+            sku: '',
+            category: 'capacitors',
+            price: '',
+            stock_quantity: 0,
+            unit: 'cái',
+            description: ''
         },
         loading: false,
         message: '',
