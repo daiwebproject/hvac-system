@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"hvac-system/internal/core"
 	"hvac-system/pkg/broker"
-	"hvac-system/pkg/services"
+	"hvac-system/pkg/cache"
 	"log"
 	"time"
 
@@ -12,7 +12,7 @@ import (
 )
 
 type LocationHandler struct {
-	locationCache  *services.LocationCache
+	locationCache  *cache.LocationCache
 	bookingRepo    core.BookingRepository
 	techRepo       core.TechnicianRepository
 	broker         *broker.SegmentedBroker
@@ -20,13 +20,13 @@ type LocationHandler struct {
 }
 
 func NewLocationHandler(
-	cache *services.LocationCache,
+	locationCache *cache.LocationCache,
 	bookingRepo core.BookingRepository,
 	techRepo core.TechnicianRepository,
 	broker *broker.SegmentedBroker,
 ) *LocationHandler {
 	return &LocationHandler{
-		locationCache:  cache,
+		locationCache:  locationCache,
 		bookingRepo:    bookingRepo,
 		techRepo:       techRepo,
 		broker:         broker,
@@ -101,7 +101,7 @@ func (h *LocationHandler) UpdateLocation(e *pbCore.RequestEvent) error {
 	var distance float64
 	var arrived bool
 	if booking != nil {
-		distance = services.CalculateDistance(
+		distance = cache.CalculateDistance(
 			req.Latitude,
 			req.Longitude,
 			booking.Lat,

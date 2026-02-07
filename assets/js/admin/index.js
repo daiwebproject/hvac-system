@@ -4,8 +4,16 @@
  * 
  * This is the main entry point for admin-side ES Modules.
  * It imports feature modules and registers them as Alpine.js components.
+ * 
+ * Supports two loading modes:
+ * 1. Static: Components loaded here directly (current behavior)
+ * 2. Dynamic: Use data-module="dashboard,kanban" on HTML elements
  */
 
+// Core Bootloader (enables dynamic module loading via data-module attributes)
+import { Bootloader } from '../core/bootloader.js';
+
+// Static Imports (for backward compatibility)
 import { kanbanBoard } from '../features/kanban/kanban-board.js';
 import { slotManager } from '../features/slots/slot-manager.js';
 import { inventoryManager } from '../features/inventory/inventory-manager.js';
@@ -13,7 +21,7 @@ import { techManager } from '../features/techs/tech-manager.js';
 import { initMiniMap } from '../features/dashboard/mini-map.js';
 
 // Export for direct usage
-export { kanbanBoard, slotManager, inventoryManager, techManager, initMiniMap };
+export { Bootloader, kanbanBoard, slotManager, inventoryManager, techManager, initMiniMap };
 
 // Register components
 function registerComponents() {

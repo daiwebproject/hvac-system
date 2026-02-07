@@ -9,6 +9,7 @@ import (
 	domain "hvac-system/internal/core"
 	"hvac-system/pkg/broker"
 	"hvac-system/pkg/models"
+	"hvac-system/pkg/notification"
 	"hvac-system/pkg/services"
 
 	"github.com/pocketbase/pocketbase"
@@ -20,7 +21,7 @@ type WebHandler struct {
 	Templates      *template.Template
 	Broker         *broker.SegmentedBroker
 	SettingsRepo   *repository.SettingsRepo // [NEW]
-	FCMService     *services.FCMService     // [NEW]
+	FCMService     *notification.FCMService // [NEW]
 	BookingService domain.BookingService    // [NEW] Internal Service
 }
 

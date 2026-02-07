@@ -31,6 +31,10 @@ type TechnicianRepository interface {
 	Update(tech *Technician) error
 	SetPassword(id, password string) error
 	ToggleActive(id string) error
+
+	// FCM Token Management
+	UpdateFCMToken(techID, token string) error
+	ClearFCMTokenExcept(token, exceptTechID string) error // Clear token from all techs except one
 }
 
 type TimeSlotRepository interface {

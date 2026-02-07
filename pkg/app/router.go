@@ -1,18 +1,13 @@
 package app
 
 import (
-	"html/template"
 	"net/http"
 	"os"
 
-	"hvac-system/internal/adapter/repository"
-	domain "hvac-system/internal/core"
-	internalHandler "hvac-system/internal/handler"
-	"hvac-system/pkg/broker"
+	internalApp "hvac-system/internal/app"
 	"hvac-system/pkg/handlers"
 	"hvac-system/pkg/middleware"
 	"hvac-system/pkg/services"
-	"hvac-system/pkg/ui"
 
 	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/apis"
@@ -20,44 +15,22 @@ import (
 )
 
 // RegisterRoutes configures all application routes
-func RegisterRoutes(
-	app *pocketbase.PocketBase,
-	t *template.Template,
-	eventBroker *broker.SegmentedBroker,
-	analytics domain.AnalyticsService,
-	bookingServiceInternal domain.BookingService,
-	fcmService *services.FCMService,
-	locationCache *services.LocationCache,
-	locationHandler *internalHandler.LocationHandler,
-	locationSSEHandler *internalHandler.LocationSSEHandler,
-) {
-	app.OnServe().BindFunc(func(se *core.ServeEvent) error {
-
-		// [SECURITY] Protect PocketBase Admin UI (/_/)
-		// Only allow access if special header is present
-		// se.Router.BindFunc(func(e *core.RequestEvent) error {
-		// 	if len(e.Request.URL.Path) >= 3 && e.Request.URL.Path[:3] == "/_/" {
-		// 		if e.Request.Header.Get("X-Super-Admin") != "mat-khau-cua-toi" {
-		// 			return e.String(http.StatusForbidden, "⛔ Super Admin Access Required")
-		// 		}
-		// 	}
-		// 	return e.Next()
-		// })
+// Now accepts a single Container instead of 10+ individual parameters
+func RegisterRoutes(pb *pocketbase.PocketBase, c *internalApp.Container) {
+	pb.OnServe().BindFunc(func(se *core.ServeEvent) error {
 
 		// ---------------------------------------------------------
 		// 1. STATIC FILES & SERVICE WORKERS
 		// ---------------------------------------------------------
 
 		// A. Service Worker chính (PWA) - Cho phép scope toàn domain
-		// ⚠️ MUST be at root (/) for proper scope control
 		se.Router.GET("/service-worker.js", func(e *core.RequestEvent) error {
 			e.Response.Header().Set("Service-Worker-Allowed", "/")
 			e.Response.Header().Set("Content-Type", "application/javascript")
 			return e.FileFS(os.DirFS("."), "service-worker.js")
 		})
 
-		// [ALIAS] Legacy SW path - Một số client cũ còn cache đường dẫn này
-		// Sẽ tự hết khi tất cả client update SW mới
+		// [ALIAS] Legacy SW path
 		se.Router.GET("/assets/service-worker.js", func(e *core.RequestEvent) error {
 			e.Response.Header().Set("Service-Worker-Allowed", "/")
 			e.Response.Header().Set("Content-Type", "application/javascript")
@@ -87,113 +60,101 @@ func RegisterRoutes(
 		se.Router.GET("/assets/{path...}", apis.Static(os.DirFS("./assets"), false))
 
 		// ---------------------------------------------------------
-		// 2. SERVICES SETUP
+		// 2. SERVICES FROM CONTAINER (No more local initialization)
 		// ---------------------------------------------------------
-		// bookingService := services.NewBookingManagementService(app) // [REMOVED] Unused
-		slotService := services.NewTimeSlotService(app)
-		inventoryService := services.NewInventoryService(app)
-		invoiceService := services.NewInvoiceService(app)
+		// Legacy pkg/services that still need PocketBase directly
+		slotService := services.NewTimeSlotService(pb)
 
-		uiComponents := &ui.Components{
-			App:       app,
-			Templates: t,
-		}
-
-		// Services Check
-		techRepo := repository.NewTechnicianRepo(app)
-		techService := services.NewTechManagementService(techRepo)
-
-		// [NEW] Settings Repo
-		settingsRepo := repository.NewSettingsRepo(app)
-
-		// [NEW] Register Global Middleware for Settings Injection & License Check
-		se.Router.BindFunc(middleware.SettingsMiddleware(settingsRepo))
+		// Register Global Middleware for Settings Injection & License Check
+		se.Router.BindFunc(middleware.SettingsMiddleware(c.SettingsRepo))
 
 		// ---------------------------------------------------------
-		// 3. HANDLERS SETUP
+		// 3. HANDLERS SETUP (Using Container dependencies)
 		// ---------------------------------------------------------
 		admin := &handlers.AdminHandler{
-			App:              app,
-			Templates:        t,
-			Broker:           eventBroker,
-			BookingService:   bookingServiceInternal, // [Refactored] Use internal service
+			App:              pb,
+			Templates:        c.Templates,
+			Broker:           c.Broker,
+			BookingService:   c.BookingService,
 			SlotService:      slotService,
-			TechService:      techService,
-			AnalyticsService: analytics,
-			UIComponents:     uiComponents,
-			SettingsRepo:     settingsRepo, // Injected
-			FCMService:       fcmService,   // [NEW] Injected for push notifications
+			TechService:      c.TechService,
+			AnalyticsService: c.AnalyticsService,
+			UIComponents:     c.UIComponents,
+			SettingsRepo:     c.SettingsRepo,
+			FCMService:       c.FCMService,
 		}
 
 		tech := &handlers.TechHandler{
-			App:            app,
-			Templates:      t,
-			Broker:         eventBroker,
-			Inventory:      inventoryService,
-			InvoiceService: invoiceService,
-			BookingService: bookingServiceInternal,
-			SettingsRepo:   settingsRepo, // Injected
-			FCMService:     fcmService,   // [NEW]
+			App:            pb,
+			Templates:      c.Templates,
+			Broker:         c.Broker,
+			Inventory:      c.InventoryService,
+			InvoiceService: c.InvoiceService,
+			BookingService: c.BookingService,
+			SettingsRepo:   c.SettingsRepo,
+			FCMService:     c.FCMService,
+			TechRepo:       c.TechRepo,
+			BookingRepo:    c.BookingRepo,
 		}
 
 		slot := &handlers.SlotHandler{
-			App:         app,
+			App:         pb,
 			SlotService: slotService,
 		}
 
 		adminTools := &handlers.AdminToolsHandler{
-			App:              app,
-			Templates:        t,
+			App:              pb,
+			Templates:        c.Templates,
 			SlotService:      slotService,
-			InventoryService: inventoryService,
-			Broker:           eventBroker,
+			InventoryService: c.InventoryService,
+			Broker:           c.Broker,
 		}
 
 		web := &handlers.WebHandler{
-			App:            app,
-			Templates:      t,
-			Broker:         eventBroker,
-			SettingsRepo:   settingsRepo,           // Injected for Public pages
-			FCMService:     fcmService,             // [NEW]
-			BookingService: bookingServiceInternal, // [NEW] Injected
+			App:            pb,
+			Templates:      c.Templates,
+			Broker:         c.Broker,
+			SettingsRepo:   c.SettingsRepo,
+			FCMService:     c.FCMService,
+			BookingService: c.BookingService,
 		}
 
-		// --- [MỚI] FCM HANDLER ---
 		fcm := &handlers.FCMHandler{
-			App:          app,
-			FCMService:   fcmService,
-			SettingsRepo: settingsRepo, // [NEW] Injected
+			App:          pb,
+			FCMService:   c.FCMService,
+			SettingsRepo: c.SettingsRepo,
+			TechRepo:     c.TechRepo,
 		}
 
 		public := &handlers.PublicHandler{
-			App:            app,
-			Templates:      t,
-			InvoiceService: invoiceService,
+			App:            pb,
+			Templates:      c.Templates,
+			InvoiceService: c.InvoiceService,
 		}
+
+		// Location handlers from Container
+		locationHandler := c.LocationHandler
+		locationSSEHandler := c.LocationSSEHandler
 
 		// ---------------------------------------------------------
 		// 4. PUBLIC ROUTES
 		// ---------------------------------------------------------
 		se.Router.GET("/", public.Index)
-		se.Router.GET("/services/{id}", public.ServiceDetail) // [NEW] Detail Page
+		se.Router.GET("/services/{id}", public.ServiceDetail)
 		se.Router.GET("/book", web.BookingPage)
 		se.Router.POST("/book", web.BookService)
 		se.Router.GET("/api/slots/available", slot.GetAvailableSlots)
-		se.Router.GET("/api/public/reverse-geocode", public.ReverseGeocode) // [NEW] Proxy
-		se.Router.GET("/api/public/geocode", public.Geocode)                // [NEW] Forward Proxy
+		se.Router.GET("/api/public/reverse-geocode", public.ReverseGeocode)
+		se.Router.GET("/api/public/geocode", public.Geocode)
 
 		// Super Invoice Public Routes
 		se.Router.GET("/invoice/{hash}", public.ShowInvoice)
 		se.Router.POST("/api/invoice/{hash}/feedback", public.SubmitFeedback)
 
 		// ----- LOCATION TRACKING - PUBLIC ROUTES -----
-		// Health check for location service
 		se.Router.GET("/api/health/location", locationHandler.HealthCheck)
-		// Get technician location for a booking (customer tracking)
 		se.Router.GET("/api/bookings/{id}/tech-location", locationHandler.GetBookingTechLocation)
-		// Stream specific technician's location (for customer real-time tracking)
 		se.Router.GET("/api/bookings/{id}/location/stream", locationSSEHandler.StreamCustomerLocation)
-		// Stream technician job events (SSE)
 		se.Router.GET("/api/tech/{id}/events/stream", locationSSEHandler.StreamTechnicianEvents)
 
 		// ---------------------------------------------------------
@@ -211,7 +172,7 @@ func RegisterRoutes(
 		// 6. ADMIN ROUTES (Protected)
 		// ---------------------------------------------------------
 		adminGroup := se.Router.Group("/admin")
-		adminGroup.BindFunc(middleware.RequireAdmin(app))
+		adminGroup.BindFunc(middleware.RequireAdmin(pb))
 
 		adminGroup.GET("/", admin.Dashboard)
 		adminGroup.GET("/stream", admin.Stream)
@@ -225,7 +186,7 @@ func RegisterRoutes(
 		adminGroup.POST("/bookings/{id}/assign", admin.AssignJob)
 		adminGroup.POST("/bookings/{id}/cancel", admin.CancelBooking)
 		adminGroup.POST("/bookings/{id}/update", admin.UpdateBookingInfo)
-		adminGroup.POST("/bookings/create", admin.CreateBooking) // NEW: Manual Creation
+		adminGroup.POST("/bookings/create", admin.CreateBooking)
 		adminGroup.POST("/api/bookings/{id}/status", admin.UpdateBookingStatus)
 
 		// Admin Tech Management
@@ -234,9 +195,8 @@ func RegisterRoutes(
 		adminGroup.POST("/techs/{id}/password", admin.ResetTechPassword)
 		adminGroup.POST("/techs/{id}/toggle", admin.ToggleTechStatus)
 
-		// [NEW] FCM Token
+		// FCM Token
 		adminGroup.POST("/fcm/token", fcm.RegisterDeviceToken)
-		// [DEBUG] Check admin FCM tokens
 		adminGroup.GET("/debug/fcm-tokens", admin.DebugAdminTokens)
 
 		// Admin Tools
@@ -247,27 +207,25 @@ func RegisterRoutes(
 		adminGroup.POST("/tools/inventory/{id}/stock", adminTools.UpdateInventoryStock)
 		adminGroup.GET("/api/slots", admin.GetSlots)
 
-		// [NEW] Service Management
+		// Service Management
 		adminGroup.GET("/services", admin.ServicesList)
 		adminGroup.POST("/services", admin.ServiceSave)
 		adminGroup.POST("/services/{id}/delete", admin.ServiceDelete)
 
-		// [NEW] Category Management
+		// Category Management
 		adminGroup.GET("/categories", admin.CategoriesList)
 		adminGroup.POST("/categories", admin.CategorySave)
 		adminGroup.POST("/categories/{id}/delete", admin.CategoryDelete)
 
 		// ----- LOCATION TRACKING - ADMIN ROUTES -----
-		// Get all active technicians and their current locations
 		adminGroup.GET("/api/locations", locationHandler.GetAllTechLocations)
-		// Stream all technician locations in real-time (SSE)
 		adminGroup.GET("/api/locations/stream", locationSSEHandler.StreamAdminLocations)
 
 		// ---------------------------------------------------------
 		// 7. TECH ROUTES (Trang giao diện chính)
 		// ---------------------------------------------------------
 		techGroup := se.Router.Group("/tech")
-		techGroup.BindFunc(middleware.RequireTech(app))
+		techGroup.BindFunc(middleware.RequireTech(pb))
 
 		techGroup.GET("/", func(e *core.RequestEvent) error {
 			return e.Redirect(http.StatusSeeOther, "/tech/dashboard")
@@ -288,30 +246,23 @@ func RegisterRoutes(
 		// 8. TECH API ROUTES (Dành cho HTMX và Xử lý dữ liệu)
 		// ---------------------------------------------------------
 		apiGroup := se.Router.Group("/api/tech")
-		apiGroup.BindFunc(middleware.RequireTech(app))
+		apiGroup.BindFunc(middleware.RequireTech(pb))
 
-		// [QUAN TRỌNG] Route này phục vụ các Tab: Mới giao, Đang làm, Lịch sử trên Dashboard
 		apiGroup.GET("/jobs/list", tech.JobsList)
-
-		// [QUAN TRỌNG] Route phục vụ Tab Lịch trình (Timeline)
 		apiGroup.GET("/schedule", tech.GetSchedule)
 
 		// Quản lý trạng thái và thao tác
-		apiGroup.POST("/status/toggle", tech.ToggleOnlineStatus)        // Bật/tắt trực tuyến
-		apiGroup.POST("/bookings/{id}/checkin", tech.HandleTechCheckIn) // Check-in GPS
+		apiGroup.POST("/status/toggle", tech.ToggleOnlineStatus)
+		apiGroup.POST("/bookings/{id}/checkin", tech.HandleTechCheckIn)
 		apiGroup.POST("/bookings/{id}/status", tech.UpdateJobStatusHTMX)
 		apiGroup.POST("/bookings/{id}/cancel", tech.CancelBooking)
 		apiGroup.POST("/location", tech.UpdateLocation)
 		apiGroup.POST("/fcm/token", fcm.RegisterDeviceToken)
 
 		// ----- LOCATION TRACKING API -----
-		// Send location update (called frequently by geolocation.watchPosition)
 		apiGroup.POST("/location/update", locationHandler.UpdateLocation)
-		// Start tracking when tech clicks "Bắt đầu di chuyển"
 		apiGroup.POST("/tracking/start", locationHandler.StartTracking)
-		// Stop tracking when job is completed
 		apiGroup.POST("/tracking/stop", locationHandler.StopTracking)
-		// Get current location of this technician
 		apiGroup.GET("/location", locationHandler.GetTechLocation)
 
 		// Hóa đơn và thanh toán

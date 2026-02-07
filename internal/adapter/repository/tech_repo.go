@@ -107,3 +107,32 @@ func (r *PBTechnicianRepo) ToggleActive(id string) error {
 	record.Set("active", !current)
 	return r.app.Save(record)
 }
+
+// UpdateFCMToken updates the FCM token for a technician
+func (r *PBTechnicianRepo) UpdateFCMToken(techID, token string) error {
+	record, err := r.app.FindRecordById("technicians", techID)
+	if err != nil {
+		return err
+	}
+	record.Set("fcm_token", token)
+	return r.app.Save(record)
+}
+
+// ClearFCMTokenExcept removes the given FCM token from all technicians except the specified one
+// This prevents token leakage when a device is shared between technicians
+func (r *PBTechnicianRepo) ClearFCMTokenExcept(token, exceptTechID string) error {
+	filter := "fcm_token = {:token} && id != {:except}"
+	params := map[string]any{"token": token, "except": exceptTechID}
+	records, err := r.app.FindRecordsByFilter("technicians", filter, "", 100, 0, params)
+	if err != nil {
+		return err
+	}
+
+	for _, rec := range records {
+		rec.Set("fcm_token", "")
+		if err := r.app.Save(rec); err != nil {
+			return err
+		}
+	}
+	return nil
+}

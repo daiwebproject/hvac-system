@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	domain "hvac-system/internal/core"
-	"hvac-system/pkg/services"
+	"hvac-system/pkg/notification"
 
 	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/core"
@@ -14,8 +14,9 @@ import (
 // FCMHandler manages FCM token registration and notifications
 type FCMHandler struct {
 	App          *pocketbase.PocketBase
-	FCMService   *services.FCMService
-	SettingsRepo domain.SettingsRepository // [NEW] Injected
+	FCMService   *notification.FCMService
+	SettingsRepo domain.SettingsRepository   // Injected
+	TechRepo     domain.TechnicianRepository // [NEW] For FCM token management
 }
 
 // RegisterDeviceTokenRequest represents the request to register a device token
@@ -74,14 +75,13 @@ func (h *FCMHandler) RegisterDeviceToken(e *core.RequestEvent) error {
 	// 2. Handle Technician
 	// Continued below...
 
-	// [FIX] Prevent Token Leakage: Remove this token from ANY other technician
+	// [REFACTORED] Prevent Token Leakage: Remove this token from ANY other technician
 	// This ensures that if Tech A logs out and Tech B logs in on the same device,
 	// Tech A will no longer receive notifications on this device.
-	otherTechs, _ := h.App.FindRecordsByFilter("technicians", fmt.Sprintf("fcm_token='%s' && id!='%s'", req.Token, authRecord.Id), "", 100, 0, nil)
-	for _, other := range otherTechs {
-		other.Set("fcm_token", "")
-		h.App.Save(other)
-		fmt.Printf("⚠️ Cleared stale FCM token from tech %s (%s)\n", other.GetString("name"), other.Id)
+	if h.TechRepo != nil {
+		if err := h.TechRepo.ClearFCMTokenExcept(req.Token, authRecord.Id); err != nil {
+			fmt.Printf("⚠️ Failed to clear stale FCM tokens: %v\n", err)
+		}
 	}
 
 	// [NEW] Prevent Admin Notification Leakage: Remove this token from Admin Settings
@@ -94,16 +94,21 @@ func (h *FCMHandler) RegisterDeviceToken(e *core.RequestEvent) error {
 		}
 	}
 
-	// Find technician record
-	tech, err := h.App.FindRecordById("technicians", authRecord.Id)
-	if err != nil {
-		return e.JSON(404, map[string]string{"error": "Technician not found"})
-	}
-
-	// Update FCM token
-	tech.Set("fcm_token", req.Token)
-	if err := h.App.Save(tech); err != nil {
-		return e.JSON(500, map[string]string{"error": "Failed to save token"})
+	// [REFACTORED] Update FCM token using repository
+	if h.TechRepo != nil {
+		if err := h.TechRepo.UpdateFCMToken(authRecord.Id, req.Token); err != nil {
+			return e.JSON(500, map[string]string{"error": "Failed to save token"})
+		}
+	} else {
+		// Fallback to direct PocketBase access if TechRepo not injected
+		tech, err := h.App.FindRecordById("technicians", authRecord.Id)
+		if err != nil {
+			return e.JSON(404, map[string]string{"error": "Technician not found"})
+		}
+		tech.Set("fcm_token", req.Token)
+		if err := h.App.Save(tech); err != nil {
+			return e.JSON(500, map[string]string{"error": "Failed to save token"})
+		}
 	}
 
 	return e.JSON(200, map[string]interface{}{
@@ -124,19 +129,29 @@ func (h *FCMHandler) TestNotification(e *core.RequestEvent) error {
 		return e.JSON(401, map[string]string{"error": "Unauthorized"})
 	}
 
-	// Find technician record
-	tech, err := h.App.FindRecordById("technicians", authRecord.Id)
-	if err != nil {
-		return e.JSON(404, map[string]string{"error": "Technician not found"})
+	// Get technician from repository
+	var fcmToken string
+	if h.TechRepo != nil {
+		tech, err := h.TechRepo.GetByID(authRecord.Id)
+		if err != nil {
+			return e.JSON(404, map[string]string{"error": "Technician not found"})
+		}
+		fcmToken = tech.FCMToken
+	} else {
+		// Fallback
+		tech, err := h.App.FindRecordById("technicians", authRecord.Id)
+		if err != nil {
+			return e.JSON(404, map[string]string{"error": "Technician not found"})
+		}
+		fcmToken = tech.GetString("fcm_token")
 	}
 
-	fcmToken := tech.GetString("fcm_token")
 	if fcmToken == "" {
 		return e.JSON(400, map[string]string{"error": "No FCM token registered"})
 	}
 
 	// Send test notification
-	payload := &services.NotificationPayload{
+	payload := &notification.NotificationPayload{
 		Title: "✅ Thử nghiệm thông báo",
 		Body:  "Thông báo push đang hoạt động bình thường",
 		Data: map[string]string{
@@ -146,7 +161,7 @@ func (h *FCMHandler) TestNotification(e *core.RequestEvent) error {
 		Badge: "/assets/icons/icon-192x192.png", // Reuse icon if badge missing
 	}
 
-	_, err = h.FCMService.SendNotification(e.Request.Context(), payload)
+	_, err := h.FCMService.SendNotification(e.Request.Context(), payload)
 	if err != nil {
 		fmt.Printf("Error sending test notification: %v\n", err)
 		return e.JSON(500, map[string]string{"error": "Failed to send notification"})
@@ -164,13 +179,22 @@ func (h *FCMHandler) NotifyNewJobAssignment(techID string, jobID string, custome
 		return fmt.Errorf("FCM service not configured")
 	}
 
-	// Find technician record
-	tech, err := h.App.FindRecordById("technicians", techID)
-	if err != nil {
-		return fmt.Errorf("technician not found: %v", err)
+	// Get technician from repository
+	var fcmToken string
+	if h.TechRepo != nil {
+		tech, err := h.TechRepo.GetByID(techID)
+		if err != nil {
+			return fmt.Errorf("technician not found: %v", err)
+		}
+		fcmToken = tech.FCMToken
+	} else {
+		tech, err := h.App.FindRecordById("technicians", techID)
+		if err != nil {
+			return fmt.Errorf("technician not found: %v", err)
+		}
+		fcmToken = tech.GetString("fcm_token")
 	}
 
-	fcmToken := tech.GetString("fcm_token")
 	if fcmToken == "" {
 		return fmt.Errorf("no FCM token for technician: %s", techID)
 	}
@@ -184,13 +208,22 @@ func (h *FCMHandler) NotifyJobStatusChange(techID string, jobID string, status s
 		return fmt.Errorf("FCM service not configured")
 	}
 
-	// Find technician record
-	tech, err := h.App.FindRecordById("technicians", techID)
-	if err != nil {
-		return fmt.Errorf("technician not found: %v", err)
+	// Get technician from repository
+	var fcmToken string
+	if h.TechRepo != nil {
+		tech, err := h.TechRepo.GetByID(techID)
+		if err != nil {
+			return fmt.Errorf("technician not found: %v", err)
+		}
+		fcmToken = tech.FCMToken
+	} else {
+		tech, err := h.App.FindRecordById("technicians", techID)
+		if err != nil {
+			return fmt.Errorf("technician not found: %v", err)
+		}
+		fcmToken = tech.GetString("fcm_token")
 	}
 
-	fcmToken := tech.GetString("fcm_token")
 	if fcmToken == "" {
 		return fmt.Errorf("no FCM token for technician: %s", techID)
 	}
@@ -206,19 +239,31 @@ func (h *FCMHandler) GetFCMStatus(e *core.RequestEvent) error {
 		return e.JSON(401, map[string]string{"error": "Unauthorized"})
 	}
 
-	// Find technician record
-	tech, err := h.App.FindRecordById("technicians", authRecord.Id)
-	if err != nil {
-		return e.JSON(404, map[string]string{"error": "Technician not found"})
+	// Get technician from repository
+	var fcmToken string
+	var updatedAt string
+	if h.TechRepo != nil {
+		tech, err := h.TechRepo.GetByID(authRecord.Id)
+		if err != nil {
+			return e.JSON(404, map[string]string{"error": "Technician not found"})
+		}
+		fcmToken = tech.FCMToken
+		updatedAt = "N/A" // Domain model doesn't have updated field
+	} else {
+		tech, err := h.App.FindRecordById("technicians", authRecord.Id)
+		if err != nil {
+			return e.JSON(404, map[string]string{"error": "Technician not found"})
+		}
+		fcmToken = tech.GetString("fcm_token")
+		updatedAt = tech.GetString("updated")
 	}
 
-	fcmToken := tech.GetString("fcm_token")
 	hasToken := fcmToken != ""
 
 	return e.JSON(200, map[string]interface{}{
 		"has_fcm_token": hasToken,
 		"token_length":  len(fcmToken),
-		"updated_at":    tech.GetString("updated"),
+		"updated_at":    updatedAt,
 	})
 }
 
@@ -228,13 +273,22 @@ func (h *FCMHandler) SubscribeTechnicianToTopic(techID string, topic string) err
 		return fmt.Errorf("FCM service not configured")
 	}
 
-	// Find technician record
-	tech, err := h.App.FindRecordById("technicians", techID)
-	if err != nil {
-		return fmt.Errorf("technician not found: %v", err)
+	// Get technician from repository
+	var fcmToken string
+	if h.TechRepo != nil {
+		tech, err := h.TechRepo.GetByID(techID)
+		if err != nil {
+			return fmt.Errorf("technician not found: %v", err)
+		}
+		fcmToken = tech.FCMToken
+	} else {
+		tech, err := h.App.FindRecordById("technicians", techID)
+		if err != nil {
+			return fmt.Errorf("technician not found: %v", err)
+		}
+		fcmToken = tech.GetString("fcm_token")
 	}
 
-	fcmToken := tech.GetString("fcm_token")
 	if fcmToken == "" {
 		return fmt.Errorf("no FCM token for technician: %s", techID)
 	}

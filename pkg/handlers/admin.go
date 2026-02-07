@@ -12,6 +12,7 @@ import (
 	"hvac-system/internal/adapter/repository"
 	domain "hvac-system/internal/core"
 	"hvac-system/pkg/broker"
+	"hvac-system/pkg/notification"
 	"hvac-system/pkg/services"
 	"hvac-system/pkg/ui"
 
@@ -29,7 +30,7 @@ type AdminHandler struct {
 	AnalyticsService domain.AnalyticsService
 	UIComponents     *ui.Components
 	SettingsRepo     *repository.SettingsRepo // [NEW]
-	FCMService       *services.FCMService     // [NEW] FCM Push Notifications
+	FCMService       *notification.FCMService // [NEW] FCM Push Notifications
 }
 
 func (h *AdminHandler) ShowLogin(e *core.RequestEvent) error {

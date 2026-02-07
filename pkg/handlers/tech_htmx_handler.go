@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"hvac-system/pkg/broker"
-	"hvac-system/pkg/services"
+	"hvac-system/pkg/notification"
 
 	"github.com/pocketbase/pocketbase/core"
 )
@@ -104,7 +104,7 @@ func (h *TechHandler) UpdateJobStatusHTMX(e *core.RequestEvent) error {
 					body = fmt.Sprintf("KTV %s đã hủy đơn %s", e.Auth.GetString("name"), job.GetString("customer_name"))
 				}
 
-				payload := &services.NotificationPayload{
+				payload := &notification.NotificationPayload{
 					Title: title,
 					Body:  body,
 					Data: map[string]string{
@@ -319,7 +319,7 @@ func (h *TechHandler) ProcessPayment(e *core.RequestEvent) error {
 	// [NEW] Send Push Notification to Admin (Payment Received)
 	if h.FCMService != nil {
 		go func() {
-			payload := &services.NotificationPayload{
+			payload := &notification.NotificationPayload{
 				Title: "💰 Đã nhận thanh toán",
 				Body:  fmt.Sprintf("Đơn %s đã hoàn thành - %s", job.GetString("customer_name"), paymentMethod),
 				Data: map[string]string{

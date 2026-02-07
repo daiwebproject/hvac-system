@@ -11,6 +11,7 @@ import (
 	"hvac-system/internal/adapter/repository" // [NEW]
 	domain "hvac-system/internal/core"
 	"hvac-system/pkg/broker"
+	"hvac-system/pkg/notification"
 	"hvac-system/pkg/services"
 
 	"github.com/pocketbase/pocketbase"
@@ -24,8 +25,10 @@ type TechHandler struct {
 	Inventory      *services.InventoryService
 	InvoiceService *services.InvoiceService
 	BookingService domain.BookingService
-	SettingsRepo   *repository.SettingsRepo // [NEW]
-	FCMService     *services.FCMService     // [NEW]
+	SettingsRepo   *repository.SettingsRepo    // [NEW]
+	FCMService     *notification.FCMService    // [NEW]
+	TechRepo       domain.TechnicianRepository // [PHASE4] For migration
+	BookingRepo    domain.BookingRepository    // [PHASE4] For migration
 }
 
 // --- Auth ---
