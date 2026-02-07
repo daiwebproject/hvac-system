@@ -34,6 +34,7 @@ type TimeSlot struct {
 	MaxCapacity     int
 	CurrentBookings int
 	IsAvailable     bool
+	Status          string // available, limited, waitlist, full
 }
 
 // TimeBlock represents a busy period for a technician
@@ -77,14 +78,30 @@ func (s *TimeSlotService) GetAvailableSlots(date string) ([]TimeSlot, error) {
 
 	// 3. Build Tech Timelines (Map[TechID] -> BusyBlocks)
 	techSchedules := make(map[string][]TimeBlock)
+	var unassignedBlocks []TimeBlock // [Fix] Track unassigned bookings
+
+	fmt.Printf("[DEBUG] Date: %s | Total Bookings Found: %d\n", date, len(bookings))
+
 	for _, b := range bookings {
 		techID := b.TechnicianID
-		if techID == "" {
-			continue // Unassigned jobs don't block dynamic capacity yet
-		}
+		// if techID == "" { continue } // REMOVED: Don't skip unassigned
 
 		startTimeStr := b.BookingTime // "2006-01-02 15:04"
-		if startT, err := time.Parse("2006-01-02 15:04", startTimeStr); err == nil {
+		// Try parsing with flexible formats
+		var startT time.Time
+		var err error
+
+		formats := []string{"2006-01-02 15:04", "2006-01-02 15:04:05", "2006-01-02 15:04:05.000Z", time.RFC3339}
+		parsed := false
+		for _, f := range formats {
+			startT, err = time.Parse(f, startTimeStr)
+			if err == nil {
+				parsed = true
+				break
+			}
+		}
+
+		if parsed {
 			// Estimate duration (default 60m + travel 30m)
 			// Ideally we fetch service specific duration, for now allow standard block
 			duration := 60 * time.Minute
@@ -102,10 +119,21 @@ func (s *TimeSlotService) GetAvailableSlots(date string) ([]TimeSlot, error) {
 				}
 			}
 
-			techSchedules[techID] = append(techSchedules[techID], TimeBlock{
-				Start: startT,
-				End:   endT,
-			})
+			if techID != "" {
+				techSchedules[techID] = append(techSchedules[techID], TimeBlock{
+					Start: startT,
+					End:   endT,
+				})
+			} else {
+				// Add to unassigned pool
+				unassignedBlocks = append(unassignedBlocks, TimeBlock{
+					Start: startT,
+					End:   endT,
+				})
+				fmt.Printf("[DEBUG] Unassigned Block Added: %s - %s\n", startT.Format("15:04"), endT.Format("15:04"))
+			}
+		} else {
+			fmt.Printf("[DEBUG] Failed to parse booking time: '%s'\n", startTimeStr)
 		}
 	}
 
@@ -174,14 +202,66 @@ func (s *TimeSlotService) GetAvailableSlots(date string) ([]TimeSlot, error) {
 			}
 		}
 
+		// [Fix] Subtract unassigned bookings that overlap with this slot
+		unassignedOverlaps := 0
+		for _, block := range unassignedBlocks {
+			// Slot [Start, End] overlaps Block [Start, End]?
+			if slotStart.Before(block.End) && slotEnd.After(block.Start) {
+				unassignedOverlaps++
+			}
+		}
+
+		// Net Availability
+		availableTechsCount = availableTechsCount - unassignedOverlaps
+		if availableTechsCount < 0 {
+			availableTechsCount = 0
+		}
+
+		// 6. Determine Status & Availability
+		// available: > 2
+		// limited: 1-2
+		// waitlist: 0 (but allow +2 overbooking)
+		// full: 0 (and waitlist full)
+
+		status := "full"
+		isAvailable := false
+
+		// Occupied slots (approximate based on dynamic calculation)
+		currentOccupancy := dynamicCapacity - availableTechsCount
+
+		if availableTechsCount >= 2 {
+			status = "available"
+			isAvailable = true
+		} else if availableTechsCount > 0 {
+			status = "limited"
+			isAvailable = true
+		} else {
+			// Waitlist logic: Allow 2 extra bookings beyond capacity
+			// We need to check exact booking count for this slot to see if waitlist is full
+			// For now, let's approximate: Check strictly assigned jobs + 2
+			// But we don't track "Waitlist" in DB yet explicitly beyond booking records.
+			// Getting total bookings for this slot specifically from DB would be accurate.
+			// Using 'record.CurrentBookings' from 'time_slots' collection is the persistent counter.
+			persistentBookings := int(record.GetFloat("current_bookings"))
+
+			if persistentBookings < dynamicCapacity+2 {
+				status = "waitlist"
+				isAvailable = true
+			} else {
+				status = "full"
+				isAvailable = false
+			}
+		}
+
 		slots = append(slots, TimeSlot{
 			ID:              record.Id,
 			Date:            record.GetString("date"),
 			StartTime:       startTimeStr,
 			EndTime:         record.GetString("end_time"),
 			MaxCapacity:     dynamicCapacity,
-			CurrentBookings: dynamicCapacity - availableTechsCount, // Occupied = Total - Free
-			IsAvailable:     availableTechsCount > 0,
+			CurrentBookings: currentOccupancy,
+			IsAvailable:     isAvailable,
+			Status:          status,
 		})
 	}
 

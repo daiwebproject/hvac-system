@@ -65,7 +65,7 @@
 
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {{ range .Services }}
-                            <div @click="selectService('{{ .Id }}', '{{ .GetString "name" }}', {{ .GetFloat "price"
+                            <div @click="selectService('{{ .Id }}', '{{ .GetString " name" }}', {{ .GetFloat "price"
                                 }})"
                                 class="cursor-pointer group relative border rounded-xl p-4 transition-all duration-200 hover:shadow-lg active:scale-[0.98]"
                                 :class="formData.serviceId === '{{ .Id }}' 
@@ -76,8 +76,8 @@
                                     <div
                                         class="w-14 h-14 md:w-16 md:h-16 rounded-lg bg-white shadow-sm border border-slate-100 flex items-center justify-center shrink-0 overflow-hidden group-hover:scale-105 transition-transform">
                                         {{ if .GetString "image" }}
-                                        <img src="/api/files/services/{{ .Id }}/{{ .GetString "image" }}?thumb=128x128"
-                                            loading="lazy" class="w-full h-full object-cover" alt="{{ .GetString "name"
+                                        <img src="/api/files/services/{{ .Id }}/{{ .GetString " image" }}?thumb=128x128"
+                                            loading="lazy" class="w-full h-full object-cover" alt="{{ .GetString " name"
                                             }}">
                                         {{ else }}
                                         <i class="fa-solid fa-snowflake text-2xl md:text-3xl text-blue-500"></i>
@@ -249,19 +249,39 @@
                                 </div>
 
                                 <div x-show="!loadingSlots && availableSlots.length > 0"
-                                    class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                    class="grid grid-cols-2 sm:grid-cols-3 gap-3">
                                     <template x-for="slot in availableSlots" :key="slot.ID">
-                                        <label class="cursor-pointer relative group">
-                                            <input type="radio" name="slot" :value="slot.ID" x-model="formData.slotId"
-                                                class="peer sr-only">
-                                            <div
-                                                class="p-3 rounded-xl border text-center transition-all bg-white hover:border-blue-400 peer-checked:bg-blue-600 peer-checked:text-white peer-checked:shadow-lg peer-checked:border-blue-600">
-                                                <div class="font-bold text-lg" x-text="slot.StartTime.substring(0,5)">
-                                                </div>
-                                                <div class="text-[10px] opacity-80">Đến <span
-                                                        x-text="slot.EndTime.substring(0,5)"></span></div>
+                                        <button type="button" @click="selectSlot(slot)"
+                                            :disabled="slot.Status === 'full'" :class="{
+                                                    'bg-blue-50 border-blue-500 ring-2 ring-blue-200 text-blue-700 shadow-md': formData.slotId === slot.ID,
+                                                    'bg-emerald-50 border-emerald-200 hover:border-emerald-400 hover:shadow': formData.slotId !== slot.ID && slot.Status === 'available',
+                                                    'bg-orange-50 border-orange-200 text-orange-800 hover:border-orange-400 hover:shadow': formData.slotId !== slot.ID && (slot.Status === 'limited' || slot.Status === 'waitlist'),
+                                                    'bg-slate-50 border-slate-200 text-slate-300 cursor-not-allowed': slot.Status === 'full'
+                                                }"
+                                            class="relative p-3 rounded-xl border transition-all duration-200 flex flex-col items-center justify-center group h-20">
+
+                                            <!-- Status Badge for Limited/Waitlist -->
+                                            <div x-show="slot.Status === 'waitlist' || slot.Status === 'limited'"
+                                                class="absolute -top-2 -right-2 badge badge-warning badge-xs shadow-sm border-orange-200 font-bold z-10 text-[10px]">
+                                                <span x-show="slot.Status === 'limited'">Sắp hết</span>
+                                                <span x-show="slot.Status === 'waitlist'">Chờ duyệt</span>
                                             </div>
-                                        </label>
+
+                                            <div class="font-bold text-lg leading-none"
+                                                x-text="slot.StartTime.substring(0,5)"></div>
+
+                                            <div class="text-[10px] font-bold tracking-wide mt-1.5 uppercase" :class="{
+                                                         'text-emerald-600': slot.Status === 'available',
+                                                         'text-orange-600': slot.Status === 'limited' || slot.Status === 'waitlist',
+                                                         'text-slate-400': slot.Status === 'full',
+                                                         'text-blue-600': formData.slotId === slot.ID
+                                                     }">
+                                                <span x-show="slot.Status === 'available'">Còn trống</span>
+                                                <span x-show="slot.Status === 'limited'">Sắp kín</span>
+                                                <span x-show="slot.Status === 'waitlist'">Ưu tiên</span>
+                                                <span x-show="slot.Status === 'full'">Đã kín</span>
+                                            </div>
+                                        </button>
                                     </template>
                                 </div>
 

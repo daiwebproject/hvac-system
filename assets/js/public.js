@@ -76,6 +76,31 @@ window.bookingWizard = function () {
             }, 100);
         },
 
+        // Chọn Slot với cảnh báo nếu là Waitlist/Limited
+        selectSlot(slot) {
+            if (slot.Status === 'full') return;
+
+            // Nếu slot là Waitlist hoặc Limited -> Cảnh báo
+            if (slot.Status === 'waitlist' || slot.Status === 'limited') {
+                Swal.fire({
+                    title: 'Khung giờ cao điểm',
+                    html: `Khung giờ <b>${slot.StartTime.substring(0, 5)}</b> đang quá tải.<br>Chúng tôi sẽ cố gắng điều phối thợ và xác nhận lại trong vòng 15 phút.<br><br>Bạn có muốn tiếp tục đặt chờ không?`,
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonText: 'Đồng ý đặt chờ',
+                    cancelButtonText: 'Chọn giờ khác',
+                    confirmButtonColor: '#f97316' // Orange
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        this.formData.slotId = slot.ID;
+                    }
+                });
+            } else {
+                // Available -> Chọn ngay
+                this.formData.slotId = slot.ID;
+            }
+        },
+
         // Lấy danh sách khung giờ trống từ Backend
         async fetchSlots() {
             if (!this.selectedDate) return;

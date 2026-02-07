@@ -58,6 +58,21 @@ func (s *BookingService) CreateBooking(req *core.BookingRequest) (*core.Booking,
 	if req.SlotID != "" {
 		slotID := req.SlotID
 		booking.SlotID = &slotID
+
+		// [FIX] Populate BookingTime from Slot
+		if s.slotRepo != nil {
+			slot, err := s.slotRepo.GetByID(slotID)
+			if err == nil && slot != nil {
+				// Format: YYYY-MM-DD HH:MM
+				booking.BookingTime = fmt.Sprintf("%s %s", slot.Date, slot.StartTime)
+			} else {
+				log.Printf("⚠️ [BOOKING_SERVICE] Failed to fetch slot %s: %v", slotID, err)
+				// Fallback to req.BookingTime if available
+				if req.BookingTime != "" {
+					booking.BookingTime = req.BookingTime
+				}
+			}
+		}
 	} else if req.BookingTime != "" {
 		booking.BookingTime = req.BookingTime
 	}
