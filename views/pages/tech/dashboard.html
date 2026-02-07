@@ -2,7 +2,7 @@
 <script>
     window.TECH_INIT = {
         // Cú pháp chuẩn để khởi tạo trạng thái từ Backend
-        userActive: {{ if .Tech }}{{ if .Tech.Active }} true{{ else }} false{{ end }}{{ else }}{{ if .Auth.GetBool "active" }} true{{ else }} false{{ end }}{{ end }}
+        userActive: {{ if .Tech }} {{ if .Tech.Active }} true {{ else }} false {{ end }} {{ else }} {{ if .Auth.GetBool "active" }} true {{ else }} false {{ end }} {{ end }}
     };
 </script>
 
@@ -43,46 +43,84 @@
         </div>
     </div>
 
-    <div class="px-6 -mt-8 relative z-20" x-data="{ activeTab: 'new' }">
-        <div class="bg-white rounded-2xl shadow-lg p-1.5 flex justify-between border border-gray-100">
+    <div class="px-6 -mt-8 relative z-20" x-data="{ 
+        activeTab: 'new',
+        scrollToTab(tab) {
+            this.activeTab = tab;
+            const el = this.$refs[tab + 'Panel'];
+            if(el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' });
+            }
+        },
+        updateActiveTab() {
+            const scrollLeft = this.$refs.swipeContainer.scrollLeft;
+            const width = this.$refs.swipeContainer.offsetWidth;
+            const page = Math.round(scrollLeft / width);
+            if(page === 0) this.activeTab = 'new';
+            if(page === 1) this.activeTab = 'active';
+            if(page === 2) this.activeTab = 'schedule';
+        }
+    }">
+        <!-- Tab Navigation -->
+        <div class="bg-white rounded-2xl shadow-lg p-1.5 flex justify-between border border-gray-100 mb-6">
             <button class="flex-1 py-3 rounded-xl text-sm font-bold transition-all flex flex-col items-center gap-1"
                 :class="activeTab === 'new' ? 'bg-blue-50 text-blue-700 shadow-sm' : 'text-gray-400'"
-                @click="activeTab = 'new'" hx-get="/api/tech/jobs/list?status=new" hx-target="#job-list-container"
-                hx-indicator="#main-loader">
+                @click="scrollToTab('new')">
                 <i class="fa-solid fa-clipboard-list text-lg"></i>
                 <span class="text-[10px] uppercase tracking-wide">Mới giao</span>
             </button>
 
             <button class="flex-1 py-3 rounded-xl text-sm font-bold transition-all flex flex-col items-center gap-1"
                 :class="activeTab === 'active' ? 'bg-amber-50 text-amber-700 shadow-sm' : 'text-gray-400'"
-                @click="activeTab = 'active'" hx-get="/api/tech/jobs/list?status=active" hx-target="#job-list-container"
-                hx-indicator="#main-loader">
+                @click="scrollToTab('active')">
                 <i class="fa-solid fa-person-digging text-lg"></i>
                 <span class="text-[10px] uppercase tracking-wide">Đang làm</span>
             </button>
 
             <button class="flex-1 py-3 rounded-xl text-sm font-bold transition-all flex flex-col items-center gap-1"
                 :class="activeTab === 'schedule' ? 'bg-purple-50 text-purple-700 shadow-sm' : 'text-gray-400'"
-                @click="activeTab = 'schedule'" hx-get="/api/tech/schedule" hx-target="#job-list-container"
-                hx-indicator="#main-loader">
+                @click="scrollToTab('schedule')">
                 <i class="fa-solid fa-calendar-day text-lg"></i>
                 <span class="text-[10px] uppercase tracking-wide">Lịch trình</span>
             </button>
         </div>
-    </div>
 
-    <div class="px-6 mt-6">
-        <div id="main-loader" class="htmx-indicator flex justify-center py-4">
-            <span class="loading loading-dots loading-md text-primary"></span>
-        </div>
+        <!-- Swipeable Container -->
+        <div x-ref="swipeContainer" @scroll.debounce.10ms="updateActiveTab()"
+            class="flex overflow-x-auto snap-x snap-mandatory no-scrollbar pb-6 -mx-6 px-6 gap-6">
 
-        <div id="job-list-container" hx-get="/api/tech/jobs/list?status=new" hx-trigger="load, statusUpdated from:body"
-            hx-indicator="#main-loader">
-            <div class="space-y-4">
-                <div class="h-32 bg-gray-200 rounded-3xl animate-pulse"></div>
-                <div class="h-32 bg-gray-200 rounded-3xl animate-pulse"></div>
+            <!-- Tab 1: New -->
+            <div x-ref="newPanel" class="w-full flex-shrink-0 snap-center min-w-full"
+                hx-get="/api/tech/jobs/list?status=new" hx-trigger="load, sse:job.assigned">
+                <div class="space-y-4 animate-pulse">
+                    <div class="h-32 bg-gray-100 rounded-2xl"></div>
+                    <div class="h-32 bg-gray-100 rounded-2xl"></div>
+                </div>
+            </div>
+
+            <!-- Tab 2: Active -->
+            <div x-ref="activePanel" class="w-full flex-shrink-0 snap-center min-w-full"
+                hx-get="/api/tech/jobs/list?status=active" hx-trigger="load">
+                <div class="space-y-4 animate-pulse">
+                    <div class="h-32 bg-gray-100 rounded-2xl"></div>
+                </div>
+            </div>
+
+            <!-- Tab 3: Schedule -->
+            <div x-ref="schedulePanel" class="w-full flex-shrink-0 snap-center min-w-full" hx-get="/api/tech/schedule"
+                hx-trigger="load">
+                <div class="space-y-4 animate-pulse">
+                    <div class="h-32 bg-gray-100 rounded-2xl"></div>
+                    <div class="h-32 bg-gray-100 rounded-2xl"></div>
+                </div>
             </div>
         </div>
+
+        <!-- Global Loader (Hidden, used for hx-indicator if needed) -->
+        <div id="main-loader" class="htmx-indicator hidden justify-center py-4">
+            <span class="loading loading-dots loading-md text-primary"></span>
+        </div>
     </div>
+</div>
 </div>
 {{ end }}

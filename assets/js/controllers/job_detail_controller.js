@@ -10,6 +10,31 @@ window.JobDetailController = function (data) {
         cancelReason: '',
         cancelNote: '',
         newTime: '',
+        showNotesModal: false,
+        showUpdateModal: false,
+        evidenceNote: '',
+
+        callSupport() {
+            Swal.fire({
+                title: 'Hỗ trợ kỹ thuật',
+                text: 'Bạn cần hỗ trợ gì?',
+                icon: 'question',
+                showCancelButton: true,
+                showDenyButton: true,
+                confirmButtonText: 'Gọi tổng đài',
+                denyButtonText: 'Hủy/Báo cáo sự cố',
+                cancelButtonText: 'Đóng',
+                confirmButtonColor: '#3085d6',
+                denyButtonColor: '#d33',
+                cancelButtonColor: '#aaa'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    window.location.href = 'tel:19001234';
+                } else if (result.isDenied) {
+                    this.showCancelModal = true;
+                }
+            });
+        },
 
         // SỬA LỖI: Link Google Maps chuẩn (giống Admin Dashboard)
         getMapLink() {
@@ -25,6 +50,7 @@ window.JobDetailController = function (data) {
             const map = {
                 'pending': 'Chờ xử lý',
                 'assigned': 'Mới nhận',
+                'accepted': 'Đã tiếp nhận',
                 'moving': 'Đang đi',
                 'working': 'Đang làm',
                 'completed': 'Hoàn thành',
@@ -35,14 +61,15 @@ window.JobDetailController = function (data) {
             return map[s] || s;
         },
 
-        async updateStatus(newStatus) {
-            this.updateStatusAPI(newStatus);
+        async updateStatus(newStatus, confirmMsg) {
+            this.updateStatusAPI(newStatus, confirmMsg);
         },
 
-        async updateStatusAPI(newStatus) {
+        async updateStatusAPI(newStatus, confirmMsg) {
+            const label = confirmMsg || `chuyển sang trạng thái: ${this.getStatusLabel(newStatus)}`;
             const confirmResult = await Swal.fire({
-                title: 'Xác nhận chuyển trạng thái?',
-                text: `Bạn có chắc chắn muốn chuyển sang trạng thái: ${this.getStatusLabel(newStatus)}?`,
+                title: 'Xác nhận?',
+                text: `Bạn có chắc chắn muốn ${label}?`,
                 icon: 'question',
                 showCancelButton: true,
                 confirmButtonText: 'Đồng ý',
@@ -63,14 +90,16 @@ window.JobDetailController = function (data) {
                 const res = await fetch(`/api/tech/bookings/${this.id}/status`, { method: 'POST', body: fd });
                 if (res.ok) {
                     this.status = newStatus;
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                    Swal.fire({
+
+                    // Show success message then reload to update UI (Server-side rendered buttons)
+                    await Swal.fire({
                         title: 'Thành công!',
                         text: 'Đã cập nhật trạng thái',
                         icon: 'success',
-                        timer: 1500,
+                        timer: 1000,
                         showConfirmButton: false
                     });
+                    window.location.reload();
                 } else {
                     Swal.fire('Lỗi', 'Lỗi cập nhật trạng thái', 'error');
                 }
@@ -126,7 +155,10 @@ window.JobDetailController = function (data) {
 
                         if (res.ok) {
                             this.status = 'arrived'; // Update local state immediately
-                            window.scrollTo({ top: 0, behavior: 'smooth' });
+
+                            // Reload to update UI
+                            window.location.reload();
+
                             Swal.fire({
                                 title: 'Thành công!',
                                 text: data.message || 'Check-in thành công!',

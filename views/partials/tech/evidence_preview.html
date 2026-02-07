@@ -1,0 +1,15 @@
+{{define "tech/partials/evidence_preview"}}
+<div id="evidence-preview" class="grid grid-cols-3 gap-2">
+    {{ if .Report }}
+    {{ range .Report.GetStringSlice "before_images" }}
+    <div class="aspect-square rounded-lg overflow-hidden border border-gray-100 relative group">
+        <img src="/api/files/job_reports/{{$.Report.Id}}/{{.}}" class="w-full h-full object-cover">
+    </div>
+    {{ end }}
+    {{ else }}
+    <div class="col-span-3 text-center py-4 text-gray-400 text-xs italic">
+        Chưa có ảnh hiện trường nào.
+    </div>
+    {{ end }}
+</div>
+{{end}}

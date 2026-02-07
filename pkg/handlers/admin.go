@@ -617,7 +617,8 @@ func (h *AdminHandler) AssignJob(e *core.RequestEvent) error {
 		}
 
 		// 2. Gọi hàm CheckConflict with slotID
-		if errStr := h.SlotService.CheckConflict(technicianID, date, timeStr, duration, slotID); errStr != nil {
+		if errStr := h.SlotService.CheckConflict(technicianID, date, timeStr, duration, slotID, bookingID); errStr != nil {
+			fmt.Printf("❌ [CheckConflict] Error: %v\n", errStr)
 			return e.String(409, errStr.Error())
 		}
 	} else {

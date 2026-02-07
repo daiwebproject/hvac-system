@@ -85,6 +85,9 @@ func InitTemplates() (*template.Template, error) {
 	if _, err := t.ParseGlob("views/pages/admin/partials/*.html"); err != nil {
 		log.Println("Warning: Admin Page Partials error:", err)
 	}
+	if _, err := t.ParseGlob("views/pages/tech/partials/*.html"); err != nil {
+		log.Println("Warning: Tech Page Partials error:", err)
+	}
 
 	log.Printf("✅ Loaded Templates: %q", t.DefinedTemplates())
 

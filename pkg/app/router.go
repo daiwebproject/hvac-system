@@ -283,6 +283,7 @@ func RegisterRoutes(pb *pocketbase.PocketBase, c *internalApp.Container) {
 
 		// Hóa đơn và thanh toán
 		apiGroup.GET("/job/{id}/invoice", tech.GetJobInvoice)
+		apiGroup.POST("/job/{id}/evidence", tech.UploadJobEvidence)
 		apiGroup.POST("/job/{id}/payment", tech.ProcessPayment)
 
 		return se.Next()

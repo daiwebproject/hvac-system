@@ -73,11 +73,11 @@
                             <i class="fa-solid fa-location-dot text-red-500 mr-2 w-4"></i>
                             {{.Job.GetString "address"}}
                             {{ if and (.Job.GetFloat "lat") (.Job.GetFloat "long") }}
-                            <a href="https://www.google.com/maps?q={{.Job.GetFloat "lat"}},{{.Job.GetFloat "long"
+                            <a href="https://www.google.com/maps?q={{.Job.GetFloat " lat"}},{{.Job.GetFloat "long"
                                 }}&z=17" target="_blank"
                                 class="text-blue-500 text-xs ml-1 hover:underline no-print">(Xem bản đồ)</a>
                             {{ else }}
-                            <a href="https://www.google.com/maps/search/?api=1&query={{.Job.GetString "address"}}"
+                            <a href="https://www.google.com/maps/search/?api=1&query={{.Job.GetString " address"}}"
                                 target="_blank" class="text-blue-500 text-xs ml-1 hover:underline no-print">(Xem bản
                                 đồ)</a>
                             {{ end }}
@@ -168,20 +168,42 @@
                     <p class="italic text-gray-700 mt-1">"{{ .Report.GetString "photo_notes" }}"</p>
                 </div>
 
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    {{ range .Report.GetStringSlice "after_images" }}
-                    <div class="relative group">
-                        <img src="/api/files/job_reports/{{$.Report.Id}}/{{.}}"
-                            class="w-full h-24 object-cover rounded-lg border border-gray-200 shadow-sm"
-                            alt="Ảnh nghiệm thu">
-                        <div
-                            class="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-[10px] p-1 text-center rounded-b-lg">
-                            Nghiệm thu
+                <div class="border-t border-dashed border-gray-100 pt-6 mb-6">
+                    <h3 class="font-bold text-gray-800 text-sm uppercase tracking-wider mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-camera text-blue-500"></i> Hình ảnh nghiệm thu
+                    </h3>
+
+                    {{ if .Report }}
+                    <!-- Before Images -->
+                    {{ if .Report.GetStringSlice "before_images" }}
+                    <div class="mb-4">
+                        <p class="text-xs font-bold text-orange-600 uppercase mb-2">Ảnh hiện trạng</p>
+                        <div class="grid grid-cols-4 gap-2">
+                            {{ range .Report.GetStringSlice "before_images" }}
+                            <div class="aspect-square rounded-lg overflow-hidden border border-gray-100 bg-gray-50">
+                                <img src="/api/files/job_reports/{{$.Report.Id}}/{{.}}"
+                                    class="w-full h-full object-cover" onclick="window.open(this.src, '_blank')">
+                            </div>
+                            {{ end }}
+                        </div>
+                    </div>
+                    {{ end }}
+
+                    <!-- After Images -->
+                    <div class="mb-4">
+                        <p class="text-xs font-bold text-green-600 uppercase mb-2">Ảnh sau khi làm</p>
+                        <div class="grid grid-cols-4 gap-2">
+                            {{ range .Report.GetStringSlice "after_images" }}
+                            <div class="aspect-square rounded-lg overflow-hidden border border-gray-100 bg-gray-50">
+                                <img src="/api/files/job_reports/{{$.Report.Id}}/{{.}}"
+                                    class="w-full h-full object-cover" onclick="window.open(this.src, '_blank')">
+                            </div>
+                            {{ end }}
                         </div>
                     </div>
                     {{ else }}
-                    <div class="col-span-4 text-center text-gray-400 text-sm italic py-4">Không có hình ảnh nghiệm thu
-                    </div>
+                    <p class="text-sm text-gray-400 italic text-center py-4 bg-gray-50 rounded-xl">Không có hình ảnh
+                    </p>
                     {{ end }}
                 </div>
             </div>
@@ -260,7 +282,7 @@
                     <p class="text-xs text-gray-500 mb-8">(Ký và ghi rõ họ tên)</p>
 
                     {{ if .Invoice.GetString "customer_signature" }}
-                    <img src="/api/files/invoices/{{.Invoice.Id}}/{{.Invoice.GetString "customer_signature"}}"
+                    <img src="/api/files/invoices/{{.Invoice.Id}}/{{.Invoice.GetString " customer_signature"}}"
                         class="h-16 object-contain" alt="Chữ ký khách hàng">
                     {{ else }}
                     <div class="h-16"></div>
@@ -273,7 +295,7 @@
                     <p class="text-xs text-gray-500 mb-8">(Xác nhận hoàn thành)</p>
                     <div class="h-16 flex items-end">
                         {{ if .Invoice.GetString "tech_signature" }}
-                        <img src="/api/files/invoices/{{.Invoice.Id}}/{{.Invoice.GetString "tech_signature"}}"
+                        <img src="/api/files/invoices/{{.Invoice.Id}}/{{.Invoice.GetString " tech_signature"}}"
                             class="h-16 object-contain" alt="Chữ ký kỹ thuật">
                         {{ else }}
                         <span class="text-blue-600 font-bold font-mono">e-Signed by System</span>

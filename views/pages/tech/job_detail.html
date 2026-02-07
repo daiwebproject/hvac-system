@@ -1,8 +1,19 @@
 {{ define "content" }}
+<script src="/assets/js/controllers/job_detail_controller.js?v=9"></script>
+<script>
+    if (typeof JobDetailController === 'undefined') {
+        console.error('❌ JobDetailController failed to load!');
+    } else {
+        console.log('✅ JobDetailController loaded successfully');
+    }
+</script>
+
 <div x-data="JobDetailController({
         id: '{{.Job.ID}}',
-        lat: {{.Job.Lat}}, long: {{.Job.Long}}, address: {{printf " %q" (or .Job.AddressDetails .Job.Address)}},
-    status: '{{.Job.JobStatus}}' })" class="bg-gray-50 min-h-screen pb-32">
+        lat: {{.Job.Lat}}, 
+        long: {{.Job.Long}}, 
+        address: {{printf " %q" (or .Job.AddressDetails .Job.Address)}}, status: '{{.Job.JobStatus}}' })"
+    class="bg-gray-50 min-h-screen pb-32">
 
     <!-- Navbar -->
     <nav class="bg-white/90 backdrop-blur-md shadow-sm sticky top-0 z-40 border-b border-gray-100/50">
@@ -35,10 +46,25 @@
             </span>
         </div>
 
-        {{template "tech/status_stepper" .}}
+        <div class="w-full px-4 py-4 bg-white border-b border-gray-100">
+            <ul class="steps steps-horizontal w-full text-[10px] md:text-xs">
+                <li class="step {{if ge .Job.StatusOrder 1}}step-primary{{end}}">Nhận</li>
+                <li class="step {{if ge .Job.StatusOrder 2}}step-primary{{end}}">Đi</li>
+                <li class="step {{if ge .Job.StatusOrder 3}}step-primary{{end}}"
+                    data-content='{{if eq .Job.JobStatus "arrived"}}✓{{else}}●{{end}}'>Đến</li>
+                <li class="step {{if ge .Job.StatusOrder 4}}step-primary{{end}}">Làm</li>
+                <li class="step {{if ge .Job.StatusOrder 5}}step-primary{{end}}">Xong</li>
+            </ul>
+
+            <div class="mt-3">
+                <div class="mt-3">
+                    <!-- Duplicate buttons removed. Actions are now in the Sticky Bar at bottom. -->
+                </div>
+            </div>
+        </div>
     </nav>
 
-    <div class="max-w-lg mx-auto p-5 space-y-5">
+    <div class="max-w-lg mx-auto p-3 space-y-4">
 
         {{template "tech/customer_card" .}}
 
@@ -97,12 +123,185 @@
         {{ end }}
     </div>
 
-    {{ if ne .Job.JobStatus "completed" }}
-    {{template "tech/job_actions_bar" dict "JobId" .Job.ID}}
-    {{ end }}
+
+
+    <!-- Spacer for fixed actions -->
+    <div class="h-40"></div>
+
+    <!-- MAIN ACTION BUTTON (Fixed above Sticky Bar) -->
+    <div class="fixed px-4 z-50 flex justify-center pointer-events-none" style="bottom: 90px; left: 0; right: 0;">
+        <div class="w-full max-w-lg pointer-events-auto shadow-2xl rounded-2xl overflow-hidden">
+            {{if eq .Job.JobStatus "assigned"}}
+            <button @click="updateStatus('accepted', 'Nhận việc')"
+                class="btn btn-primary w-full btn-lg h-14 min-h-[3.5rem] border-none flex items-center justify-between px-6 group animate-pulse">
+                <span class="font-bold text-lg text-white">NHẬN VIỆC NGAY</span>
+                <div
+                    class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <i class="fa-solid fa-check text-xl text-white"></i>
+                </div>
+            </button>
+            {{else if eq .Job.JobStatus "accepted"}}
+            <button @click="updateStatus('moving', 'Bắt đầu di chuyển')"
+                class="btn btn-info w-full btn-lg h-14 min-h-[3.5rem] border-none flex items-center justify-between px-6 group">
+                <span class="font-bold text-lg text-white">BẮT ĐẦU DI CHUYỂN</span>
+                <div
+                    class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center group-hover:translate-x-1 transition-transform">
+                    <i class="fa-solid fa-person-biking text-xl text-white"></i>
+                </div>
+            </button>
+            {{else if eq .Job.JobStatus "moving"}}
+            <button @click="checkIn()"
+                class="btn btn-warning w-full btn-lg h-14 min-h-[3.5rem] border-none flex items-center justify-between px-6 group">
+                <span class="font-bold text-lg text-white">ĐÃ ĐẾN NƠI (Check-in)</span>
+                <div
+                    class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <i class="fa-solid fa-location-dot text-xl text-white"></i>
+                </div>
+            </button>
+            {{else if eq .Job.JobStatus "arrived"}}
+            <button @click="updateStatus('working', 'Bắt đầu làm việc')"
+                class="btn btn-success w-full btn-lg h-14 min-h-[3.5rem] border-none flex items-center justify-between px-6 group">
+                <span class="font-bold text-lg text-white">BẮT ĐẦU LÀM VIỆC</span>
+                <div
+                    class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center group-hover:rotate-12 transition-transform">
+                    <i class="fa-solid fa-screwdriver-wrench text-xl text-white"></i>
+                </div>
+            </button>
+            {{else if eq .Job.JobStatus "working"}}
+            <a href="/tech/job/{{.Job.ID}}/complete"
+                class="btn btn-primary w-full btn-lg h-14 min-h-[3.5rem] border-none flex items-center justify-between px-6 group">
+                <span class="font-bold text-lg text-white">HOÀN THÀNH CÔNG VIỆC</span>
+                <div
+                    class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <i class="fa-solid fa-clipboard-check text-xl text-white"></i>
+                </div>
+            </a>
+            {{end}}
+        </div>
+    </div>
+
+    <!-- STICKY ACTION BAR (Optimized for Mobile) -->
+    <div
+        class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-6 pb-6 pt-3 z-40 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] flex justify-between items-end h-[80px]">
+
+        <a href="tel:{{.Job.CustomerPhone}}"
+            class="flex flex-col items-center gap-0.5 text-gray-500 hover:text-green-600 active:scale-95 transition-transform w-[16%]">
+            <div
+                class="w-10 h-10 rounded-full bg-green-50 flex items-center justify-center border border-green-200 mb-0.5">
+                <i class="fa-solid fa-phone text-green-600 text-sm"></i>
+            </div>
+            <span class="text-[9px] font-bold text-center leading-tight">Gọi điện</span>
+        </a>
+
+        <a :href="getMapLink()" target="_blank"
+            class="flex flex-col items-center gap-0.5 text-gray-500 hover:text-blue-600 active:scale-95 transition-transform w-[16%]">
+            <div
+                class="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center border border-blue-200 mb-0.5">
+                <i class="fa-solid fa-diamond-turn-right text-blue-600 text-sm"></i>
+            </div>
+            <span class="text-[9px] font-bold text-center leading-tight">Chỉ đường</span>
+        </a>
+
+        <!-- CENTER BUTTON (Camera) -->
+        <div class="relative w-[20%] flex justify-center">
+            <button @click="showUpdateModal = true"
+                class="btn btn-primary btn-circle w-16 h-16 min-h-[4rem] -mt-10 shadow-xl shadow-primary/40 border-4 border-white z-50 transform hover:scale-105 transition-transform flex items-center justify-center p-0">
+                <i class="fa-solid fa-camera text-2xl"></i>
+            </button>
+        </div>
+
+        <button @click="showNotesModal = true"
+            class="flex flex-col items-center gap-0.5 text-gray-500 hover:text-orange-600 active:scale-95 transition-transform w-[16%]">
+            <div
+                class="w-10 h-10 rounded-full bg-orange-50 flex items-center justify-center border border-orange-200 mb-0.5">
+                <i class="fa-solid fa-clipboard-list text-orange-600 text-sm"></i>
+            </div>
+            <span class="text-[9px] font-bold text-center leading-tight">Ghi chú</span>
+        </button>
+
+        <button @click="callSupport()"
+            class="flex flex-col items-center gap-0.5 text-gray-500 hover:text-red-600 active:scale-95 transition-transform w-[16%]">
+            <div class="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center border border-red-200 mb-0.5">
+                <i class="fa-solid fa-headset text-red-600 text-sm"></i>
+            </div>
+            <span class="text-[9px] font-bold text-center leading-tight">Hỗ trợ</span>
+        </button>
+    </div>
+
+    <!-- Notes Modal -->
+    <div x-show="showNotesModal" x-cloak class="modal modal-open bg-black/50 overflow-y-auto z-50"
+        @click.self="showNotesModal = false">
+        <div class="modal-box relative">
+            <button @click="showNotesModal = false" class="btn btn-sm btn-circle absolute right-2 top-2">✕</button>
+            <h3 class="font-bold text-lg mb-4">Ghi chú công việc</h3>
+            <textarea x-model="evidenceNote" class="textarea textarea-bordered w-full h-32"
+                placeholder="Nhập ghi chú cá nhân về công việc này..."></textarea>
+            <div class="modal-action">
+                <button @click="showNotesModal = false" class="btn btn-primary w-full">Đóng & Lưu tạm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Update/Camera Modal -->
+    <div x-show="showUpdateModal" x-cloak class="modal modal-open bg-black/50 overflow-y-auto z-50"
+        @click.self="showUpdateModal = false">
+        <div class="modal-box relative">
+            <button @click="showUpdateModal = false" class="btn btn-sm btn-circle absolute right-2 top-2">✕</button>
+            <h3 class="font-bold text-lg mb-4">Cập nhật hiện trường</h3>
+
+            <!-- Upload Form -->
+            <form id="evidence-form" hx-encoding="multipart/form-data" hx-post="/api/tech/job/{{.Job.ID}}/evidence"
+                hx-swap="outerHTML" hx-target="#evidence-preview">
+                <input type="hidden" name="type" value="before">
+
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <div class="relative">
+                        <input type="file" name="images" accept="image/*" capture="environment" multiple
+                            class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                            onchange="htmx.trigger(this.form, 'submit')">
+                        <button type="button"
+                            class="btn btn-outline w-full h-auto py-4 flex flex-col gap-2 pointer-events-none">
+                            <i class="fa-solid fa-camera text-2xl"></i>
+                            <span>Chụp ảnh</span>
+                        </button>
+                    </div>
+                    <div class="relative">
+                        <input type="file" name="images" accept="image/*" multiple
+                            class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                            onchange="htmx.trigger(this.form, 'submit')">
+                        <button type="button"
+                            class="btn btn-outline w-full h-auto py-4 flex flex-col gap-2 pointer-events-none">
+                            <i class="fa-solid fa-image text-2xl"></i>
+                            <span>Thư viện</span>
+                        </button>
+                    </div>
+                </div>
+            </form>
+
+            <div class="divider text-xs text-gray-400">Ảnh đã chụp</div>
+
+            <!-- Preview Area -->
+            <div id="evidence-preview" class="grid grid-cols-3 gap-2">
+                {{ if .Report }}
+                {{ range .Report.GetStringSlice "before_images" }}
+                <div class="aspect-square rounded-lg overflow-hidden border border-gray-100 relative group">
+                    <img src="/api/files/job_reports/{{$.Report.Id}}/{{.}}" class="w-full h-full object-cover">
+                </div>
+                {{ end }}
+                {{ else }}
+                <div class="col-span-3 text-center py-4 text-gray-400 text-xs italic">
+                    Chưa có ảnh hiện trường nào.
+                </div>
+                {{ end }}
+            </div>
+
+            <div class="modal-action">
+                <button @click="showUpdateModal = false" class="btn btn-primary w-full">Đóng</button>
+            </div>
+        </div>
+    </div>
 
     {{template "tech/cancel_modal" .}}
 </div>
 
-<script src="/assets/js/controllers/job_detail_controller.js?v=7"></script>
 {{ end }}

@@ -96,6 +96,10 @@ export function kanbanBoard(initialActive = [], initialCompleted = []) {
                 if (['moving', 'arrived', 'working', 'failed'].includes(status)) {
                     status = 'working';
                 }
+                if (status === 'accepted') {
+                    status = 'assigned';
+                }
+
                 if (this.columns[status]) {
                     this.columns[status].push(job);
                 } else {
@@ -154,6 +158,19 @@ export function kanbanBoard(initialActive = [], initialCompleted = []) {
                 case 'booking.created':
                     this.handleNewBooking(event.data);
                     break;
+
+                case 'tech.status_changed':
+                    // [NEW] Update tech status in real-time
+                    const tech = this.techs.find(t => t.id === event.data.id);
+                    if (tech) {
+                        tech.active = event.data.active;
+                        tech.lat = event.data.lat;
+                        tech.long = event.data.long;
+                        // Force reactivity if needed
+                        this.techs = [...this.techs];
+                        if (this.showMapModal) this.renderMapMarkers();
+                    }
+                    break;
             }
         },
 
@@ -203,6 +220,9 @@ export function kanbanBoard(initialActive = [], initialCompleted = []) {
             let targetCol = newStatus;
             if (['moving', 'arrived', 'working', 'failed'].includes(newStatus)) {
                 targetCol = 'working';
+            }
+            if (newStatus === 'accepted') {
+                targetCol = 'assigned';
             }
 
             // Find and remove from current column

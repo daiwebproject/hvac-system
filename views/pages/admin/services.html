@@ -224,6 +224,42 @@
                             {{ end }}
                         </select>
                     </div>
+                </div>
+
+                <!-- Missing Fields: Price, Duration, Warranty, Commission -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                    <div class="form-control">
+                        <label class="label font-bold">Giá bán (VNĐ)</label>
+                        <input type="number" name="price" x-bind:value="editingService ? editingService.price : 0"
+                            class="input input-bordered w-full">
+                    </div>
+                    <div class="form-control">
+                        <label class="label font-bold">Thời gian (Phút)</label>
+                        <input type="number" name="duration"
+                            x-bind:value="editingService ? editingService.duration : 60"
+                            class="input input-bordered w-full">
+                    </div>
+                    <div class="form-control">
+                        <label class="label font-bold">Bảo hành (Tháng)</label>
+                        <input type="number" name="warranty_months"
+                            x-bind:value="editingService ? editingService.warranty : 0"
+                            class="input input-bordered w-full">
+                    </div>
+                    <div class="form-control">
+                        <label class="label font-bold">Hoa hồng % (Tech)</label>
+                        <input type="number" step="0.1" name="commission_rate"
+                            x-bind:value="editingService ? editingService.commission : 0"
+                            class="input input-bordered w-full">
+                    </div>
+                </div>
+
+                <div class="form-control">
+                    <label class="label font-bold">Kỹ năng yêu cầu (Mã Skill ID)</label>
+                    <input type="text" name="required_skill" x-bind:value="editingService ? editingService.skill : ''"
+                        class="input input-bordered w-full" placeholder="VD: ac_repair">
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 
 
                     <div class="form-control">

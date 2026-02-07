@@ -520,8 +520,8 @@ func (s *TimeSlotService) BookSlot(slotID, bookingID string) error {
 // Rules:
 // 1. New Job Start Time >= Previous Job End Time + Travel Buffer (30m)
 // 2. New Job End Time + Travel Buffer <= Next Job Start Time
-// CheckConflict validates if a specific scheduler slot conflicts with existing bookings
-func (s *TimeSlotService) CheckConflict(techID string, date string, startTime string, newJobDuration int, newSlotID string) error {
+// CheckConflict validates if a specific scheduler slot conflicts with existing bookings for a technician
+func (s *TimeSlotService) CheckConflict(techID string, date string, startTime string, newJobDuration int, newSlotID string, excludeBookingID string) error {
 	const TravelBufferMinutes = 30
 
 	// 1. Tính toán thời gian của Job MỚI đang định giao
@@ -533,20 +533,26 @@ func (s *TimeSlotService) CheckConflict(techID string, date string, startTime st
 	newEnd := newStart.Add(time.Duration(newJobDuration) * time.Minute)
 
 	// 2. Lấy danh sách các Job ĐÃ CÓ của thợ trong ngày đó
-	// Lọc các job chưa huỷ (cancelled) và thuộc về thợ này
+	// Lọc các job chưa huỷ (cancelled) và CHƯA HOÀN THÀNH (completed).
+	// Nếu job đã xong, thợ coi như rảnh (hoặc chấp nhận overlap vì đã xong việc).
 	records, err := s.app.FindRecordsByFilter(
 		"bookings",
-		fmt.Sprintf("technician_id='%s' && job_status != 'cancelled'", techID),
+		fmt.Sprintf("technician_id='%s' && job_status != 'cancelled' && job_status != 'completed'", techID),
 		"booking_time",
 		100,
 		0,
 		nil,
 	)
-	if err != nil {
+	if err != nil { // CheckConflict
 		return fmt.Errorf("failed to fetch existing jobs: %w", err)
 	}
 
 	for _, job := range records {
+		// [FIX] Skip the current booking if updating/re-assigning
+		if excludeBookingID != "" && job.Id == excludeBookingID {
+			continue
+		}
+
 		jobTimeStr := job.GetString("booking_time") // "2006-01-02 15:04"
 		if len(jobTimeStr) < 16 {
 			continue

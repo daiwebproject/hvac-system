@@ -5,19 +5,18 @@
             <div class="flex gap-3 items-center">
                 <div class="avatar placeholder">
                     <div class="bg-blue-50 text-blue-600 rounded-full w-12 h-12">
-                        <span class="text-xl font-bold">{{ slice (.Job.GetString "customer_name") 0 1 }}</span>
+                        <span class="text-xl font-bold">{{ slice .Job.CustomerName 0 1 }}</span>
                     </div>
                 </div>
                 <div>
-                    <h2 class="font-bold text-lg text-gray-900 leading-tight">{{.Job.GetString "customer_name"}}</h2>
-                    <a href="tel:{{.Job.GetString " customer_phone"}}"
+                    <h2 class="font-bold text-lg text-gray-900 leading-tight">{{.Job.CustomerName}}</h2>
+                    <a href="tel:{{.Job.CustomerPhone}}"
                         class="text-gray-500 text-sm hover:text-blue-600 transition-colors">
-                        {{.Job.GetString "customer_phone"}}
+                        {{.Job.CustomerPhone}}
                     </a>
                 </div>
             </div>
-            <a href="tel:{{.Job.GetString " customer_phone"}}"
-                class="btn btn-circle btn-primary btn-sm shadow-lg shadow-blue-500/20">
+            <a href="tel:{{.Job.CustomerPhone}}" class="btn btn-circle btn-primary btn-sm shadow-lg shadow-blue-500/20">
                 <i class="fa-solid fa-phone"></i>
             </a>
         </div>
@@ -28,7 +27,7 @@
                     <i class="fa-solid fa-location-dot text-red-500"></i>
                 </div>
                 <p class="text-sm text-gray-700 font-medium leading-relaxed">
-                    {{ or (.Job.GetString "address_details") (.Job.GetString "address") }}
+                    {{ or .Job.AddressDetails .Job.Address }}
                 </p>
             </div>
 

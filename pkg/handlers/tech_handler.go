@@ -229,7 +229,7 @@ func (h *TechHandler) JobsList(e *core.RequestEvent) error {
 	data["PageType"] = "tech_jobs"
 
 	// Check for HTMX request for list partial
-	if e.Request.Header.Get("HX-Target") == "job-list-container" {
+	if e.Request.Header.Get("HX-Request") == "true" {
 		e.Response.Header().Set("Content-Type", "text/html; charset=utf-8")
 		// Note: partials/tech/jobs_list.html defines "tech/partials/jobs_list"
 		// [FIX] Use renderPartial to safely Clone before Executing
@@ -280,6 +280,7 @@ func (h *TechHandler) JobDetail(e *core.RequestEvent) error {
 			IssueDescription: rec.GetString("issue_description"),
 			Lat:              rec.GetFloat("lat"),
 			Long:             rec.GetFloat("long"),
+			TechNotes:        rec.GetString("tech_notes"), // [NEW]
 		}
 	}
 
@@ -313,18 +314,33 @@ func (h *TechHandler) JobDetail(e *core.RequestEvent) error {
 		invoice = invoices[0]
 	}
 
-	// 5. Calculate Progress
+	// 5. Calculate Progress & StatusOrder
 	progress := 0
 	status := job.JobStatus
+
+	// Map Status to Order for Stepper UI
 	switch status {
-	case "assigned":
+	case "pending", "assigned":
+		job.StatusOrder = 1
 		progress = 0
+	case "accepted":
+		job.StatusOrder = 1
+		progress = 10
 	case "moving":
+		job.StatusOrder = 2
 		progress = 25
+	case "arrived":
+		job.StatusOrder = 3
+		progress = 40
 	case "working":
-		progress = 50
-	case "completed":
+		job.StatusOrder = 4
+		progress = 75
+	case "completed", "paid":
+		job.StatusOrder = 5
 		progress = 100
+	case "cancelled":
+		job.StatusOrder = 0
+		progress = 0
 	}
 
 	// [NEW] Fetch Settings (if not already in common data, but JobDetail doesn't use getTechCommonData yet)
@@ -783,11 +799,15 @@ func (h *TechHandler) GetSchedule(e *core.RequestEvent) error {
 		JobViewModel
 		StatusColor string
 		Icon        string
+		IsCurrent   bool // [NEW]
 	}
 
 	var scheduleItems []ScheduleItem
 	for _, job := range jobs {
 		vm := JobViewModel{Record: job}
+		// [FIX] Populate TechNotes
+		vm.Record.Set("tech_notes", job.GetString("tech_notes"))
+
 		// Logic parse thời gian giống JobsList
 		rawTime := job.GetString("booking_time")
 		parsedTime, _ := time.Parse("2006-01-02 15:04", rawTime)
@@ -796,17 +816,30 @@ func (h *TechHandler) GetSchedule(e *core.RequestEvent) error {
 		}
 		vm.DisplayTime = parsedTime.Format("15:04")
 
+		// [FIX] Fetch Service Name
+		serviceID := job.GetString("service_id")
+		serviceName := "Dịch vụ"
+		if service, err := h.App.FindRecordById("services", serviceID); err == nil {
+			serviceName = service.GetString("name")
+		}
+		job.Set("service_name", serviceName)
+
 		item := ScheduleItem{JobViewModel: vm}
 		status := job.GetString("job_status")
-		switch status {
-		case "working":
+
+		// [FIX] Determine IsCurrent
+		if status == "moving" || status == "working" {
 			item.StatusColor = "primary"
-			item.Icon = "fa-screwdriver-wrench"
-		case "moving":
-			item.StatusColor = "warning"
-			item.Icon = "fa-truck-fast"
-		default:
-			item.StatusColor = "info"
+			item.Icon = "fa-spinner fa-spin" // Active icon
+			// We can add a field IsCurrent to the struct if needed, or just check StatusColor in template
+			// But template uses .IsCurrent. Let's add it to the struct or map.
+			// Wait, ScheduleItem struct is defined inside the function on line 797.
+			// I should add IsCurrent to it.
+		} else if status == "arrived" {
+			item.StatusColor = "purple"
+			item.Icon = "fa-map-pin"
+		} else {
+			item.StatusColor = "gray" // Default
 			item.Icon = "fa-calendar-check"
 		}
 		scheduleItems = append(scheduleItems, item)
@@ -930,4 +963,37 @@ func (h *TechHandler) UploadEvidence(e *core.RequestEvent) error {
 
 	// Trả về thành công (hoặc HTML partial nếu dùng HTMX để hiển thị lại ảnh vừa up)
 	return e.String(200, "Đã lưu ảnh thành công")
+}
+
+// UpdateNote updates the technician's private note for a job
+// POST /tech/job/{id}/note
+func (h *TechHandler) UpdateNote(e *core.RequestEvent) error {
+	jobID := e.Request.PathValue("id")
+	note := e.Request.FormValue("note")
+
+	// Verify auth
+	if e.Auth == nil {
+		return e.String(401, "Unauthorized")
+	}
+
+	// Fetch booking
+	booking, err := h.App.FindRecordById("bookings", jobID)
+	if err != nil {
+		return e.String(404, "Job not found")
+	}
+
+	// Verify ownership
+	if booking.GetString("technician_id") != e.Auth.Id {
+		return e.String(403, "Forbidden")
+	}
+
+	// Update note
+	booking.Set("tech_notes", note)
+
+	if err := h.App.Save(booking); err != nil {
+		return e.String(500, "Failed to save note")
+	}
+
+	// Return success indicator (maybe just a checkmark or toast trigger)
+	return e.String(200, "Note saved")
 }

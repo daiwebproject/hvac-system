@@ -8,6 +8,7 @@
         content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="theme-color" content="#2563eb">
     <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Tech Portal | {{if .Settings}}{{.Settings.CompanyName}}{{else}}HVAC System{{end}}</title>
 
@@ -73,16 +74,23 @@
     sse-events="job.assigned,job.cancelled" @sse:job.assigned="handleJobAssigned"
     @sse:job.cancelled="handleJobCancelled" @htmx:response-error="handleHtmxError">
 
-    <div x-show="!isOnline" x-cloak x-transition
-        class="fixed top-0 left-0 right-0 z-[100] bg-amber-500 text-white px-4 py-2 text-center text-sm font-bold shadow-md">
-        <i class="fa-solid fa-wifi-slash mr-2"></i> Mất kết nối mạng - Chế độ Offline
-    </div>
-
-    <div x-show="isOnline && pendingCount > 0" x-cloak class="fixed top-4 right-4 z-[90] animate-bounce">
-        <button @click="updateStatus()" class="btn btn-sm btn-warning gap-2 shadow-lg">
-            <i class="fa-solid fa-cloud-arrow-up"></i>
-            <span x-text="pendingCount"></span>
-        </button>
+    <!-- Improved Offline/Sync Indicator -->
+    <div x-data="{ 
+        online: navigator.onLine, 
+        pendingUploads: 0 
+    }" x-init="
+        window.addEventListener('online', () => { online = true; $dispatch('network-restored'); });
+        window.addEventListener('offline', () => online = false);
+        // Lắng nghe sự kiện từ Service Worker hoặc store local
+        window.addEventListener('pending-uploads-changed', (e) => pendingUploads = e.detail.count);
+    " x-show="!online || pendingUploads > 0"
+        class="fixed top-0 left-0 right-0 z-[100] text-center text-xs font-bold py-1 transition-colors duration-300 shadow-md"
+        :class="!online ? 'bg-red-500 text-white' : 'bg-yellow-400 text-black'" style="display: none;">
+        <span x-show="!online"><i class="fa-solid fa-wifi-slash mr-1"></i> Mất kết nối - Dữ liệu đang lưu máy</span>
+        <span x-show="online && pendingUploads > 0">
+            <i class="fa-solid fa-cloud-arrow-up mr-1 animate-bounce"></i> Đang đồng bộ <span
+                x-text="pendingUploads"></span> mục...
+        </span>
     </div>
 
 

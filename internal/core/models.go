@@ -31,6 +31,10 @@ type Booking struct {
 
 	// Exception Handling
 	CancelReason string `json:"cancel_reason"`
+	TechNotes    string `json:"tech_notes"` // [NEW] Technician's private notes
+
+	// UI Helpers
+	StatusOrder int `json:"status_order"` // 1:accepted, 2:moving, 3:arrived, 4:working, 5:completed
 }
 
 // Technician represents a service staff member

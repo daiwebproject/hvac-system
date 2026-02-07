@@ -72,8 +72,25 @@
                 <!-- [NEW] Evidence & Signature -->
                 <div class="border-t border-dashed border-gray-100 pt-4 mb-4">
                     {{ if .Report }}
+
+                    <!-- Before Images -->
+                    {{ if .Report.GetStringSlice "before_images" }}
                     <h3 class="font-bold text-gray-800 text-sm uppercase tracking-wider mb-2 flex items-center gap-2">
-                        <i class="fa-solid fa-camera text-blue-500"></i> Ảnh nghiệm thu
+                        <i class="fa-solid fa-camera text-orange-500"></i> Ảnh hiện trạng
+                    </h3>
+                    <div class="grid grid-cols-4 gap-2 mb-4">
+                        {{ range .Report.GetStringSlice "before_images" }}
+                        <div class="aspect-square rounded-lg overflow-hidden border border-gray-100 bg-gray-50">
+                            <img src="/api/files/job_reports/{{$.Report.Id}}/{{.}}" class="w-full h-full object-cover"
+                                onclick="window.open(this.src, '_blank')">
+                        </div>
+                        {{ end }}
+                    </div>
+                    {{ end }}
+
+                    <!-- After Images -->
+                    <h3 class="font-bold text-gray-800 text-sm uppercase tracking-wider mb-2 flex items-center gap-2">
+                        <i class="fa-solid fa-camera-rotate text-blue-500"></i> Ảnh nghiệm thu
                     </h3>
                     <div class="grid grid-cols-4 gap-2 mb-4">
                         {{ range $index, $img := .Report.GetStringSlice "after_images" }}
@@ -181,7 +198,7 @@
                         </div>
 
                         <!-- Dynamic QR Code -->
-                        {{ if .Invoice }}
+                        {{ if and .Invoice .Settings.BankAccount }}
                         {{ $bankBin := .Settings.BankBin }}
                         {{ $bankAccount := .Settings.BankAccount }}
                         {{ $qrTemplate := or .Settings.QrTemplate "compact" }}
@@ -190,13 +207,11 @@
                         <img src="https://img.vietqr.io/image/{{$bankBin}}-{{$bankAccount}}-{{$qrTemplate}}.png?amount={{$amount}}&addInfo=THANH%20TOAN%20{{$invoiceCode}}"
                             alt="QR Code Chuyển khoản"
                             class="w-48 h-48 mx-auto object-contain mb-3 border-2 border-dashed border-gray-200 rounded-lg p-2"
-                            onerror="this.src='/assets/placeholder_qr.png'">
-                        {{ else }}
+                            onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
                         <div
-                            class="w-48 h-48 mx-auto mb-3 flex items-center justify-center border-2 border-dashed border-red-200 rounded-lg bg-red-50 text-red-500 text-xs text-center p-2">
-                            Chưa có hóa đơn để tạo mã QR
+                            class="hidden w-48 h-48 mx-auto mb-3 flex items-center justify-center border-2 border-dashed border-gray-200 rounded-lg bg-gray-50 text-gray-400 text-xs text-center p-2">
+                            Lỗi tải mã QR
                         </div>
-                        {{ end }}
 
                         <div class="space-y-1 text-sm">
                             {{ $bankOwner := or .Settings.BankOwner "CHUA CAP NHAT" }}
@@ -206,6 +221,15 @@
                                 {{or .Settings.BankAccount "---"}} <i class="fa-regular fa-copy text-xs"></i>
                             </div>
                         </div>
+                        {{ else }}
+                        <div
+                            class="w-full py-8 mx-auto mb-3 flex flex-col items-center justify-center border-2 border-dashed border-gray-200 rounded-lg bg-gray-50 text-gray-500 text-sm text-center p-4">
+                            <i class="fa-solid fa-building-columns text-3xl mb-2 text-gray-300"></i>
+                            <p class="font-bold">Chưa cấu hình tài khoản ngân hàng</p>
+                            <p class="text-xs mt-1">Vui lòng nhập thông tin chuyển khoản thủ công hoặc chọn thanh toán
+                                tiền mặt.</p>
+                        </div>
+                        {{ end }}
                     </div>
 
                     <div class="form-control">
@@ -373,47 +397,62 @@
                     .then(res => res.json())
                     .then(data => {
                         if (data.success) {
+                            // Tạo URL hóa đơn
                             const invoiceUrl = window.location.origin + "/invoice/" + data.invoice_hash;
+
+                            // Tạo link chia sẻ Zalo (encodeURIComponent để tránh lỗi ký tự đặc biệt)
                             const zaloShareUrl = `https://zalo.me/share?url=${encodeURIComponent(invoiceUrl)}`;
 
+                            // Hiển thị Popup thành công
                             Swal.fire({
                                 title: 'Hoàn thành!',
+                                text: 'Đơn hàng đã được hoàn tất.',
                                 icon: 'success',
+                                // [QUAN TRỌNG] Sửa lỗi dấu nháy ở đây:
+                                // Dùng &quot; thay cho ' hoặc " ở class bên trong innerHTML
                                 html: `
-                                    <div class="space-y-4 mt-2">
-                                        <p class="text-sm text-gray-600">Đơn hàng đã được ghi nhận thành công.</p>
-                                        
-                                        <div class="bg-gray-50 rounded-lg p-3 border border-gray-100">
-                                            <p class="text-xs text-gray-400 font-bold uppercase mb-2">Gửi hóa đơn cho Khách</p>
-                                            
-                                            <a href="${zaloShareUrl}" target="_blank" class="btn btn-info btn-sm w-full text-white mb-2 no-underline normal-case">
-                                                <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/91/Icon_of_Zalo.svg/1200px-Icon_of_Zalo.svg.png" 
-                                                     class="w-5 h-5 mr-1 bg-white rounded-full p-0.5">
-                                                Gửi qua Zalo
-                                            </a>
-                                            
-                                            <div class="join w-full">
-                                                <input type="text" value="${invoiceUrl}" class="input input-xs input-bordered join-item w-full text-gray-500" readonly>
-                                                <button onclick="if(navigator.clipboard){navigator.clipboard.writeText('${invoiceUrl}'); this.innerHTML='<i class=\'fa-solid fa-check\'></i>'}" class="btn btn-xs join-item btn-square">
-                                                    <i class="fa-regular fa-copy"></i>
-                                                </button>
-                                            </div>
-                                        </div>
+                <div class="space-y-4 mt-2">
+                    <p class="text-sm text-gray-600">Đơn hàng đã được ghi nhận thành công.</p>
+                    
+                    <div class="bg-gray-50 rounded-lg p-3 border border-gray-100">
+                        <p class="text-xs text-gray-400 font-bold uppercase mb-2">Gửi hóa đơn cho Khách</p>
+                        
+                        <a href="${zaloShareUrl}" target="_blank" class="btn btn-info btn-sm w-full text-white mb-2 no-underline normal-case">
+                            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/91/Icon_of_Zalo.svg/1200px-Icon_of_Zalo.svg.png" 
+                                 class="w-5 h-5 mr-1 bg-white rounded-full p-0.5">
+                            Gửi qua Zalo
+                        </a>
+                        
+                        <div class="join w-full">
+                            <input type="text" value="${invoiceUrl}" class="input input-xs input-bordered join-item w-full text-gray-500" readonly>
+                            
+                            <button onclick="if(navigator.clipboard){
+                                navigator.clipboard.writeText('${invoiceUrl}'); 
+                                this.innerHTML='<i class=&quot;fa-solid fa-check&quot;></i>'; 
+                                setTimeout(() => this.innerHTML='<i class=&quot;fa-regular fa-copy&quot;></i>', 2000);
+                            }" class="btn btn-xs join-item btn-square">
+                                <i class="fa-regular fa-copy"></i>
+                            </button>
+                        </div>
+                    </div>
 
-                                        <a href="/tech/jobs" class="btn btn-outline btn-sm w-full">
-                                            <i class="fa-solid fa-home"></i> Về trang chủ
-                                        </a>
-                                    </div>
-                                `,
+                    <a href="/tech/jobs" class="btn btn-outline btn-sm w-full">
+                        <i class="fa-solid fa-home"></i> Về trang chủ
+                    </a>
+                </div>
+            `,
                                 showConfirmButton: false,
                                 allowOutsideClick: false
                             });
                         } else {
                             Swal.fire('Lỗi', data.error || 'Có lỗi xảy ra', 'error');
+                            this.isSubmitting = false; // Reset nút submit nếu lỗi
                         }
                     })
                     .catch(err => {
-                        Swal.fire('Lỗi kết nối', err.message, 'error');
+                        console.error(err);
+                        Swal.fire('Lỗi kết nối', 'Không thể gửi dữ liệu. Vui lòng kiểm tra mạng.', 'error');
+                        this.isSubmitting = false;
                     });
             }
         }));

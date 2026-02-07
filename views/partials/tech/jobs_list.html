@@ -95,12 +95,18 @@
     {{ end }}
 
     {{else}}
-    <div class="flex flex-col items-center justify-center py-16 text-center opacity-80">
-        <div class="w-24 h-24 bg-gray-50 rounded-full flex items-center justify-center mb-4 text-gray-300">
-            <i class="fa-solid fa-inbox text-4xl"></i>
+    <div class="flex flex-col items-center justify-center py-12 text-center opacity-90">
+        <div class="w-48 h-48 mb-6 relative">
+            <img src="/assets/images/technical-empty-state.png"
+                class="w-full h-full object-contain drop-shadow-sm opacity-90">
+            <!-- decorative elements -->
+            <div class="absolute -top-4 -right-4 w-8 h-8 bg-blue-100 rounded-full blur-xl opacity-50"></div>
+            <div class="absolute bottom-0 -left-4 w-12 h-12 bg-purple-100 rounded-full blur-xl opacity-50"></div>
         </div>
-        <h3 class="font-bold text-gray-500 text-lg">Không có công việc nào</h3>
-        <p class="text-gray-400 text-sm mt-1">Danh sách đang trống</p>
+        <h3 class="font-bold text-gray-600 text-lg">Chưa có công việc nào</h3>
+        <p class="text-gray-400 text-sm mt-2 max-w-[200px] mx-auto leading-relaxed">
+            Tuyệt vời! Bạn có thể nghỉ ngơi một chút trước khi có đơn mới.
+        </p>
     </div>
     {{end}}
 
