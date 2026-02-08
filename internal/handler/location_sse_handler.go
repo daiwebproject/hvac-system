@@ -39,12 +39,31 @@ func (h *LocationSSEHandler) StreamAdminLocations(e *pbCore.RequestEvent) error 
 		"timestamp": time.Now().Unix(),
 	})
 
+	// Heartbeat to keep connection alive every 15 seconds
+	ticker := time.NewTicker(15 * time.Second)
+	defer ticker.Stop()
+
 	// Listen for events
-	for event := range eventChan {
-		// Only send location-related events
-		if event.Type == "location.updated" || event.Type == "geofence.arrived" ||
-			event.Type == "tracking.started" || event.Type == "tracking.stopped" {
-			sendSSEMessage(e, event.Type, event.Data)
+	for {
+		select {
+		case event, ok := <-eventChan:
+			if !ok {
+				return nil
+			}
+			// Only send location-related events
+			if event.Type == "location.updated" || event.Type == "geofence.arrived" ||
+				event.Type == "tracking.started" || event.Type == "tracking.stopped" ||
+				event.Type == "job.status_changed" || event.Type == "tech.status_changed" { // [FIX] Include status events
+				sendSSEMessage(e, event.Type, event.Data)
+			}
+
+		case <-ticker.C:
+			// Send heartbeat
+			sendSSEHeartbeat(e)
+
+		case <-e.Request.Context().Done():
+			// Client disconnected
+			return nil
 		}
 	}
 
@@ -76,12 +95,30 @@ func (h *LocationSSEHandler) StreamCustomerLocation(e *pbCore.RequestEvent) erro
 		"timestamp":  time.Now().Unix(),
 	})
 
+	// Heartbeat to keep connection alive every 15 seconds
+	ticker := time.NewTicker(15 * time.Second)
+	defer ticker.Stop()
+
 	// Listen for events
-	for event := range eventChan {
-		// Send all events related to this booking
-		if event.Type == "location.updated" || event.Type == "geofence.arrived" ||
-			event.Type == "tracking.started" || event.Type == "tracking.stopped" {
-			sendSSEMessage(e, event.Type, event.Data)
+	for {
+		select {
+		case event, ok := <-eventChan:
+			if !ok {
+				return nil
+			}
+			// Send all events related to this booking
+			if event.Type == "location.updated" || event.Type == "geofence.arrived" ||
+				event.Type == "tracking.started" || event.Type == "tracking.stopped" {
+				sendSSEMessage(e, event.Type, event.Data)
+			}
+
+		case <-ticker.C:
+			// Send heartbeat
+			sendSSEHeartbeat(e)
+
+		case <-e.Request.Context().Done():
+			// Client disconnected
+			return nil
 		}
 	}
 

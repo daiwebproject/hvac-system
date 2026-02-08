@@ -12,7 +12,7 @@ class LocationTracker {
   constructor(technicianId, bookingId, options = {}) {
     this.technicianId = technicianId;
     this.bookingId = bookingId;
-    
+
     // Configuration
     this.throttleInterval = options.throttleInterval || 10000; // 10 seconds
     this.highAccuracyMode = options.highAccuracyMode !== false; // Default true
@@ -20,7 +20,7 @@ class LocationTracker {
     this.timeout = options.timeout || 10000; // 10 seconds timeout
     this.geofenceRadius = options.geofenceRadius || 100; // 100 meters
     this.apiEndpoint = options.apiEndpoint || '/api/location';
-    
+
     // State
     this.isTracking = false;
     this.watchId = null;
@@ -28,17 +28,17 @@ class LocationTracker {
     this.lastLatitude = null;
     this.lastLongitude = null;
     this.batteryLevel = 100;
-    
+
     // Stats
     this.sentCount = 0;
     this.errorCount = 0;
     this.pendingRequests = 0;
-    
+
     // Callbacks
-    this.onLocationUpdate = options.onLocationUpdate || (() => {});
-    this.onArrived = options.onArrived || (() => {});
-    this.onError = options.onError || (() => {});
-    this.onStatusChange = options.onStatusChange || (() => {});
+    this.onLocationUpdate = options.onLocationUpdate || (() => { });
+    this.onArrived = options.onArrived || (() => { });
+    this.onError = options.onError || (() => { });
+    this.onStatusChange = options.onStatusChange || (() => { });
   }
 
   /**
@@ -54,10 +54,10 @@ class LocationTracker {
     try {
       // First, notify backend that tracking is starting
       await this.notifyBackendStart();
-      
+
       this.isTracking = true;
       this.lastSentTime = 0; // Allow immediate first update
-      
+
       // Start watching position
       // watchPosition only fires when position actually changes
       // More battery-efficient than setInterval polling
@@ -66,16 +66,16 @@ class LocationTracker {
         timeline: this.timeout,
         maximumAge: this.maxAge
       };
-      
+
       this.watchId = navigator.geolocation.watchPosition(
         (position) => this.handlePositionUpdate(position),
         (error) => this.handlePositionError(error),
         geoOptions
       );
-      
+
       this.onStatusChange({ isTracking: true, message: 'Bắt đầu theo dõi vị trí' });
       console.log('✅ Location tracking started');
-      
+
       return true;
     } catch (error) {
       console.error('❌ Failed to start tracking:', error);
@@ -94,20 +94,20 @@ class LocationTracker {
     }
 
     this.isTracking = false;
-    
+
     // Clear watch
     if (this.watchId !== null) {
       navigator.geolocation.clearWatch(this.watchId);
       this.watchId = null;
     }
-    
+
     try {
       // Notify backend that tracking stopped
       await this.notifyBackendStop();
-      
+
       this.onStatusChange({ isTracking: false, message: 'Dừng theo dõi vị trí' });
       console.log('✅ Location tracking stopped');
-      
+
       return true;
     } catch (error) {
       console.error('⚠️ Failed to notify stop:', error);
@@ -122,11 +122,11 @@ class LocationTracker {
   handlePositionUpdate(position) {
     const { latitude, longitude, accuracy, speed, heading } = position.coords;
     const timestamp = position.timestamp;
-    
+
     // Update cached position
     this.lastLatitude = latitude;
     this.lastLongitude = longitude;
-    
+
     // Throttling check: only send if enough time has passed
     const now = Date.now();
     if (now - this.lastSentTime < this.throttleInterval) {
@@ -141,7 +141,7 @@ class LocationTracker {
       });
       return;
     }
-    
+
     // Send location to server
     this.sendLocationToServer({
       latitude,
@@ -161,10 +161,10 @@ class LocationTracker {
       console.warn('⚠️ Too many pending requests, skipping this update');
       return;
     }
-    
+
     this.lastSentTime = Date.now();
     this.pendingRequests++;
-    
+
     try {
       const payload = {
         technician_id: this.technicianId,
@@ -175,7 +175,7 @@ class LocationTracker {
         speed: locationData.speed,
         heading: locationData.heading
       };
-      
+
       const response = await fetch(this.apiEndpoint, {
         method: 'POST',
         headers: {
@@ -183,27 +183,27 @@ class LocationTracker {
         },
         body: JSON.stringify(payload)
       });
-      
+
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
       }
-      
+
       const data = await response.json();
       this.sentCount++;
-      
+
       console.log(`📍 Location sent (${this.sentCount} total)`, data);
-      
+
       // Check if arrived
       if (data.arrived) {
         this.handleArrived(data);
       }
-      
+
       this.onLocationUpdate({
         ...locationData,
         response: data,
         success: true
       });
-      
+
     } catch (error) {
       this.errorCount++;
       console.error('❌ Failed to send location:', error);
@@ -212,7 +212,7 @@ class LocationTracker {
         message: error.message,
         details: locationData
       });
-      
+
       // Will retry on next position change (due to watchPosition)
     } finally {
       this.pendingRequests--;
@@ -224,7 +224,7 @@ class LocationTracker {
    */
   handlePositionError(error) {
     let message = 'Unknown error';
-    
+
     switch (error.code) {
       case error.PERMISSION_DENIED:
         message = 'Quyền truy cập vị trí bị từ chối. Vui lòng bật GPS.';
@@ -237,7 +237,7 @@ class LocationTracker {
         message = 'Quá thời gian yêu cầu vị trí.';
         break;
     }
-    
+
     console.error(`❌ Geolocation error: ${message}`);
     this.onError({
       type: 'geolocation_error',
@@ -251,7 +251,7 @@ class LocationTracker {
    */
   handleArrived(data) {
     console.log('✨ Technician has ARRIVED!', data);
-    
+
     // Show notification
     if ('Notification' in window && Notification.permission === 'granted') {
       new Notification('Đã đến nơi', {
@@ -260,7 +260,7 @@ class LocationTracker {
         tag: 'arrival-notification'
       });
     }
-    
+
     this.onArrived(data);
   }
 
@@ -269,7 +269,7 @@ class LocationTracker {
    */
   async notifyBackendStart() {
     try {
-      const response = await fetch('/api/tracking/start', {
+      const response = await fetch('/api/tech/tracking/start', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded'
@@ -279,11 +279,11 @@ class LocationTracker {
           booking_id: this.bookingId
         })
       });
-      
+
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
       }
-      
+
       console.log('✅ Backend notified: tracking started');
     } catch (error) {
       console.error('⚠️ Failed to notify backend start:', error);
@@ -296,7 +296,7 @@ class LocationTracker {
    */
   async notifyBackendStop() {
     try {
-      const response = await fetch('/api/tracking/stop', {
+      const response = await fetch('/api/tech/tracking/stop', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded'
@@ -306,11 +306,11 @@ class LocationTracker {
           booking_id: this.bookingId
         })
       });
-      
+
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
       }
-      
+
       console.log('✅ Backend notified: tracking stopped');
     } catch (error) {
       console.error('⚠️ Failed to notify backend stop:', error);
@@ -346,7 +346,7 @@ class LocationTracker {
       console.error('❌ Geolocation not supported in this browser');
       return false;
     }
-    
+
     // Request high level of accuracy
     return new Promise((resolve) => {
       navigator.geolocation.getCurrentPosition(

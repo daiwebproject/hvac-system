@@ -80,6 +80,14 @@ func (h *LocationHandler) UpdateLocation(e *pbCore.RequestEvent) error {
 		req.Heading,
 	)
 
+	// If name is missing in cache (e.g. first update), fetch it
+	if techStatus.TechnicianName == "" {
+		if tech, err := h.techRepo.GetByID(req.TechnicianID); err == nil && tech != nil {
+			techStatus.TechnicianName = tech.Name
+			h.locationCache.SetTechnicianInfo(req.TechnicianID, tech.Name)
+		}
+	}
+
 	// Only broadcast if this is a new update (past throttle period)
 	if !isNewUpdate {
 		return e.JSON(200, map[string]interface{}{
@@ -90,6 +98,14 @@ func (h *LocationHandler) UpdateLocation(e *pbCore.RequestEvent) error {
 		})
 	}
 
+	// [NEW] Persist location to DB for Admin Dashboard reload
+	// We do this asynchronously to avoid blocking the response
+	go func() {
+		if err := h.techRepo.UpdateLocation(req.TechnicianID, req.Latitude, req.Longitude); err != nil {
+			log.Printf("⚠️ Failed to persist location for tech %s: %v", req.TechnicianID, err)
+		}
+	}()
+
 	// Fetch booking info
 	booking, err := h.bookingRepo.GetByID(req.BookingID)
 	if err != nil {
@@ -98,24 +114,53 @@ func (h *LocationHandler) UpdateLocation(e *pbCore.RequestEvent) error {
 	}
 
 	// Calculate distance to customer
+	// Calculate distance to customer
 	var distance float64
 	var arrived bool
 	if booking != nil {
-		distance = cache.CalculateDistance(
-			req.Latitude,
-			req.Longitude,
-			booking.Lat,
-			booking.Long,
-		)
-		h.locationCache.UpdateDistance(req.TechnicianID, distance)
+		// [FIX] If booking coordinates are invalid (0,0), we cannot perform geofence check.
+		// However, returning "arrived=true" would be wrong (user said it "always succeeds").
+		// If the user means that "Address is text only, so checking distance is impossible",
+		// maybe they WANT to FORCE check-in?
+		// But the request says "check-in always succeeds" is the PROBLEM.
+		// So we should ensure it fails or returns a warning if 0,0.
+		// But wait, if Lat is 0, CalculateDistance returns huge number -> Arrived = False.
+		// So the button should be DISABLED.
+		// If it's enabled, then the frontend might be ignoring the distance.
 
-		// Check geofence
-		arrived, _ = h.locationCache.CheckGeofence(
-			req.TechnicianID,
-			booking.Lat,
-			booking.Long,
-			h.geofenceRadius,
-		)
+		// Let's first ensure we don't calculate distance against 0,0
+		if booking.Lat != 0 && booking.Long != 0 {
+			distance = cache.CalculateDistance(
+				req.Latitude,
+				req.Longitude,
+				booking.Lat,
+				booking.Long,
+			)
+			h.locationCache.UpdateDistance(req.TechnicianID, distance)
+
+			// Check geofence
+			arrived, _ = h.locationCache.CheckGeofence(
+				req.TechnicianID,
+				booking.Lat,
+				booking.Long,
+				h.geofenceRadius,
+			)
+		} else {
+			// Coordinates missing.
+			// Logic: If coordinates are missing, we CANNOT verify location.
+			// Should we allow check-in?
+			// If we return arrived=false, tech cannot check in (if UI blocks it).
+			// If we return arrived=true, tech can check in anywhere.
+			// The user complains "always succeeds". This implies currently it behaves like "arrived=true" OR "check skipped".
+			// If I look at the code, distance would be huge, arrived=false.
+			// So why does it succeed?
+			// Maybe `booking.Lat` is NOT 0?
+			// Or maybe the frontend ignores `arrived` flag?
+
+			// Let's mark distance as -1 to indicate "unknown"
+			distance = -1
+			arrived = false
+		}
 	}
 
 	// ============ BROADCAST LOCATION UPDATE ============

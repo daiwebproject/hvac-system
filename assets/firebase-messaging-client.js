@@ -74,7 +74,7 @@ class FirebaseMessagingClient {
       console.log('FCM: SW Ready. Scope:', registration.scope);
 
       const currentToken = await this.messaging.getToken({
-        vapidKey: "BM0Uvapd87utXwp2bBC_23HMT3LjtSwWGq6rUU8FnK6DvnJnTDCR_Kj4mGAC-HLgoia-tgjobgSWDpDJkKX_DBk",
+        vapidKey: window.VAPID_PUBLIC_KEY || "BM0Uvapd87utXwp2bBC_23HMT3LjtSwWGq6rUU8FnK6DvnJnTDCR_Kj4mGAC-HLgoia-tgjobgSWDpDJkKX_DBk",
         serviceWorkerRegistration: registration // <--- KEY FIX: Sử dụng lại SW chính
       });
 

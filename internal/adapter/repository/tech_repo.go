@@ -2,6 +2,7 @@ package repository
 
 import (
 	"hvac-system/internal/core"
+	"time"
 
 	pbCore "github.com/pocketbase/pocketbase/core"
 )
@@ -152,6 +153,18 @@ func (r *PBTechnicianRepo) ClearFCMTokenExcept(token, exceptTechID string) error
 		}
 	}
 	return nil
+}
+
+// UpdateLocation updates the last known location of a technician
+func (r *PBTechnicianRepo) UpdateLocation(techID string, lat, long float64) error {
+	record, err := r.app.FindRecordById("technicians", techID)
+	if err != nil {
+		return err
+	}
+	record.Set("last_lat", lat)
+	record.Set("last_long", long)
+	record.Set("last_location_update", time.Now())
+	return r.app.Save(record)
 }
 
 // CountActive returns the number of active technicians

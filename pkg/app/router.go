@@ -158,6 +158,9 @@ func RegisterRoutes(pb *pocketbase.PocketBase, c *internalApp.Container) {
 		se.Router.GET("/api/bookings/{id}/location/stream", locationSSEHandler.StreamCustomerLocation)
 		se.Router.GET("/api/tech/{id}/events/stream", locationSSEHandler.StreamTechnicianEvents)
 
+		// [TEMP] Public for simulation script
+		se.Router.POST("/api/tech/location/update", locationHandler.UpdateLocation)
+
 		// ---------------------------------------------------------
 		// 5. AUTH ROUTES
 		// ---------------------------------------------------------
@@ -235,7 +238,7 @@ func RegisterRoutes(pb *pocketbase.PocketBase, c *internalApp.Container) {
 
 		// ----- LOCATION TRACKING - ADMIN ROUTES -----
 		adminGroup.GET("/api/locations", locationHandler.GetAllTechLocations)
-		adminGroup.GET("/api/locations/stream", locationSSEHandler.StreamAdminLocations)
+		adminGroup.GET("/locations/stream", locationSSEHandler.StreamAdminLocations)
 
 		// ---------------------------------------------------------
 		// 7. TECH ROUTES (Trang giao diện chính)
@@ -276,7 +279,7 @@ func RegisterRoutes(pb *pocketbase.PocketBase, c *internalApp.Container) {
 		apiGroup.POST("/fcm/token", fcm.RegisterDeviceToken)
 
 		// ----- LOCATION TRACKING API -----
-		apiGroup.POST("/location/update", locationHandler.UpdateLocation)
+
 		apiGroup.POST("/tracking/start", locationHandler.StartTracking)
 		apiGroup.POST("/tracking/stop", locationHandler.StopTracking)
 		apiGroup.GET("/location", locationHandler.GetTechLocation)

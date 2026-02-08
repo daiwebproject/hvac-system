@@ -37,6 +37,9 @@ type TechnicianRepository interface {
 	UpdateFCMToken(techID, token string) error
 	ClearFCMTokenExcept(token, exceptTechID string) error // Clear token from all techs except one
 
+	// Location Management
+	UpdateLocation(techID string, lat, long float64) error
+
 	// Helper for Dynamic Availability
 	CountActive() (int, error)
 }

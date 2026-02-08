@@ -12,38 +12,42 @@
 class MapTracker {
   constructor(leafletMap, options = {}) {
     this.map = leafletMap;
-    
+
     // Configuration
     this.interpolationDuration = options.interpolationDuration || 8000; // 8 seconds smooth animation
     this.techMarkers = {}; // Store markers by tech_id
     this.techLines = {}; // Store polylines by tech_id
     this.interpolationFrameRate = options.frameRate || 30; // 30fps for smooth animation
-    
+
     // Marker icons
     this.techMarkerIcon = this.createTechMarkerIcon();
     this.arrivalMarkerIcon = this.createArrivalMarkerIcon();
     this.customerMarkerIcon = this.createCustomerMarkerIcon();
-    
+
     // Tracking state
     this.animationState = {};
     this.pathHistory = {}; // Store path history for drawing lines
     this.maxPathPoints = options.maxPathPoints || 50;
-    
+
     // Callbacks
-    this.onMarkerClick = options.onMarkerClick || (() => {});
-    this.onArrived = options.onArrived || (() => {});
+    this.onMarkerClick = options.onMarkerClick || (() => { });
+    this.onArrived = options.onArrived || (() => { });
   }
 
   /**
    * Create Leaflet marker icon for technician
    */
-  createTechMarkerIcon() {
+  /**
+   * Create Leaflet marker icon for technician
+   */
+  createTechMarkerIcon(status = 'online') {
+    const color = this.getStatusColor(status);
     return L.divIcon({
       html: `
         <div class="tech-marker" style="
           width: 40px;
           height: 40px;
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          background: ${color.bg};
           border-radius: 50%;
           border: 3px solid white;
           box-shadow: 0 2px 8px rgba(0,0,0,0.3);
@@ -59,7 +63,7 @@ class MapTracker {
             position: absolute;
             width: 100%;
             height: 100%;
-            border: 2px solid rgba(102, 126, 234, 0.4);
+            border: 2px solid ${color.ring};
             border-radius: 50%;
             animation: pulse 2s infinite;
           "></span>
@@ -71,6 +75,20 @@ class MapTracker {
       popupAnchor: [0, -20],
       className: 'tech-marker-icon'
     });
+  }
+
+  /**
+   * Get color configuration based on status
+   */
+  getStatusColor(status) {
+    switch (status) {
+      case 'moving': return { bg: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', ring: 'rgba(245, 158, 11, 0.4)' }; // Orange
+      case 'working': return { bg: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)', ring: 'rgba(139, 92, 246, 0.4)' }; // Purple
+      case 'completed': return { bg: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', ring: 'rgba(16, 185, 129, 0.4)' }; // Green
+      case 'offline': // Fallthrough or Gray
+      case 'inactive': return { bg: 'linear-gradient(135deg, #6b7280 0%, #4b5563 100%)', ring: 'rgba(107, 114, 128, 0.4)' }; // Gray
+      default: return { bg: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)', ring: 'rgba(59, 130, 246, 0.4)' }; // Blue (Online/Idle)
+    }
   }
 
   /**
@@ -139,19 +157,19 @@ class MapTracker {
    */
   updateTechnicianLocation(techId, techName, latitude, longitude, customerLat, customerLng, distance = null) {
     const newLatLng = [latitude, longitude];
-    
+
     // If marker doesn't exist, create it
     if (!this.techMarkers[techId]) {
       this.createTechnicianMarker(techId, techName, newLatLng);
     }
-    
+
     const marker = this.techMarkers[techId];
-    
+
     // If we have an ongoing animation, cancel it and use the last animated position
     if (this.animationState[techId] && this.animationState[techId].animationId) {
       cancelAnimationFrame(this.animationState[techId].animationId);
     }
-    
+
     // Store path history for visualization
     if (!this.pathHistory[techId]) {
       this.pathHistory[techId] = [];
@@ -160,25 +178,35 @@ class MapTracker {
     if (this.pathHistory[techId].length > this.maxPathPoints) {
       this.pathHistory[techId].shift();
     }
-    
+
     // Update path line on map
     this.updatePathLine(techId);
-    
+
     // Start smooth animation to new position
     this.animateMarkerToPosition(techId, marker, newLatLng);
-    
+
     // Update info (distance, status, etc.)
     if (marker.distanceLabel && distance !== null) {
       marker.distanceLabel.setContent(this.formatDistance(distance));
     }
-    
+
     // Update customer marker if provided
     if (customerLat && customerLng) {
       this.updateCustomerMarker(techId, customerLat, customerLng);
     }
-    
+
     // Fit map to show both markers
     this.fitMapToMarkers(techId);
+  }
+
+  /**
+   * Update technician marker status (color)
+   */
+  updateTechnicianStatus(techId, status) {
+    if (this.techMarkers[techId]) {
+      const newIcon = this.createTechMarkerIcon(status);
+      this.techMarkers[techId].setIcon(newIcon);
+    }
   }
 
   /**
@@ -190,7 +218,7 @@ class MapTracker {
       draggable: false,
       title: techName
     }).addTo(this.map);
-    
+
     // Add popup with tech info
     marker.bindPopup(`
       <div class="tech-popup" style="min-width: 150px;">
@@ -199,7 +227,7 @@ class MapTracker {
         <div id="distance-${techId}" style="margin-top: 5px; font-size: 12px;"></div>
       </div>
     `);
-    
+
     // Add distance label
     const distanceLabel = L.tooltip({
       permanent: true,
@@ -210,14 +238,14 @@ class MapTracker {
     });
     marker.bindTooltip(distanceLabel);
     marker.distanceLabel = distanceLabel;
-    
+
     // Add click handler
     marker.on('click', () => {
       this.onMarkerClick({ techId, techName, latlng });
     });
-    
+
     this.techMarkers[techId] = marker;
-    
+
     // Initialize animation state
     this.animationState[techId] = {
       currentLatLng: latlng,
@@ -234,32 +262,38 @@ class MapTracker {
   animateMarkerToPosition(techId, marker, targetLatLng) {
     const state = this.animationState[techId];
     if (!state) return;
-    
-    const startLatLng = state.currentLatLng || marker.getLatLng();
+
+    // Ensure startLatLng is an array [lat, lng]
+    let startLatLng = state.currentLatLng;
+    if (!startLatLng) {
+      const latLngObj = marker.getLatLng();
+      startLatLng = [latLngObj.lat, latLngObj.lng];
+    }
+
     state.currentLatLng = startLatLng;
     state.targetLatLng = targetLatLng;
     state.progress = 0;
-    
+
     const startTime = performance.now();
     const duration = this.interpolationDuration;
-    
+
     const animate = (currentTime) => {
       const elapsed = currentTime - startTime;
       const progress = Math.min(elapsed / duration, 1);
-      
+
       // Easing function: ease-in-out
-      const eased = progress < 0.5 
-        ? 2 * progress * progress 
+      const eased = progress < 0.5
+        ? 2 * progress * progress
         : -1 + 4 * progress - 2 * progress * progress;
-      
+
       // Linear interpolation between current and target position
       const interpolatedLat = startLatLng[0] + (targetLatLng[0] - startLatLng[0]) * eased;
       const interpolatedLng = startLatLng[1] + (targetLatLng[1] - startLatLng[1]) * eased;
-      
+
       marker.setLatLng([interpolatedLat, interpolatedLng]);
       state.currentLatLng = [interpolatedLat, interpolatedLng];
       state.progress = progress;
-      
+
       if (progress < 1) {
         state.animationId = requestAnimationFrame(animate);
       } else {
@@ -269,7 +303,7 @@ class MapTracker {
         state.animationId = null;
       }
     };
-    
+
     state.animationId = requestAnimationFrame(animate);
   }
 
@@ -281,7 +315,7 @@ class MapTracker {
     if (this.techLines[techId]) {
       this.map.removeLayer(this.techLines[techId]);
     }
-    
+
     // Create new line
     const pathPoints = this.pathHistory[techId];
     if (pathPoints.length > 1) {
@@ -292,7 +326,7 @@ class MapTracker {
         smoothFactor: 1.0,
         dashArray: '5, 5'
       }).addTo(this.map);
-      
+
       this.techLines[techId] = polyline;
     }
   }
@@ -302,13 +336,13 @@ class MapTracker {
    */
   updateCustomerMarker(techId, customerLat, customerLng) {
     const markerId = `customer-${techId}`;
-    
+
     if (!this.techMarkers[markerId]) {
       const marker = L.marker([customerLat, customerLng], {
         icon: this.customerMarkerIcon,
         title: 'Địa chỉ khách hàng'
       }).addTo(this.map);
-      
+
       marker.bindPopup('📍 Địa chỉ khách hàng');
       this.techMarkers[markerId] = marker;
     } else {
@@ -322,10 +356,10 @@ class MapTracker {
   showArrivalNotification(techId, techName, message) {
     const techMarker = this.techMarkers[techId];
     if (!techMarker) return;
-    
+
     // Change marker icon
     techMarker.setIcon(this.arrivalMarkerIcon);
-    
+
     // Update popup
     techMarker.bindPopup(`
       <div class="arrival-popup" style="min-width: 200px; text-align: center;">
@@ -333,10 +367,10 @@ class MapTracker {
         <small>${techName}</small>
       </div>
     `).openPopup();
-    
+
     // Trigger callback
     this.onArrived({ techId, techName, message });
-    
+
     // Animate back to tech icon after 5 seconds
     setTimeout(() => {
       if (techMarker && this.techMarkers[techId]) {
@@ -350,20 +384,40 @@ class MapTracker {
    */
   fitMapToMarkers(techId) {
     const markers = [];
-    
+
     if (this.techMarkers[techId]) {
       markers.push(this.techMarkers[techId]);
     }
-    
+
     const customerMarkerId = `customer-${techId}`;
     if (this.techMarkers[customerMarkerId]) {
       markers.push(this.techMarkers[customerMarkerId]);
     }
-    
+
     if (markers.length > 1) {
       const group = new L.featureGroup(markers);
       this.map.fitBounds(group.getBounds().pad(0.1));
     }
+  }
+
+  /**
+   * Fit map bounds to show ALL markers (techs + customers)
+   */
+  fitMapToAllMarkers() {
+    const markers = [];
+
+    // Add all tech markers
+    Object.values(this.techMarkers).forEach(marker => markers.push(marker));
+
+    // Add all customer markers (if stored in techMarkers with prefix)
+    // currently techMarkers stores both tech and customer markers
+
+    if (markers.length > 0) {
+      const group = new L.featureGroup(markers);
+      this.map.fitBounds(group.getBounds().pad(0.1));
+      return true;
+    }
+    return false;
   }
 
   /**
@@ -376,7 +430,7 @@ class MapTracker {
     Object.values(this.techLines).forEach(line => {
       this.map.removeLayer(line);
     });
-    
+
     this.techMarkers = {};
     this.techLines = {};
     this.animationState = {};
@@ -391,25 +445,25 @@ class MapTracker {
       this.map.removeLayer(this.techMarkers[techId]);
       delete this.techMarkers[techId];
     }
-    
+
     const customerMarkerId = `customer-${techId}`;
     if (this.techMarkers[customerMarkerId]) {
       this.map.removeLayer(this.techMarkers[customerMarkerId]);
       delete this.techMarkers[customerMarkerId];
     }
-    
+
     if (this.techLines[techId]) {
       this.map.removeLayer(this.techLines[techId]);
       delete this.techLines[techId];
     }
-    
+
     if (this.animationState[techId]) {
       if (this.animationState[techId].animationId) {
         cancelAnimationFrame(this.animationState[techId].animationId);
       }
       delete this.animationState[techId];
     }
-    
+
     if (this.pathHistory[techId]) {
       delete this.pathHistory[techId];
     }

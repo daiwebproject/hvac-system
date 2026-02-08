@@ -43,12 +43,12 @@ func (lc *LocationCache) UpdateTechLocation(
 
 	now := time.Now().UnixMilli()
 
-	// Check throttle - only update if 10 seconds have passed
+	// Check throttle - only update if 2 seconds have passed
 	lc.reportMutex.RLock()
 	lastTime := lc.lastReportTime[techID]
 	lc.reportMutex.RUnlock()
 
-	isNewUpdate := (now - lastTime) >= 10000 // 10 seconds
+	isNewUpdate := (now - lastTime) >= 2000 // 2 seconds
 
 	status := lc.techLocations[techID]
 	if status == nil {

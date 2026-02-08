@@ -83,6 +83,64 @@ window.techDashboard = function (initData) {
             this.startAutoRefresh();
         },
 
+        async toggleStatus(el) {
+            // Optimistic UI update
+            const oldStatus = this.userActive;
+            const newStatus = el.checked;
+            this.userActive = newStatus;
+
+            try {
+                // Get Location
+                const position = await new Promise((resolve, reject) => {
+                    if (!navigator.geolocation) reject("No Geo");
+                    navigator.geolocation.getCurrentPosition(resolve, reject, {
+                        enableHighAccuracy: true,
+                        timeout: 5000
+                    });
+                });
+
+                const lat = position.coords.latitude;
+                const long = position.coords.longitude;
+
+                // Send to Server via HTMX (simulated via htmx.ajax or fetch)
+                // Using htmx.ajax to keep it consistent or just fetch
+                // Actually, htmx.ajax is cleaner if we want HTMX events, but fetch is easier for custom logic
+
+                const formData = new FormData();
+                formData.append('lat', lat);
+                formData.append('long', long);
+
+                // We'll use fetch here for control
+                const response = await fetch('/api/tech/status/toggle', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) throw new Error('Update failed');
+
+                const data = await response.json();
+                this.userActive = data.active;
+
+            } catch (err) {
+                console.warn('Status toggle error or no location:', err);
+
+                // Fallback: Send without location if GPS fails
+                try {
+                    const response = await fetch('/api/tech/status/toggle', { method: 'POST' });
+                    if (response.ok) {
+                        const data = await response.json();
+                        this.userActive = data.active;
+                        return;
+                    }
+                } catch (e) { }
+
+                // Revert if total failure
+                this.userActive = oldStatus;
+                el.checked = oldStatus;
+                alert('Không thể cập nhật trạng thái: ' + err.message);
+            }
+        },
+
         startAutoRefresh() {
             setInterval(() => {
                 if (this.refreshCountdown > 0) {

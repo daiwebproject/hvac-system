@@ -45,22 +45,34 @@ export function kanbanBoard(initialActive = [], initialCompleted = []) {
         selectedJob: null,
         searchQuery: '',
         showMapModal: false,
-        fullscreenMapInstance: null,
+        // Heavy objects stored on instance (non-reactive)
+        // fullscreenMapInstance: null,
+        // sseConnection: null,
+        // locationSSE: null,
+        // fullscreenTracker: null,
+
         mapSidebarTab: 'techs',
         techHoverOn: null,
         jobHoverOn: null,
         selectedTechOnMap: null,
         selectedJobOnMap: null,
         techs: window.initialTechs || [],
-        markerLayerGroup: null,
+        // markerLayerGroup: null, // Heavy object
         showMapSidebar: false,
-        mapMarkers: {},
+        // mapMarkers: {}, // Heavy object
         assignTechId: '',
-        sseConnection: null,
         busyTechs: [], // [NEW] Track busy technicians for assignment modal
 
         // === Lifecycle ===
         init() {
+            // Initialize non-reactive properties
+            this.fullscreenMapInstance = null;
+            this.sseConnection = null;
+            this.locationSSE = null;
+            this.fullscreenTracker = null;
+            this.markerLayerGroup = null;
+            this.mapMarkers = {};
+
             this.initializeColumns(initialActive, initialCompleted);
             this.setupSSE();
             window.moveJobLocally = this.moveJobLocally.bind(this);
@@ -74,6 +86,12 @@ export function kanbanBoard(initialActive = [], initialCompleted = []) {
         destroy() {
             if (this.sseConnection) {
                 this.sseConnection.close();
+            }
+            if (this.locationSyncHandler) {
+                document.removeEventListener('admin:location-updated', this.locationSyncHandler);
+            }
+            if (this.fullscreenTracker) {
+                this.fullscreenTracker.clearAll();
             }
         },
 
@@ -124,6 +142,43 @@ export function kanbanBoard(initialActive = [], initialCompleted = []) {
                 onMessage: (event) => this.handleSSEEvent(event),
                 onError: () => console.warn('[Kanban] SSE connection error'),
             });
+            this.setupLocationSync(); // [NEW] Sync with Admin Map
+        },
+
+        setupLocationSync() {
+            // Listen to global events from Admin Map (tracking-integration.js)
+            this.locationSyncHandler = (e) => {
+                const tech = e.detail;
+                if (this.fullscreenTracker && this.showMapModal) {
+                    // console.log('[Kanban] Sync update:', tech.name);
+                    this.fullscreenTracker.updateTechnicianLocation(
+                        tech.id,
+                        tech.name,
+                        tech.lat,
+                        tech.lng,
+                        null, null,
+                        tech.distance
+                    );
+
+                    // [NEW] Sync Status
+                    if (tech.status) {
+                        this.fullscreenTracker.updateTechnicianStatus(tech.id, tech.status);
+                    }
+
+                    // [NEW] Update sidebar list
+                    this.updateTechInList({
+                        id: tech.id,
+                        name: tech.name,
+                        lat: tech.lat,
+                        long: tech.lng,
+                        distance: tech.distance,
+                        active: true,
+                        status: tech.status // [FIX] Pass status
+                    });
+                }
+            };
+            document.addEventListener('admin:location-updated', this.locationSyncHandler);
+            console.log('[Kanban] Location sync initialized');
         },
 
         handleSSEEvent(event) {
@@ -132,6 +187,14 @@ export function kanbanBoard(initialActive = [], initialCompleted = []) {
             switch (event.type) {
                 case 'job.status_changed':
                     this.moveJobLocally(event.data.booking_id, event.data.status);
+                    // [NEW] Update map marker status
+                    if (this.fullscreenTracker && event.data.tech_id) {
+                        this.fullscreenTracker.updateTechnicianStatus(event.data.tech_id, event.data.status);
+                    }
+                    if (event.data.tech_id) {
+                        // Update sidebar list info via existing helper
+                        this.updateTechInList({ id: event.data.tech_id, status: event.data.status });
+                    }
                     break;
 
                 case 'job.assigned':
@@ -164,11 +227,25 @@ export function kanbanBoard(initialActive = [], initialCompleted = []) {
                     const tech = this.techs.find(t => t.id === event.data.id);
                     if (tech) {
                         tech.active = event.data.active;
-                        tech.lat = event.data.lat;
+                        tech.lat = event.data.lat; // Update lat/long from event
                         tech.long = event.data.long;
-                        // Force reactivity if needed
+
+                        // [FIX] Derive status string from active boolean
+                        // If they are on a job (working/moving), we might need to preserve that? 
+                        // But usually 'status_changed' means online/offline toggle.
+                        // Ideally we check if they have active jobs, but for now simple toggle:
+                        if (!tech.active) tech.status = 'offline';
+                        else if (tech.status === 'offline') tech.status = 'online'; // Only switch back to online if previously offline
+
+                        // Force reactivity
                         this.techs = [...this.techs];
                         if (this.showMapModal) this.renderMapMarkers();
+
+                        // Also update map marker if present
+                        if (this.fullscreenTracker) {
+                            this.fullscreenTracker.updateTechnicianStatus(tech.id, tech.status);
+                            this.fullscreenTracker.updateTechnicianLocation(tech.id, tech.name, tech.lat, tech.long);
+                        }
                     }
                     break;
             }
@@ -537,6 +614,12 @@ export function kanbanBoard(initialActive = [], initialCompleted = []) {
 
         closeMapModal() {
             this.showMapModal = false;
+
+            if (this.fullscreenTracker) {
+                this.fullscreenTracker.clearAll();
+                this.fullscreenTracker = null;
+            }
+
             if (this.fullscreenMapInstance) {
                 this.fullscreenMapInstance.remove();
                 this.fullscreenMapInstance = null;
@@ -571,23 +654,178 @@ export function kanbanBoard(initialActive = [], initialCompleted = []) {
 
             this.markerLayerGroup = L.layerGroup().addTo(this.fullscreenMapInstance);
 
+            // [NEW] Initialize MapTracker
+            try {
+                const TrackerClass = window.MapTracker || MapTracker;
+                if (typeof TrackerClass !== 'undefined') {
+                    console.log('[Kanban] Initializing MapTracker for fullscreen map');
+                    this.fullscreenTracker = new TrackerClass(this.fullscreenMapInstance, {
+                        onMarkerClick: (m) => this.highlightTechOnMap(m.techId)
+                    });
+
+                    // Initial render of techs
+                    let synced = false;
+                    // Try to sync from small map (adminLocationMonitoring) first
+                    if (window.adminMapComponent && typeof window.adminMapComponent.getActiveTechnicians === 'function') {
+                        try {
+                            const activeTechs = window.adminMapComponent.getActiveTechnicians();
+                            if (activeTechs && activeTechs.length > 0) {
+                                console.log('[Kanban] Syncing from small map:', activeTechs.length, 'techs');
+                                activeTechs.forEach(t => {
+                                    this.fullscreenTracker.updateTechnicianLocation(
+                                        t.id, t.name, t.lat, t.lng, null, null, t.distance
+                                    );
+                                    // [NEW] Sync sidebar list
+                                    this.updateTechInList({
+                                        id: t.id, name: t.name, lat: t.lat, long: t.lng, distance: t.distance, active: true
+                                    });
+                                });
+                                synced = true;
+                            }
+                        } catch (err) { console.warn('[Kanban] Sync failed:', err); }
+                    }
+
+                    // Fallback to local state if no sync data
+                    if (!synced) {
+                        this.techs.forEach(t => {
+                            if (t.active && t.lat && t.long) {
+                                console.log('[Kanban] Adding initial tech (fallback):', t.name);
+                                this.fullscreenTracker.updateTechnicianLocation(t.id, t.name, t.lat, t.long);
+                            }
+                        });
+                    }
+                } else {
+                    console.warn('[Kanban] MapTracker not defined (global or window)');
+                }
+            } catch (e) { console.error('[Kanban] MapTracker init error:', e); }
+
             setTimeout(() => {
                 this.fullscreenMapInstance.invalidateSize();
                 this.renderMapMarkers();
+                // Auto fit
+                if (this.fullscreenTracker) this.fullscreenTracker.fitMapToAllMarkers();
             }, 300);
+        },
+
+        updateTechInList(data) {
+            const idx = this.techs.findIndex(t => t.id === data.id);
+            if (idx !== -1) {
+                // Update existing
+                const oldLat = this.techs[idx].lat;
+                const oldLong = this.techs[idx].long;
+
+                this.techs[idx].lat = data.lat;
+                this.techs[idx].long = data.long;
+                // If data.active is present, use it. Otherwise assume true if receiving location?
+                if (typeof data.active !== 'undefined') this.techs[idx].active = data.active;
+                else this.techs[idx].active = true;
+
+                if (data.distance) this.techs[idx].distance = data.distance;
+                if (data.status) this.techs[idx].status = data.status;
+
+                // Fetch address if location changed significantly (moved > 10m?) 
+                // or if no address yet.
+                // Simple check: if lat/long changed.
+                if (data.lat && data.long && (oldLat !== data.lat || oldLong !== data.long)) {
+                    this.fetchAddress(this.techs[idx]);
+                }
+
+                // Force Alpine reactivity for array item
+                this.techs = [...this.techs];
+            } else {
+                // Optional: Add if new?
+                const newTech = {
+                    id: data.id,
+                    name: data.name,
+                    lat: data.lat,
+                    long: data.long,
+                    active: true,
+                    distance: data.distance,
+                    address: 'Đang lấy địa chỉ...'
+                };
+                this.techs.push(newTech);
+                if (newTech.lat && newTech.long) this.fetchAddress(newTech);
+            }
+        },
+
+        async fetchAddress(tech) {
+            if (!tech.lat || !tech.long) return;
+
+            // Debounce or cache could be added here.
+            try {
+                // Use OpenStreetMap Nominatim
+                // IMPORTANT: Use a proper User-Agent header if possible, or respects policy.
+                // In browser fetch, we can't easily set User-Agent to a custom value 
+                // that overrides browser default, but standard usage is usually okay for low volume.
+                const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${tech.lat}&lon=${tech.long}&zoom=18&addressdetails=1`;
+
+                const response = await fetch(url, {
+                    headers: { 'Accept-Language': 'vi' }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    tech.address = data.display_name || data.name || 'Không xác định';
+                    // Shorten address for UI?
+                    if (tech.address.length > 60) tech.address = tech.address.substring(0, 60) + '...';
+                }
+            } catch (e) {
+                console.warn('Geo reverse error:', e);
+                tech.address = `${tech.lat.toFixed(4)}, ${tech.long.toFixed(4)}`;
+            }
+            // Force update
+            this.techs = [...this.techs];
+        },
+
+        filterJobsByTech(techId) {
+            this.mapSidebarTab = 'orders';
+            this.searchQuery = '';
+            // TODO: Implement actual filtering of the list if needed, or just highlight
+            // For now, we just switch to orders tab. 
+            // Ideally we should have a filtered view.
         },
 
         renderMapMarkers() {
             if (!this.fullscreenMapInstance || !this.markerLayerGroup) return;
 
+            // Only handle Job Markers here (Tech markers handled by MapTracker)
             this.markerLayerGroup.clearLayers();
             this.mapMarkers = {};
 
             const allJobs = this.getAllJobs();
             allJobs.forEach(job => {
                 if (job.lat && job.long) {
-                    const marker = L.marker([job.lat, job.long])
-                        .bindPopup(`<b>${job.customer}</b><br>${job.address || ''}`);
+                    // Custom marker color based on status
+                    let markerColor = 'blue';
+                    if (job.status === 'pending') markerColor = 'gold';
+                    if (job.status === 'working') markerColor = 'violet';
+                    if (job.status === 'completed') markerColor = 'green';
+                    if (job.status === 'assigned') markerColor = 'blue';
+
+                    // Use Leaflet default icon with hue shift or custom divIcon
+                    // Simple solution: Html Icon
+                    const iconHtml = `<div class="w-4 h-4 rounded-full border-2 border-white shadow-sm bg-${markerColor}-500"></div>`;
+
+                    const marker = L.marker([job.lat, job.long], {
+                        icon: L.divIcon({
+                            className: 'custom-job-marker',
+                            html: `<span class="relative flex h-4 w-4">
+                                      <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-${markerColor}-400 opacity-75" style="display: ${job.status === 'working' ? 'block' : 'none'}"></span>
+                                      <span class="relative inline-flex rounded-full h-4 w-4 bg-${markerColor}-500 border-2 border-white shadow-sm"></span>
+                                    </span>`,
+                            iconSize: [20, 20],
+                            iconAnchor: [10, 10]
+                        })
+                    }).bindPopup(`
+                        <div class="p-1">
+                            <h3 class="font-bold text-sm">${job.customer || job.customer_name}</h3>
+                            <p class="text-xs text-slate-600 mb-1">${job.address}</p>
+                            <span class="text-[10px] px-2 py-0.5 rounded bg-${markerColor}-100 text-${markerColor}-700 font-bold uppercase">
+                                ${this.getStatusLabel(job.status)}
+                            </span>
+                        </div>
+                    `);
+
                     marker.addTo(this.markerLayerGroup);
                     this.mapMarkers[job.id] = marker;
                 }
@@ -632,6 +870,28 @@ export function kanbanBoard(initialActive = [], initialCompleted = []) {
 
         getStatusLabel(status) {
             return getStatusLabel(status);
+        },
+
+        getTechStatusLabel(status) {
+            switch (status) {
+                case 'moving': return 'Đang đi';
+                case 'working': return 'Đang làm';
+                case 'active': // Fallback legacy
+                case 'online': return 'Tốc hành/Rãnh';
+                case 'offline': return 'Offline';
+            }
+            return 'Chờ việc';
+        },
+
+        getTechStatusClass(status) {
+            switch (status) {
+                case 'moving': return 'bg-orange-100 text-orange-700';
+                case 'working': return 'bg-purple-100 text-purple-700';
+                case 'active':
+                case 'online': return 'bg-blue-100 text-blue-700';
+                case 'offline': return 'bg-gray-100 text-gray-600';
+            }
+            return 'bg-slate-100 text-slate-600';
         }
     };
 }

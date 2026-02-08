@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
 	domain "hvac-system/internal/core"
@@ -45,6 +46,15 @@ func (h *TechHandler) UpdateJobStatusHTMX(e *core.RequestEvent) error {
 	// Validate status transition (Updated to match UI flow)
 	// Validate status transition (Updated to match UI flow)
 	currentStatus := job.JobStatus
+
+	// [FIX] Idempotency check: If already in target status, return success
+	if currentStatus == newStatus {
+		return e.JSON(200, map[string]string{
+			"status":  newStatus,
+			"message": "Trạng thái đã được cập nhật",
+		})
+	}
+
 	validTransition := map[string][]string{
 		"pending":  {"moving", "cancelled"},
 		"assigned": {"accepted", "moving", "cancelled"},
@@ -68,7 +78,7 @@ func (h *TechHandler) UpdateJobStatusHTMX(e *core.RequestEvent) error {
 		if currentStatus == "cancelled" {
 			return e.String(409, "Đơn hàng này đã bị hủy hoặc thay đổi trạng thái bởi Admin.")
 		}
-		return e.String(409, fmt.Sprintf("Trạng thái không hợp lệ (Hiện tại: %s)", currentStatus))
+		return e.String(409, fmt.Sprintf("Trạng thái không hợp lệ (Hiện tại: %s -> %s)", currentStatus, newStatus))
 	}
 
 	// Update job status
@@ -525,6 +535,18 @@ func (h *TechHandler) ToggleOnlineStatus(e *core.RequestEvent) error {
 	isActive := authRecord.GetBool("active")
 	newStatus := !isActive
 	authRecord.Set("active", newStatus)
+
+	// [NEW] Update Location if provided
+	latStr := e.Request.FormValue("lat")
+	longStr := e.Request.FormValue("long")
+	if latStr != "" && longStr != "" {
+		if lat, err := strconv.ParseFloat(latStr, 64); err == nil {
+			authRecord.Set("last_lat", lat)
+		}
+		if long, err := strconv.ParseFloat(longStr, 64); err == nil {
+			authRecord.Set("last_long", long)
+		}
+	}
 
 	if err := h.App.Save(authRecord); err != nil {
 		return e.String(500, "Failed to update status")

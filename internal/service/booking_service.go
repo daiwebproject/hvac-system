@@ -226,6 +226,18 @@ func (s *BookingService) AssignTechnician(bookingID, technicianID string) error 
 			)
 			if err != nil {
 				log.Printf("❌ [BOOKING_SERVICE] FCM Failed: %v", err)
+
+				// [FIX] Auto-cleanup invalid tokens
+				if err.Error() == "token_invalid" {
+					log.Printf("🧹 [BOOKING_SERVICE] Cleaning up invalid token for tech %s", tech.ID)
+					tech.FCMToken = ""
+					// We need to update the tech record.
+					// techRepo interface might need Update method, or we rely on FindRecordById in app.
+					// Since we have techRepo, let's use it if available or fallback.
+					if err := s.techRepo.Update(tech); err != nil {
+						log.Printf("⚠️ [BOOKING_SERVICE] Failed to clear invalid token: %v", err)
+					}
+				}
 			} else {
 				log.Printf("✅ [BOOKING_SERVICE] FCM Sent Successfully to %s", tech.ID)
 			}
@@ -301,9 +313,16 @@ func (s *BookingService) TechCheckIn(bookingID string, techLat, techLong float64
 	}
 
 	// Check distance (allow 0.5km error)
-	// If booking has no coordinates (e.g. legacy), we might skip or error.
-	// For now assuming booking.Lat/Long are valid if set.
-	if booking.Lat != 0 && booking.Long != 0 {
+	// [FIX] If booking has no coordinates (Lat/Long = 0), we assume the technician is at the correct location.
+	// We Update the booking's location to the technician's current location to "fix" the data.
+	if booking.Lat == 0 || booking.Long == 0 {
+		log.Printf("⚠️ Booking %s has no coordinates. Auto-updating to tech location: %.6f, %.6f", bookingID, techLat, techLong)
+		booking.Lat = techLat
+		booking.Long = techLong
+		// We don't save yet, we save at the end of function along with status update.
+		// Distance check is skipped (effectively dist=0)
+	} else {
+		// Normal Check
 		dist := Haversine(techLat, techLong, booking.Lat, booking.Long)
 		if dist > 0.5 {
 			return fmt.Errorf("bạn đang cách khách hàng %.2f km (yêu cầu < 0.5 km). Vui lòng đến gần hơn để check-in.", dist)

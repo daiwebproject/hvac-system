@@ -1,4 +1,8 @@
 {{ define "content" }}
+<link rel="stylesheet" href="/assets/vendor/leaflet/leaflet.css" />
+<script src="/assets/vendor/leaflet/leaflet.js"></script>
+<script src="/assets/js/services/map-tracking.js"></script>
+<script src="/assets/js/services/tracking-integration.js"></script>
 
 {{template "admin/stats_cards" .}}
 
@@ -348,21 +352,22 @@
         </div>
         <div class="xl:col-span-3 space-y-6">
 
-            <div class="card bg-white shadow-sm border border-gray-100 overflow-hidden group">
+            <div class="card bg-white shadow-sm border border-gray-100 overflow-hidden group"
+                x-data="adminLocationMonitoring()" @init="init()">
                 <div class="p-3 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
                     <h3 class="font-bold text-gray-700 text-sm"><i
                             class="fa-solid fa-map-location-dot text-blue-500 mr-2"></i> Bản đồ thợ</h3>
                     <div class="flex gap-1">
-                        <button class="btn btn-xs btn-ghost text-blue-600" onclick="fitMapBounds()">Center</button>
+                        <button class="btn btn-xs btn-ghost text-blue-600" @click="fitBounds()">Center</button>
                         <button class="btn btn-xs btn-primary gap-1" @click="openMapModal()">
                             <i class="fa-solid fa-expand"></i> Mở rộng
                         </button>
                     </div>
                 </div>
                 <div class="relative h-64 w-full bg-gray-100">
-                    <div id="fleet-map" class="absolute inset-0 z-0"></div>
-                    <div
-                        class="absolute inset-0 flex items-center justify-center pointer-events-none z-0 text-gray-400 text-xs">
+                    <div id="admin-map" class="absolute inset-0 z-0"></div>
+                    <div class="absolute inset-0 flex items-center justify-center pointer-events-none z-0 text-gray-400 text-xs"
+                        x-show="!map">
                         Loading Map...
                     </div>
                 </div>
@@ -626,26 +631,49 @@
                     <!-- Tab Content: Technicians -->
                     <div x-show="mapSidebarTab === 'techs'" class="overflow-y-auto flex-1 bg-white">
                         <template x-for="tech in techs" :key="tech.id">
-                            <div class="p-3 border-b hover:bg-blue-50 cursor-pointer transition"
+                            <div class="p-3 border-b hover:bg-blue-50 cursor-pointer transition group"
                                 @click="selectAndPanTo(tech.lat, tech.long, tech.id)" @mouseleave="techHoverOn = null"
                                 :class="techHoverOn === tech.id ? 'bg-blue-100' : ''">
                                 <div class="flex justify-between items-start gap-2">
-                                    <div class="flex-1">
-                                        <p class="font-semibold text-sm text-slate-800" x-text="tech.name"></p>
-                                        <p class="text-xs text-slate-500"
-                                            x-text="tech.phone ? ('📱 ' + tech.phone) : ''">
-                                        </p>
+                                    <div class="flex items-center gap-3 flex-1">
+                                        <div class="relative">
+                                            <div
+                                                class="w-10 h-10 rounded-full bg-gray-200 border-2 border-white shadow-sm overflow-hidden">
+                                                <!-- Avatar placeholder or image if available -->
+                                                <img :src="tech.avatar ? `/api/files/technicians/${tech.id}/${tech.avatar}` : 'https://ui-avatars.com/api/?name=' + tech.name"
+                                                    class="w-full h-full object-cover">
+                                            </div>
+                                            <div class="absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full border-2 border-white"
+                                                :class="tech.active ? 'bg-green-500' : 'bg-gray-400'"></div>
+                                        </div>
+                                        <div>
+                                            <p class="font-bold text-sm text-slate-800 group-hover:text-blue-700 transition"
+                                                x-text="tech.name"></p>
+                                            <p class="text-[11px] text-slate-500 flex items-center gap-1">
+                                                <i class="fa-solid fa-phone text-[10px]"></i>
+                                                <span x-text="tech.phone"></span>
+                                            </p>
+                                        </div>
                                     </div>
-                                    <span class="text-xs px-2 py-1 rounded-full font-semibold"
-                                        :class="tech.status === 'on_job' ? 'bg-purple-100 text-purple-700' : 'bg-slate-100 text-slate-600'"
-                                        x-text="tech.status === 'on_job' ? 'Đang làm' : 'Chờ việc'">
-                                    </span>
+                                    <div class="flex flex-col items-end gap-1">
+                                        <span class="text-[10px] px-2 py-0.5 rounded-full font-bold border"
+                                            :class="getTechStatusClass(tech.status).replace('bg-', 'bg-opacity-20 border-').replace('text-', 'text-')"
+                                            x-text="getTechStatusLabel(tech.status)">
+                                        </span>
+                                        <span class="text-[10px] text-slate-400" x-show="tech.distance">
+                                            <i class="fa-solid fa-location-arrow mr-0.5"></i>
+                                            <span x-text="Math.round(tech.distance) + 'km'"></span>
+                                        </span>
+                                    </div>
                                 </div>
-                                <!-- Jobs count -->
-                                <p class="text-xs text-slate-400 mt-2">
-                                    <i class="fa-solid fa-tasks text-orange-500 mr-1"></i>
-                                    <span x-text="getJobsForTech(tech.id) + ' đơn'"></span>
-                                </p>
+                                <!-- Expanded Info on Hover/Active -->
+                                <div class="mt-2 text-xs text-slate-500 bg-slate-50 p-2 rounded flex justify-between items-center"
+                                    x-show="getJobsForTech(tech.id).length > 0">
+                                    <span><i class="fa-solid fa-briefcase text-blue-500 mr-1"></i> <span
+                                            x-text="getJobsForTech(tech.id).length"></span> đơn đang nhận</span>
+                                    <button class="text-blue-600 hover:underline font-medium"
+                                        @click.stop="filterJobsByTech(tech.id)">Xem đơn</button>
+                                </div>
                             </div>
                         </template>
                     </div>
@@ -653,25 +681,38 @@
                     <!-- Tab Content: Orders -->
                     <div x-show="mapSidebarTab === 'orders'" class="overflow-y-auto flex-1">
                         <template x-for="job in getAllJobs()" :key="job.id">
-                            <div class="p-3 border-b hover:bg-blue-50 cursor-pointer transition"
+                            <div class="p-3 border-b hover:bg-blue-50 cursor-pointer transition group"
                                 @click="highlightJobOnMap(job.id)" @mouseenter="jobHoverOn = job.id"
                                 @mouseleave="jobHoverOn = null" :class="jobHoverOn === job.id ? 'bg-blue-100' : ''">
-                                <div class="flex justify-between items-start gap-2">
-                                    <div class="flex-1">
-                                        <p class="font-semibold text-sm text-slate-800" x-text="job.customer_name"></p>
-                                        <p class="text-xs text-slate-500"
-                                            x-text="job.address?.substring(0, 40) + '...'">
+                                <div class="flex justify-between gap-2">
+                                    <div class="flex-1 min-w-0">
+                                        <div class="flex items-center gap-2 mb-1">
+                                            <span class="font-bold text-sm text-slate-800 truncate"
+                                                x-text="job.customer_name || job.customer"></span>
+                                            <span class="text-[10px] px-1.5 rounded border"
+                                                :class="job.status === 'priority' ? 'bg-red-50 text-red-600 border-red-200' : 'hidden'">Gấp</span>
+                                        </div>
+                                        <p class="text-[11px] text-slate-500 flex items-start gap-1">
+                                            <i class="fa-solid fa-map-pin text-[10px] mt-0.5 text-red-400"></i>
+                                            <span class="line-clamp-2"
+                                                x-text="job.address || job.address_details || 'Chưa có địa chỉ'"></span>
+                                        </p>
+                                        <p class="text-[11px] text-slate-400 mt-1">
+                                            <i class="fa-regular fa-clock mr-1"></i>
+                                            <span x-text="job.time"></span>
                                         </p>
                                     </div>
-                                    <span class="text-xs px-2 py-1 rounded-full font-semibold" :class="job.status === 'completed' ? 'bg-green-100 text-green-700' : 
+                                    <div class="flex flex-col items-end gap-1 shrink-0">
+                                        <span class="text-[10px] px-2 py-0.5 rounded-full font-bold" :class="job.status === 'completed' ? 'bg-green-100 text-green-700' : 
                                                    job.status === 'working' ? 'bg-purple-100 text-purple-700' : 
                                                    job.status === 'assigned' ? 'bg-blue-100 text-blue-700' : 
                                                    'bg-yellow-100 text-yellow-700'"
-                                        x-text="getStatusLabel(job.status)">
-                                    </span>
+                                            x-text="getStatusLabel(job.status)">
+                                        </span>
+                                        <span class="text-[10px] text-blue-600 font-medium"
+                                            x-text="job.service_type || job.service"></span>
+                                    </div>
                                 </div>
-                                <!-- Service type -->
-                                <p class="text-xs text-slate-400 mt-2" x-text="'📋 ' + job.service_type"></p>
                             </div>
                         </template>
                     </div>
