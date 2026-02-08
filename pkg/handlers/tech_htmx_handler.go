@@ -76,9 +76,15 @@ func (h *TechHandler) UpdateJobStatusHTMX(e *core.RequestEvent) error {
 
 	if !allowed {
 		if currentStatus == "cancelled" {
-			return e.String(409, "Đơn hàng này đã bị hủy hoặc thay đổi trạng thái bởi Admin.")
+			return e.JSON(409, map[string]interface{}{
+				"error":          "Đơn hàng này đã bị hủy hoặc thay đổi trạng thái bởi Admin.",
+				"current_status": currentStatus,
+			})
 		}
-		return e.String(409, fmt.Sprintf("Trạng thái không hợp lệ (Hiện tại: %s -> %s)", currentStatus, newStatus))
+		return e.JSON(409, map[string]interface{}{
+			"error":          fmt.Sprintf("Trạng thái không hợp lệ (Hiện tại: %s -> %s)", currentStatus, newStatus),
+			"current_status": currentStatus,
+		})
 	}
 
 	// Update job status

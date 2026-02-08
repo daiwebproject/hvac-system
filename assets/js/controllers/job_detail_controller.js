@@ -14,6 +14,37 @@ window.JobDetailController = function (data) {
         showUpdateModal: false,
         evidenceNote: '',
 
+        init() {
+            // Lắng nghe sự kiện SSE từ global
+            document.body.addEventListener('job.cancelled', (e) => {
+                const data = e.detail;
+                if (data && (data.booking_id === this.id || data.job_id === this.id)) {
+                    this.handleServerCancellation(data);
+                }
+            });
+
+            document.body.addEventListener('job.status_changed', (e) => {
+                const data = e.detail;
+                if (data && (data.job_id === this.id || data.booking_id === this.id)) {
+                    console.log('🔄 Job status changed from server:', data.status);
+                    this.status = data.status;
+                    // Optional: Show toast
+                    if (window.pushToast) window.pushToast('info', 'Trạng thái được cập nhật', data.status);
+                }
+            });
+        },
+
+        async handleServerCancellation(data) {
+            await Swal.fire({
+                title: 'Công việc đã bị hủy!',
+                text: `Lý do: ${data.reason || 'Admin đã hủy'}`,
+                icon: 'warning',
+                allowOutsideClick: false,
+                confirmButtonText: 'Về danh sách'
+            });
+            window.location.href = '/tech/jobs';
+        },
+
         callSupport() {
             Swal.fire({
                 title: 'Hỗ trợ kỹ thuật',
@@ -61,6 +92,20 @@ window.JobDetailController = function (data) {
             return map[s] || s;
         },
 
+        getStatusOrder(s) {
+            const map = {
+                'pending': 0,
+                'assigned': 1,
+                'accepted': 1,
+                'moving': 2,
+                'arrived': 3,
+                'working': 4,
+                'completed': 5,
+                'cancelled': 6
+            };
+            return map[s] || 0;
+        },
+
         async updateStatus(newStatus, confirmMsg) {
             this.updateStatusAPI(newStatus, confirmMsg);
         },
@@ -91,7 +136,7 @@ window.JobDetailController = function (data) {
                 if (res.ok) {
                     this.status = newStatus;
 
-                    // Show success message then reload to update UI (Server-side rendered buttons)
+                    // Show success message (No reload needed now!)
                     await Swal.fire({
                         title: 'Thành công!',
                         text: 'Đã cập nhật trạng thái',
@@ -99,7 +144,21 @@ window.JobDetailController = function (data) {
                         timer: 1000,
                         showConfirmButton: false
                     });
-                    window.location.reload();
+                } else if (res.status === 409) {
+                    // [FIX] Handle Conflict (Server status differs from Client)
+                    const data = await res.json();
+                    if (data.current_status) {
+                        this.status = data.current_status;
+                        await Swal.fire({
+                            title: 'Cập nhật dữ liệu',
+                            text: 'Trạng thái công việc đã được cập nhật từ máy chủ.',
+                            icon: 'info',
+                            timer: 2000,
+                            showConfirmButton: false
+                        });
+                        return;
+                    }
+                    Swal.fire('Lỗi', data.error || 'Trạng thái không hợp lệ', 'error');
                 } else {
                     Swal.fire('Lỗi', 'Lỗi cập nhật trạng thái', 'error');
                 }
@@ -155,9 +214,6 @@ window.JobDetailController = function (data) {
 
                         if (res.ok) {
                             this.status = 'arrived'; // Update local state immediately
-
-                            // Reload to update UI
-                            window.location.reload();
 
                             Swal.fire({
                                 title: 'Thành công!',

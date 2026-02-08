@@ -1,5 +1,4 @@
 {{define "content"}}
-<script src="/assets/vendor/signature_pad/signature_pad.umd.min.js"></script>
 <script>
     // [NEW] Global Bank Config from Server
     const BANK_CONFIG = {
@@ -14,7 +13,8 @@
      })">
 
     <div class="bg-blue-600 p-4 text-white flex items-center shadow-lg sticky top-0 z-40">
-        <a href="/tech/job/{{.Booking.ID}}" class="mr-3 btn btn-ghost btn-sm btn-circle text-white">
+        <a href="/tech/job/{{.Booking.ID}}" hx-get="/tech/job/{{.Booking.ID}}" hx-target="#main-content"
+            hx-push-url="true" class="mr-3 btn btn-ghost btn-sm btn-circle text-white">
             <i class="fas fa-arrow-left"></i>
         </a>
         <h1 class="font-bold text-lg">Nghiệm thu & Thanh toán</h1>

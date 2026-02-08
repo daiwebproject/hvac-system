@@ -501,7 +501,7 @@ func (h *TechHandler) SubmitCompleteJob(e *core.RequestEvent) error {
 	}
 
 	// 4. Redirect to payment page (customer signs and pays)
-	return e.Redirect(http.StatusTemporaryRedirect, fmt.Sprintf("/tech/job/%s/invoice-payment", jobID))
+	return e.Redirect(http.StatusSeeOther, fmt.Sprintf("/tech/job/%s/invoice-payment", jobID))
 }
 
 // ShowInvoicePayment displays the invoice, signature canvas, and payment options

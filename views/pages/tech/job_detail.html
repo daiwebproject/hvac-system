@@ -1,5 +1,5 @@
 {{ define "content" }}
-<script src="/assets/js/controllers/job_detail_controller.js?v=9"></script>
+<script src="/assets/js/controllers/job_detail_controller.js?v=11"></script>
 <script src="/assets/js/services/location-tracking.js"></script>
 <script src="/assets/js/services/tracking-integration.js"></script>
 <script>
@@ -15,7 +15,7 @@
         lat: {{.Job.Lat}}, 
         long: {{.Job.Long}}, 
         address: {{printf " %q" (or .Job.AddressDetails .Job.Address)}}, status: '{{.Job.JobStatus}}' })"
-    class="bg-gray-50 min-h-screen pb-32">
+    x-init="init()" class="bg-gray-50 min-h-screen pb-32">
 
     <!-- Navbar -->
     <nav class="bg-white/90 backdrop-blur-md shadow-sm sticky top-0 z-40 border-b border-gray-100/50">
@@ -50,12 +50,12 @@
 
         <div class="w-full px-4 py-4 bg-white border-b border-gray-100">
             <ul class="steps steps-horizontal w-full text-[10px] md:text-xs">
-                <li class="step {{if ge .Job.StatusOrder 1}}step-primary{{end}}">Nhận</li>
-                <li class="step {{if ge .Job.StatusOrder 2}}step-primary{{end}}">Đi</li>
-                <li class="step {{if ge .Job.StatusOrder 3}}step-primary{{end}}"
-                    data-content='{{if eq .Job.JobStatus "arrived"}}✓{{else}}●{{end}}'>Đến</li>
-                <li class="step {{if ge .Job.StatusOrder 4}}step-primary{{end}}">Làm</li>
-                <li class="step {{if ge .Job.StatusOrder 5}}step-primary{{end}}">Xong</li>
+                <li class="step" :class="getStatusOrder(status) >= 1 ? 'step-primary' : ''">Nhận</li>
+                <li class="step" :class="getStatusOrder(status) >= 2 ? 'step-primary' : ''">Đi</li>
+                <li class="step" :class="getStatusOrder(status) >= 3 ? 'step-primary' : ''" data-content="●"
+                    :data-content="status === 'arrived' ? '✓' : '●'">Đến</li>
+                <li class="step" :class="getStatusOrder(status) >= 4 ? 'step-primary' : ''">Làm</li>
+                <li class="step" :class="getStatusOrder(status) >= 5 ? 'step-primary' : ''">Xong</li>
             </ul>
 
             <div class="mt-3">
@@ -149,52 +149,66 @@
         </div>
 
         <div class="w-full max-w-lg pointer-events-auto shadow-2xl rounded-2xl overflow-hidden">
-            {{if eq .Job.JobStatus "assigned"}}
-            <button @click="updateStatus('accepted', 'Nhận việc')"
-                class="btn btn-primary w-full btn-lg h-14 min-h-[3.5rem] border-none flex items-center justify-between px-6 group animate-pulse">
-                <span class="font-bold text-lg text-white">NHẬN VIỆC NGAY</span>
-                <div
-                    class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
-                    <i class="fa-solid fa-check text-xl text-white"></i>
-                </div>
-            </button>
-            {{else if eq .Job.JobStatus "accepted"}}
-            <button @click="updateStatus('moving', 'Bắt đầu di chuyển'); startTracking()"
-                class="btn btn-info w-full btn-lg h-14 min-h-[3.5rem] border-none flex items-center justify-between px-6 group">
-                <span class="font-bold text-lg text-white">BẮT ĐẦU DI CHUYỂN</span>
-                <div
-                    class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center group-hover:translate-x-1 transition-transform">
-                    <i class="fa-solid fa-person-biking text-xl text-white"></i>
-                </div>
-            </button>
-            {{else if eq .Job.JobStatus "moving"}}
-            <button @click="checkIn(); stopTracking()"
-                class="btn btn-warning w-full btn-lg h-14 min-h-[3.5rem] border-none flex items-center justify-between px-6 group">
-                <span class="font-bold text-lg text-white">ĐÃ ĐẾN NƠI (Check-in)</span>
-                <div
-                    class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
-                    <i class="fa-solid fa-location-dot text-xl text-white"></i>
-                </div>
-            </button>
-            {{else if eq .Job.JobStatus "arrived"}}
-            <button @click="updateStatus('working', 'Bắt đầu làm việc')"
-                class="btn btn-success w-full btn-lg h-14 min-h-[3.5rem] border-none flex items-center justify-between px-6 group">
-                <span class="font-bold text-lg text-white">BẮT ĐẦU LÀM VIỆC</span>
-                <div
-                    class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center group-hover:rotate-12 transition-transform">
-                    <i class="fa-solid fa-screwdriver-wrench text-xl text-white"></i>
-                </div>
-            </button>
-            {{else if eq .Job.JobStatus "working"}}
-            <a href="/tech/job/{{.Job.ID}}/complete"
-                class="btn btn-primary w-full btn-lg h-14 min-h-[3.5rem] border-none flex items-center justify-between px-6 group">
-                <span class="font-bold text-lg text-white">HOÀN THÀNH CÔNG VIỆC</span>
-                <div
-                    class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
-                    <i class="fa-solid fa-clipboard-check text-xl text-white"></i>
-                </div>
-            </a>
-            {{end}}
+            <!-- Status: Assigned (Mới được giao) -->
+            <template x-if="status === 'assigned'">
+                <button @click="updateStatus('accepted', 'Nhận việc')"
+                    class="btn btn-primary w-full btn-lg h-14 min-h-[3.5rem] border-none flex items-center justify-between px-6 group animate-pulse">
+                    <span class="font-bold text-lg text-white">NHẬN VIỆC NGAY</span>
+                    <div
+                        class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <i class="fa-solid fa-check text-xl text-white"></i>
+                    </div>
+                </button>
+            </template>
+
+            <!-- Status: Accepted (Đã nhận -> Bắt đầu đi) -->
+            <template x-if="status === 'accepted'">
+                <button @click="updateStatus('moving', 'Bắt đầu di chuyển'); startTracking()"
+                    class="btn btn-info w-full btn-lg h-14 min-h-[3.5rem] border-none flex items-center justify-between px-6 group">
+                    <span class="font-bold text-lg text-white">BẮT ĐẦU DI CHUYỂN</span>
+                    <div
+                        class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center group-hover:translate-x-1 transition-transform">
+                        <i class="fa-solid fa-person-biking text-xl text-white"></i>
+                    </div>
+                </button>
+            </template>
+
+            <!-- Status: Moving (Đang đi -> Check-in) -->
+            <template x-if="status === 'moving'">
+                <button @click="checkIn(); stopTracking()"
+                    class="btn btn-warning w-full btn-lg h-14 min-h-[3.5rem] border-none flex items-center justify-between px-6 group">
+                    <span class="font-bold text-lg text-white">ĐÃ ĐẾN NƠI (Check-in)</span>
+                    <div
+                        class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <i class="fa-solid fa-location-dot text-xl text-white"></i>
+                    </div>
+                </button>
+            </template>
+
+            <!-- Status: Arrived (Đã đến -> Bắt đầu làm) -->
+            <template x-if="status === 'arrived'">
+                <button @click="updateStatus('working', 'Bắt đầu làm việc')"
+                    class="btn btn-success w-full btn-lg h-14 min-h-[3.5rem] border-none flex items-center justify-between px-6 group">
+                    <span class="font-bold text-lg text-white">BẮT ĐẦU LÀM VIỆC</span>
+                    <div
+                        class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center group-hover:rotate-12 transition-transform">
+                        <i class="fa-solid fa-screwdriver-wrench text-xl text-white"></i>
+                    </div>
+                </button>
+            </template>
+
+            <!-- Status: Working (Đang làm -> Hoàn thành) -->
+            <template x-if="status === 'working'">
+                <a href="/tech/job/{{.Job.ID}}/complete" hx-get="/tech/job/{{.Job.ID}}/complete"
+                    hx-target="#main-content" hx-swap="innerHTML" hx-push-url="true"
+                    class="btn btn-primary w-full btn-lg h-14 min-h-[3.5rem] border-none flex items-center justify-between px-6 group">
+                    <span class="font-bold text-lg text-white">HOÀN THÀNH CÔNG VIỆC</span>
+                    <div
+                        class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <i class="fa-solid fa-clipboard-check text-xl text-white"></i>
+                    </div>
+                </a>
+            </template>
         </div>
     </div>
 

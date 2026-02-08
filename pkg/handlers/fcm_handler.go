@@ -111,6 +111,19 @@ func (h *FCMHandler) RegisterDeviceToken(e *core.RequestEvent) error {
 		}
 	}
 
+	// [FIX] Ensure Technician is NOT subscribed to admin_alerts
+	// This prevents techs who might have tested as admin from receiving admin notifications
+	if h.FCMService != nil {
+		go func() {
+			err := h.FCMService.UnsubscribeFromTopic(context.Background(), []string{req.Token}, "admin_alerts")
+			if err != nil {
+				fmt.Printf("⚠️ Failed to unsubscribe tech from admin_alerts: %v\n", err)
+			} else {
+				fmt.Printf("✅ Unsubscribed tech token from admin_alerts\n")
+			}
+		}()
+	}
+
 	return e.JSON(200, map[string]interface{}{
 		"success": true,
 		"message": "FCM token registered successfully",
