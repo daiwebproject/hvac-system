@@ -89,7 +89,8 @@
 
             <!-- Tab 1: New -->
             <div x-ref="newPanel" class="w-full flex-shrink-0 snap-center min-w-full"
-                hx-get="/api/tech/jobs/list?status=new" hx-trigger="load, sse:job.assigned">
+                hx-get="/api/tech/jobs/list?status=new"
+                hx-trigger="load, sse:job.assigned, sse:job.status_changed, sse:job.cancelled, statusUpdated from:body">
                 <div class="space-y-4 animate-pulse">
                     <div class="h-32 bg-gray-100 rounded-2xl"></div>
                     <div class="h-32 bg-gray-100 rounded-2xl"></div>
@@ -98,6 +99,8 @@
 
             <!-- Tab 2: Active -->
             <div x-ref="activePanel" class="w-full flex-shrink-0 snap-center min-w-full"
+                hx-get="/api/tech/jobs/list?status=active"
+                hx-trigger="load, sse:job.assigned, sse:job.status_changed, sse:job.cancelled, statusUpdated from:body">
                 hx-get="/api/tech/jobs/list?status=active" hx-trigger="load">
                 <div class="space-y-4 animate-pulse">
                     <div class="h-32 bg-gray-100 rounded-2xl"></div>

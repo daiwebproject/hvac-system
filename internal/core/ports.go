@@ -88,6 +88,7 @@ type NotificationService interface {
 	NotifyAdmins(ctx context.Context, tokens []string, bookingID, customerName string) ([]string, error)                               // [UPDATED] Return failed tokens
 	NotifyBookingCancelled(ctx context.Context, bookingID, customerName, reason, note string) error                                    // [NEW]
 	NotifyAdminsBookingCancelled(ctx context.Context, tokens []string, bookingID, customerName, reason, note string) ([]string, error) // [UPDATED] Return failed tokens
+	NotifyJobStatusChange(ctx context.Context, techToken string, jobID string, status string) error                                    // [NEW]
 }
 
 // BookingService defines business logic methods

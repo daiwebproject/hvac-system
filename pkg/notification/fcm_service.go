@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
 
 	firebase "firebase.google.com/go/v4"
 	"firebase.google.com/go/v4/messaging"
@@ -195,6 +196,9 @@ func (s *FCMService) NotifyNewJobAssignment(ctx context.Context, techToken strin
 	}
 
 	_, err := s.SendNotification(ctx, payload)
+	if err != nil && IsInvalidTokenError(err) {
+		return fmt.Errorf("token_invalid")
+	}
 	return err
 }
 
@@ -205,6 +209,7 @@ func (s *FCMService) NotifyJobStatusChange(ctx context.Context, techToken string
 		"in_progress": "🔧 Đang thực hiện",
 		"completed":   "✨ Hoàn thành",
 		"pending":     "⏳ Chờ duyệt",
+		"cancelled":   "❌ Đơn hàng đã hủy",
 	}
 
 	title, ok := statusMessage[status]
@@ -227,18 +232,10 @@ func (s *FCMService) NotifyJobStatusChange(ctx context.Context, techToken string
 	}
 
 	_, err := s.SendNotification(ctx, payload)
-	if err != nil {
-		// [FIX] Auto-cleanup invalid tokens
-		if IsInvalidTokenError(err) {
-			log.Printf("⚠️ FCM Token invalid for tech, removing: %s", techToken)
-			// We need access to DB here to clear token.
-			// Ideally, FCMService should have a callback or repo access.
-			// For now, we return a specific error or handle it in the handler/service layer.
-			return fmt.Errorf("token_invalid")
-		}
-		return err
+	if err != nil && IsInvalidTokenError(err) {
+		return fmt.Errorf("token_invalid")
 	}
-	return nil
+	return err
 }
 
 // Helper to check for invalid token errors
@@ -253,8 +250,7 @@ func IsInvalidTokenError(err error) bool {
 }
 
 func contains(s, substr string) bool {
-	// Simple string contains check
-	return len(s) >= len(substr) && s[0:len(substr)] == substr // Simplify for now or import strings
+	return strings.Contains(s, substr)
 }
 
 // NotifyPendingReviewsSync notifies technician to sync pending offline reports

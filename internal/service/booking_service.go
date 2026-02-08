@@ -264,12 +264,62 @@ func (s *BookingService) RecallToPending(bookingID string) error {
 		booking.SlotID = nil
 	}
 
+	// Capture old tech ID for notification
+	oldTechID := booking.TechnicianID
+
 	// Clear Assignments
 	booking.TechnicianID = ""
 	booking.JobStatus = "pending"
 
 	if err := s.bookingRepo.Update(booking); err != nil {
 		return fmt.Errorf("failed to recall booking: %w", err)
+	}
+
+	// [CENTRALIZED NOTIFICATION]
+	if s.broker != nil {
+		// Notify Old Tech (SSE) - Trigger list reload (job will disappear)
+		if oldTechID != "" {
+			s.broker.Publish(broker.ChannelTech, oldTechID, broker.Event{
+				Type:      "job.status_changed",
+				Timestamp: time.Now().Unix(),
+				Data: map[string]interface{}{
+					"job_id": bookingID,
+					"status": "pending", // Will cause it to be removed from tech view
+				},
+			})
+		}
+
+		// Notify Admin (SSE)
+		s.broker.Publish(broker.ChannelAdmin, "", broker.Event{
+			Type:      "job.status_changed",
+			Timestamp: time.Now().Unix(),
+			Data: map[string]interface{}{
+				"booking_id": bookingID,
+				"status":     "pending",
+				"tech_id":    oldTechID, // Inform admin it was unassigned
+			},
+		})
+	}
+
+	// Notify Old Tech (FCM)
+	if s.notifications != nil && oldTechID != "" {
+		go func() {
+			tech, err := s.techRepo.GetByID(oldTechID)
+			if err == nil && tech.FCMToken != "" {
+				// Use "cancelled" or custom message for unassignment?
+				// "pending" maps to "Chờ duyệt", might be confusing.
+				// "cancelled" maps to "Đơn hàng đã hủy".
+				// Let's use "cancelled" for FCM to indicate it's gone from their list.
+				err := s.notifications.NotifyJobStatusChange(context.Background(), tech.FCMToken, bookingID, "cancelled")
+				if err != nil && err.Error() == "token_invalid" {
+					log.Printf("🧹 [BOOKING_SERVICE] Cleaning up invalid token for tech %s in RecallToPending", tech.ID)
+					tech.FCMToken = ""
+					if err := s.techRepo.Update(tech); err != nil {
+						log.Printf("⚠️ [BOOKING_SERVICE] Failed to clear invalid token: %v", err)
+					}
+				}
+			}
+		}()
 	}
 
 	return nil
@@ -286,6 +336,48 @@ func (s *BookingService) UpdateStatus(bookingID, status string) error {
 	booking.JobStatus = status
 	if err := s.bookingRepo.Update(booking); err != nil {
 		return err
+	}
+
+	// [CENTRALIZED NOTIFICATION]
+	if s.broker != nil {
+		// Notify Tech (SSE)
+		if booking.TechnicianID != "" {
+			s.broker.Publish(broker.ChannelTech, booking.TechnicianID, broker.Event{
+				Type:      "job.status_changed",
+				Timestamp: time.Now().Unix(),
+				Data: map[string]interface{}{
+					"job_id": bookingID,
+					"status": status,
+				},
+			})
+		}
+		// Notify Admin (SSE)
+		s.broker.Publish(broker.ChannelAdmin, "", broker.Event{
+			Type:      "job.status_changed",
+			Timestamp: time.Now().Unix(),
+			Data: map[string]interface{}{
+				"booking_id": bookingID,
+				"status":     status,
+				"tech_id":    booking.TechnicianID,
+			},
+		})
+	}
+
+	// Notify Tech (FCM)
+	if s.notifications != nil && booking.TechnicianID != "" {
+		go func() {
+			tech, err := s.techRepo.GetByID(booking.TechnicianID)
+			if err == nil && tech.FCMToken != "" {
+				err := s.notifications.NotifyJobStatusChange(context.Background(), tech.FCMToken, bookingID, status)
+				if err != nil && err.Error() == "token_invalid" {
+					log.Printf("🧹 [BOOKING_SERVICE] Cleaning up invalid token for tech %s in UpdateStatus", tech.ID)
+					tech.FCMToken = ""
+					if err := s.techRepo.Update(tech); err != nil {
+						log.Printf("⚠️ [BOOKING_SERVICE] Failed to clear invalid token: %v", err)
+					}
+				}
+			}
+		}()
 	}
 
 	return nil
@@ -391,21 +483,43 @@ func (s *BookingService) CancelBooking(bookingID, reason, note string) error {
 		}
 	}
 
-	// [NEW] FCM to Admin (Multicast)
+	// [NEW] FCM to Admin (Multicast) AND Tech
 	if s.notifications != nil {
 		go func() {
-			// Fetch admin tokens
+			// 1. Notify Admins
 			settings, err := s.settingsRepo.GetSettings()
 			if err == nil && len(settings.AdminFCMTokens) > 0 {
 				failedTokens, err := s.notifications.NotifyAdminsBookingCancelled(context.Background(), settings.AdminFCMTokens, bookingID, booking.CustomerName, reason, note)
 				if err != nil {
 					log.Printf("❌ [BOOKING_SERVICE] Failed to notify admins of cancellation: %v", err)
 				}
-				// [NEW] Cleanup invalid tokens
+				// Cleanup invalid tokens
 				if len(failedTokens) > 0 {
-					log.Printf("🧹 [BOOKING_SERVICE] Removing %d stale admin tokens during cancel...", len(failedTokens))
 					for _, t := range failedTokens {
 						_ = s.settingsRepo.RemoveAdminToken(t)
+					}
+				}
+			}
+
+			// 2. Notify Tech (if assigned)
+			if booking.TechnicianID != "" {
+				tech, err := s.techRepo.GetByID(booking.TechnicianID)
+				if err == nil && tech.FCMToken != "" {
+					// Re-use NotifyJobStatusChange or create specific one.
+					// Since "cancelled" is a status, NotifyJobStatusChange should work if it handles "cancelled".
+					// Let's check s.notifications.NotifyJobStatusChange implementation.
+					// It maps "pending", "assigned", "in_progress", "completed".
+					// Does it map "cancelled"? lines 203-208 in fcm_service.go
+					// It does NOT listed "cancelled" explicitly in the map, but defaults to "Cập nhật trạng thái...".
+					// Let's use NotifyJobStatusChange and assume it handles it or generic fallback is fine.
+					// Re-use NotifyJobStatusChange or create specific one.
+					err := s.notifications.NotifyJobStatusChange(context.Background(), tech.FCMToken, bookingID, "cancelled")
+					if err != nil && err.Error() == "token_invalid" {
+						log.Printf("🧹 [BOOKING_SERVICE] Cleaning up invalid token for tech %s", tech.ID)
+						tech.FCMToken = ""
+						if err := s.techRepo.Update(tech); err != nil {
+							log.Printf("⚠️ [BOOKING_SERVICE] Failed to clear invalid token: %v", err)
+						}
 					}
 				}
 			}

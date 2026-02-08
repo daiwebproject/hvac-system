@@ -57,6 +57,28 @@ window.offlineIndicator = function () {
                 // Hiển thị toast nhỏ nếu muốn
             });
 
+            // 4. Lắng nghe sự kiện SSE cập nhật trạng thái công việc
+            document.body.addEventListener('job.status_changed', (e) => {
+                console.log('🔄 Job Status Changed (SSE):', e.detail);
+                // Trigger reload of job list
+                const listContainer = document.getElementById('job-list-container');
+                if (listContainer) {
+                    htmx.trigger(listContainer, 'statusUpdated');
+                }
+                // Also show a toast/alert
+                if (window.Toast) window.Toast.info("Trạng thái công việc đã được cập nhật.");
+            });
+
+            // 5. Lắng nghe sự kiện SSE công việc bị hủy
+            document.body.addEventListener('job.cancelled', (e) => {
+                console.log('🚫 Job Cancelled (SSE):', e.detail);
+                const listContainer = document.getElementById('job-list-container');
+                if (listContainer) {
+                    htmx.trigger(listContainer, 'statusUpdated');
+                }
+                if (window.Toast) window.Toast.error("Một công việc đã bị hủy.");
+            });
+
             // Check định kỳ
             this.updatePendingCount();
             setInterval(() => this.updatePendingCount(), 10000);
