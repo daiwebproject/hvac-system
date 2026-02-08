@@ -267,7 +267,7 @@ func RegisterRoutes(pb *pocketbase.PocketBase, c *internalApp.Container) {
 		apiGroup := se.Router.Group("/api/tech")
 		apiGroup.BindFunc(middleware.RequireTech(pb))
 
-		apiGroup.GET("/jobs/list", tech.JobsList)
+		apiGroup.GET("/jobs/list", tech.GetJobsListHTMX)
 		apiGroup.GET("/schedule", tech.GetSchedule)
 
 		// Quản lý trạng thái và thao tác

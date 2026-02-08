@@ -84,7 +84,12 @@ func InitTemplates() (*template.Template, error) {
 		log.Println("Warning: Admin Page Partials error:", err)
 	}
 
-	log.Printf("✅ Loaded Templates: %q", t.DefinedTemplates())
+	// Determine if tech/partials/jobs_list is loaded
+	log.Println("----- DEFINED TEMPLATES START -----")
+	for _, tName := range t.DefinedTemplates() {
+		log.Println("Template:", tName)
+	}
+	log.Println("----- DEFINED TEMPLATES END -----")
 
 	return t, nil
 }

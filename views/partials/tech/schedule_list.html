@@ -21,7 +21,9 @@
                     <!-- Show Date if not today (simplified logic: just show raw date part or handle in backend) -->
                     <!-- Here we trust DisplayTime is time only, so we might want to show date from record -->
                     <span class="text-xs text-gray-400 font-medium">
+                        {{ if gt (len (.GetString "booking_time")) 10 }}
                         {{ slice (.GetString "booking_time") 8 10 }}/{{ slice (.GetString "booking_time") 5 7 }}
+                        {{ end }}
                     </span>
                 </div>
                 <span

@@ -431,8 +431,8 @@ func (h *TechHandler) GetJobsListHTMX(e *core.RequestEvent) error {
 		filterQuery = fmt.Sprintf("technician_id='%s' && job_status='assigned'", authRecord.Id)
 
 	case "active":
-		// TAB 2: ĐANG LÀM (Đang di chuyển hoặc Đang sửa tại nhà khách)
-		filterQuery = fmt.Sprintf("technician_id='%s' && (job_status='moving' || job_status='working')", authRecord.Id)
+		// TAB 2: ĐANG LÀM (Đã nhận, Đang di chuyển hoặc Đang sửa tại nhà khách)
+		filterQuery = fmt.Sprintf("technician_id='%s' && (job_status='accepted' || job_status='moving' || job_status='working')", authRecord.Id)
 
 	case "completed":
 		// TAB 3: HOÀN THÀNH (Lịch sử đã xong)
@@ -444,7 +444,7 @@ func (h *TechHandler) GetJobsListHTMX(e *core.RequestEvent) error {
 
 	default:
 		// Mặc định: Hiện các việc chưa xong (Mới + Đang làm) để thợ không bị sót việc
-		filterQuery = fmt.Sprintf("technician_id='%s' && (job_status='assigned' || job_status='moving' || job_status='working')", authRecord.Id)
+		filterQuery = fmt.Sprintf("technician_id='%s' && (job_status='assigned' || job_status='accepted' || job_status='moving' || job_status='working')", authRecord.Id)
 	}
 
 	jobs, err := h.App.FindRecordsByFilter(
@@ -491,7 +491,7 @@ func (h *TechHandler) GetJobsListHTMX(e *core.RequestEvent) error {
 	}
 
 	e.Response.Header().Set("Content-Type", "text/html; charset=utf-8")
-	return h.renderPartial(e, "tech/partials/jobs_list", data)
+	return h.renderPartial(e, "tech_jobs_list", data)
 }
 
 // renderJobActionButtons returns the action button HTML based on job status

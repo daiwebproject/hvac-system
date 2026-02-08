@@ -102,7 +102,8 @@ window.techDashboard = function (initData) {
             await this.updatePendingReports();
 
             // Auto refresh logic (Countdown timer)
-            this.startAutoRefresh();
+            // [OPTIMIZATION] Disabled auto-refresh as we now use SSE for real-time updates.
+            // this.startAutoRefresh();
         },
 
         async toggleStatus(el) {

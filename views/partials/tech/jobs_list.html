@@ -1,114 +1,123 @@
-{{define "tech/partials/jobs_list"}}
+{{define "tech_jobs_list"}}
 <div id="job-list-container" class="space-y-4 pb-24">
     {{range .Jobs}}
     {{ $status := .GetString "job_status" }}
 
-    {{ if eq $status "completed" }}
-    <!-- History Card -->
-    <a href="/tech/job/{{.Id}}" class="block group" data-job-id="{{.Id}}">
+    <!-- Status Config -->
+    {{ $borderClass := "border-l-4 border-gray-300" }}
+    {{ $statusBadgeClass := "badge-ghost" }}
+    {{ $statusLabel := "Không xác định" }}
+    {{ $actionBtnClass := "btn-outline" }}
+    {{ $actionLabel := "Chi tiết" }}
+
+    {{ if eq $status "assigned" }}
+    {{ $borderClass = "border-l-4 border-blue-500" }}
+    {{ $statusBadgeClass = "bg-blue-50 text-blue-700 border-blue-100" }}
+    {{ $statusLabel = "Mới" }}
+    {{ $actionBtnClass = "btn-primary text-white shadow-blue-200" }}
+    {{ $actionLabel = "Nhận Việc Ngay" }}
+    {{ else if eq $status "moving" }}
+    {{ $borderClass = "border-l-4 border-indigo-500" }}
+    {{ $statusBadgeClass = "bg-indigo-50 text-indigo-700 border-indigo-100" }}
+    {{ $statusLabel = "Đang Di Chuyển" }}
+    {{ $actionBtnClass = "btn-info text-white" }}
+    {{ $actionLabel = "Đã Đến Nơi" }}
+    {{ else if eq $status "arrived" }}
+    {{ $borderClass = "border-l-4 border-purple-500" }}
+    {{ $statusBadgeClass = "bg-purple-50 text-purple-700 border-purple-100" }}
+    {{ $statusLabel = "Đã Đến" }}
+    {{ $actionBtnClass = "btn-warning text-white" }}
+    {{ $actionLabel = "Bắt Đầu Làm" }}
+    {{ else if eq $status "working" }}
+    {{ $borderClass = "border-l-4 border-orange-500" }}
+    {{ $statusBadgeClass = "bg-orange-50 text-orange-700 border-orange-100" }}
+    {{ $statusLabel = "Đang Sửa" }}
+    {{ $actionBtnClass = "btn-success text-white" }}
+    {{ $actionLabel = "Hoàn Thành" }}
+    {{ else if eq $status "completed" }}
+    {{ $borderClass = "border-l-4 border-green-500" }}
+    {{ $statusBadgeClass = "bg-green-50 text-green-700 border-green-100" }}
+    {{ $statusLabel = "Hoàn Thành" }}
+    {{ end }}
+
+    <a href="/tech/job/{{.Id}}" class="block group active:scale-[0.98] transition-transform duration-200"
+        data-job-id="{{.Id}}">
         <div
-            class="card bg-white shadow-sm border border-gray-100/50 hover:border-gray-200 transition-all rounded-2xl overflow-hidden active:scale-[0.98]">
-            <div class="card-body p-4 flex-row items-center gap-4">
-                <div
-                    class="w-10 h-10 rounded-full bg-green-50 flex items-center justify-center text-green-600 shrink-0">
-                    <i class="fa-solid fa-check text-sm"></i>
+            class="card bg-white shadow-sm border border-gray-100 rounded-xl overflow-hidden hover:shadow-md transition-shadow {{ $borderClass }}">
+            <div class="card-body p-4">
+
+                <!-- Header -->
+                <div class="flex justify-between items-start mb-3">
+                    <div class="flex flex-col">
+                        <span class="font-bold text-gray-800 text-lg flex items-center gap-2">
+                            {{.DisplayTime}}
+                        </span>
+                        {{ if eq $status "assigned" }}
+                        <span class="text-xs text-red-500 font-medium animate-pulse">Cần xử lý gấp</span>
+                        {{ end }}
+                    </div>
+                    <span class="badge {{ $statusBadgeClass }} font-bold border rounded-lg px-3 py-3">
+                        {{ $statusLabel }}
+                    </span>
                 </div>
 
-                <div class="flex-1 min-w-0">
-                    <h3 class="font-semibold text-gray-900 truncate text-sm leading-tight">{{.GetString
-                        "customer_name"}}</h3>
-                    <div class="flex items-center gap-2 mt-0.5">
-                        <span class="text-xs text-gray-400 flex items-center gap-1">
-                            <i class="fa-regular fa-clock text-[10px]"></i> {{.GetString "updated"}}
-                        </span>
+                <!-- Customer -->
+                <div class="flex items-center gap-3 mb-2">
+                    <div class="avatar placeholder shrink-0">
+                        <div
+                            class="bg-gray-100 text-gray-500 rounded-xl w-10 h-10 shadow-inner flex items-center justify-center">
+                            <span class="text-lg font-bold">
+                                {{ if .GetString "customer_name" }}
+                                {{ slice (.GetString "customer_name") 0 1 }}
+                                {{ else }}?{{ end }}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="min-w-0">
+                        <h3 class="font-bold text-gray-900 truncate leading-tight">{{.GetString "customer_name"}}</h3>
+                        <p class="text-xs text-gray-500 truncate">{{.GetString "device_type"}}</p>
                     </div>
                 </div>
 
-                <div class="text-right shrink-0">
-                    <div class="font-bold text-gray-900 text-sm">{{ if .GetFloat "estimated_cost" }}{{ formatMoney
-                        (.GetFloat "estimated_cost") }}đ{{else}}-{{end}}</div>
+                <!-- Address -->
+                <div class="flex items-start gap-2 text-sm text-gray-600 mb-4 pl-1">
+                    <i class="fa-solid fa-location-dot mt-1 text-gray-400 shrink-0"></i>
+                    <span class="line-clamp-2 leading-relaxed">{{.GetString "address"}}</span>
                 </div>
+
+                <!-- Footer / Action -->
+                {{ if ne $status "completed" }}
+                <button class="btn btn-sm w-full rounded-lg font-bold border-none shadow-sm {{ $actionBtnClass }}">
+                    {{ $actionLabel }} <i class="fa-solid fa-arrow-right ml-1"></i>
+                </button>
+                {{ else }}
+                <div class="flex justify-between items-center pt-3 border-t border-gray-50">
+                    <span class="text-xs text-gray-400">Cập nhật: {{.GetString "updated" }}</span>
+                    <span class="font-bold text-green-600">
+                        {{ if .GetFloat "estimated_cost" }}
+                        {{ formatMoney (.GetFloat "estimated_cost") }}đ
+                        {{ else }}
+                        -
+                        {{ end }}
+                    </span>
+                </div>
+                {{ end }}
+
             </div>
         </div>
     </a>
 
-    {{ else }}
-    <!-- Active Job Card -->
-    <div data-job-id="{{.Id}}"
-        class="card bg-white shadow-[0_4px_20px_rgb(0,0,0,0.04)] border border-gray-100 rounded-[24px] overflow-hidden relative group transition-all hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)]">
-
-        <!-- Status Indicator -->
-        <div class="absolute top-4 right-4 z-10">
-            <span class="badge badge-sm font-bold border-none py-3 px-3 shadow-sm
-                {{ if eq $status " assigned" }}bg-yellow-50 text-yellow-700{{ else if eq $status "moving" }}bg-blue-50
-                text-blue-700{{ else if eq $status "arrived" }}bg-purple-50 text-purple-700{{ else }}bg-indigo-50
-                text-indigo-700{{ end }}">
-                {{ if eq $status "assigned" }}<i class="fa-solid fa-bell mr-1.5 animate-pulse"></i> Mới
-                {{ else if eq $status "moving" }}<i class="fa-solid fa-motorcycle mr-1.5"></i> Di chuyển
-                {{ else if eq $status "arrived" }}<i class="fa-solid fa-map-pin mr-1.5"></i> Đã đến
-                {{ else }}<i class="fa-solid fa- screwdriver-wrench mr-1.5 animate-spin-slow"></i> Đang sửa{{ end }}
-            </span>
-        </div>
-
-        <div class="card-body p-5">
-            <!-- Header -->
-            <div class="flex gap-3 mb-4 pr-20"> <!-- Pending Status width -->
-                <div class="avatar placeholder">
-                    <div class="bg-gray-100 text-gray-500 rounded-2xl w-12 h-12 shadow-inner">
-                        <span class="text-lg font-bold">{{ slice (.GetString "customer_name") 0 1 }}</span>
-                    </div>
-                </div>
-                <div class="min-w-0">
-                    <h3 class="font-bold text-lg text-gray-900 leading-tight truncate">{{.GetString "customer_name"}}
-                    </h3>
-                    <p class="text-xs text-gray-500 mt-1 font-medium">{{.GetString "booking_source"}}</p>
-                </div>
-            </div>
-
-            <!-- Info Grid -->
-            <div class="grid gap-3 mb-5">
-                <div class="flex items-start gap-3 text-sm">
-                    <div class="w-6 flex justify-center pt-0.5"><i class="fa-solid fa-location-dot text-gray-400"></i>
-                    </div>
-                    <span class="text-gray-600 font-medium leading-relaxed">{{.GetString "address"}}</span>
-                </div>
-                <div class="flex items-center gap-3 text-sm">
-                    <div class="w-6 flex justify-center"><i class="fa-regular fa-clock text-gray-400"></i></div>
-                    <span class="text-gray-600 font-medium">{{.DisplayTime}}</span>
-                </div>
-            </div>
-
-            <div class="divider my-0 mb-4 h-px bg-gray-50"></div>
-
-            <!-- Action Button -->
-            <a href="/tech/job/{{.Id}}" class="btn w-full rounded-xl border-none gap-2 text-sm font-bold shadow-lg shadow-blue-500/10 active:scale-[0.98] transition-transform
-                {{ if eq $status " assigned" }}btn-primary text-white{{ else }}bg-white border-2 border-primary
-                text-primary hover:bg-blue-50{{ end }}">
-                {{ if eq $status "assigned" }}
-                <span>NHẬN VIỆC</span> <i class="fa-solid fa-arrow-right"></i>
-                {{ else }}
-                <span>CHI TIẾT & CẬP NHẬT</span> <i class="fa-solid fa-chevron-right text-xs"></i>
-                {{ end }}
-            </a>
-        </div>
-    </div>
-    {{ end }}
-
     {{else}}
-    <div class="flex flex-col items-center justify-center py-12 text-center opacity-90">
-        <div class="w-48 h-48 mb-6 relative">
-            <img src="/assets/images/technical-empty-state.png"
-                class="w-full h-full object-contain drop-shadow-sm opacity-90">
-            <!-- decorative elements -->
-            <div class="absolute -top-4 -right-4 w-8 h-8 bg-blue-100 rounded-full blur-xl opacity-50"></div>
-            <div class="absolute bottom-0 -left-4 w-12 h-12 bg-purple-100 rounded-full blur-xl opacity-50"></div>
+    <!-- Empty State -->
+    <div class="flex flex-col items-center justify-center py-12 text-center opacity-80">
+        <div class="w-40 h-40 mb-4">
+            <img src="/assets/images/technical-empty-state.png" class="w-full h-full object-contain" alt="No jobs">
         </div>
         <h3 class="font-bold text-gray-600 text-lg">Chưa có công việc nào</h3>
-        <p class="text-gray-400 text-sm mt-2 max-w-[200px] mx-auto leading-relaxed">
-            Tuyệt vời! Bạn có thể nghỉ ngơi một chút trước khi có đơn mới.
+        <p class="text-gray-400 text-sm mt-2 max-w-[200px] mx-auto">
+            Hiện tại bạn chưa có đơn hàng nào cần xử lý.
         </p>
     </div>
     {{end}}
-
 </div>
 {{end}}

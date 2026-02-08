@@ -131,7 +131,8 @@
     <div class="h-40"></div>
 
     <!-- MAIN ACTION BUTTON (Fixed above Sticky Bar) -->
-    <div class="fixed px-4 z-50 flex justify-center pointer-events-none" style="bottom: 90px; left: 0; right: 0;"
+    <div class="fixed px-4 z-50 flex flex-col items-center justify-center pointer-events-none"
+        style="bottom: 90px; left: 0; right: 0;"
         x-data="techLocationTracking({ techId: '{{.Job.TechnicianID}}', bookingId: '{{.Job.ID}}', jobStatus: '{{.Job.JobStatus}}' })"
         @init="init()">
 
