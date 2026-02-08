@@ -61,6 +61,19 @@ type SettingsRepository interface {
 	RemoveAdminToken(token string) error // [NEW] Cleanup invalid tokens
 }
 
+// BrandRepository defines data access methods for Brands
+type BrandRepository interface {
+	GetByID(id string) (*Brand, error)
+	GetBySlug(slug string) (*Brand, error)
+	GetDefault() (*Brand, error) // For fallback or single-tenant mode
+	Create(brand *Brand) error
+	Update(brand *Brand) error
+	Delete(id string) error
+
+	// Helper
+	GetByAdminID(adminID string) (*Brand, error) // Find brand associated with an admin
+}
+
 // TimeSlotControl defines business logic for time slots
 type TimeSlotControl interface {
 	ReleaseSlot(slotID string) error

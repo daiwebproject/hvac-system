@@ -1,7 +1,19 @@
 {{ define "content" }}
 <div class="card w-96 bg-base-100 shadow-xl">
     <div class="card-body">
-        <h2 class="card-title justify-center mb-4">🔐 Đăng nhập Quản trị</h2>
+        <div class="flex justify-center mb-6">
+            {{ if and .Brand .Brand.Logo }}
+            <img src="/api/files/brands/{{.Brand.Id}}/{{.Brand.Logo}}" alt="Logo" class="h-16 object-contain">
+            {{ else }}
+            <div
+                class="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center text-white text-2xl shadow-lg">
+                <i class="fa-solid fa-snowflake"></i>
+            </div>
+            {{ end }}
+        </div>
+        <h2 class="card-title justify-center mb-4 text-slate-800">
+            {{ if .Brand }}{{ .Brand.CompanyName }}{{ else }}Đăng nhập Quản trị{{ end }}
+        </h2>
 
         <form action="/login" method="POST" class="space-y-4">
             <input type="email" name="email" placeholder="Email Admin" class="input input-bordered w-full" required />

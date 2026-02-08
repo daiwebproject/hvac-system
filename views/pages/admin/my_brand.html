@@ -1,0 +1,244 @@
+{{ define "content" }}
+<div class="p-6">
+    <div class="flex justify-between items-center mb-6">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-800">Cấu Hình Thương Hiệu</h1>
+            <p class="text-slate-500 text-sm mt-1">Tùy chỉnh giao diện, thông tin và SEO cho cửa hàng của bạn.</p>
+        </div>
+        <div class="flex gap-2">
+            <a href="/?preview=true" target="_blank" class="btn btn-ghost btn-sm text-blue-600">
+                <i class="fa-solid fa-eye mr-1"></i> Xem Trang Chủ
+            </a>
+            <button type="submit" form="brandForm" class="btn btn-primary btn-sm px-6">
+                <i class="fa-solid fa-save mr-1"></i> Lưu Thay Đổi
+            </button>
+        </div>
+    </div>
+
+    {{ if .Success }}
+    <div class="alert alert-success shadow-lg mb-6">
+        <div>
+            <i class="fa-solid fa-circle-check"></i>
+            <span>Đã lưu cấu hình thành công!</span>
+        </div>
+    </div>
+    {{ end }}
+
+    <form id="brandForm" action="/admin/my-brand" method="POST" enctype="multipart/form-data" class="space-y-6">
+        <!-- Hidden Inputs -->
+        <input type="hidden" name="id" value="{{.Brand.Id}}">
+
+        <!-- Tabs -->
+        <div role="tablist" class="tabs tabs-lifted tabs-lg">
+
+            <!-- TAB 1: THÔNG TIN CHUNG -->
+            <input type="radio" name="my_tabs_2" role="tab" class="tab font-bold" aria-label="Thông Tin" checked />
+            <div role="tabpanel" class="tab-content bg-base-100 border-base-300 rounded-box p-6 shadow-sm">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Logo Upload -->
+                    <div class="form-control">
+                        <label class="label font-bold text-slate-700">Logo Thương Hiệu</label>
+                        <div class="flex items-center gap-4">
+                            <div class="avatar placeholder">
+                                <div
+                                    class="bg-neutral text-neutral-content rounded-xl w-24 h-24 ring ring-slate-200 ring-offset-2">
+                                    {{ if .Brand.Logo }}
+                                    <img src="/api/files/brands/{{.Brand.Id}}/{{.Brand.Logo}}" alt="Logo">
+                                    {{ else }}
+                                    <span class="text-3xl font-bold">{{ slice .Brand.CompanyName 0 1 }}</span>
+                                    {{ end }}
+                                </div>
+                            </div>
+                            <div class="flex-1">
+                                <input type="file" name="logo"
+                                    class="file-input file-input-bordered file-input-sm w-full max-w-xs"
+                                    accept="image/*" />
+                                <p class="text-xs text-slate-400 mt-2">Định dạng: PNG, JPG (Nên dùng ảnh vuông hoặc
+                                    trong suốt)</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Icon / Favicon Upload -->
+                    <div class="form-control">
+                        <label class="label font-bold text-slate-700">Biểu tượng (Icon/Favicon)</label>
+                        <div class="flex items-center gap-4">
+                            <div class="avatar placeholder">
+                                <div
+                                    class="bg-neutral text-neutral-content rounded-xl w-16 h-16 ring ring-slate-200 ring-offset-2">
+                                    {{ if .Brand.Icon }}
+                                    <img src="/api/files/brands/{{.Brand.Id}}/{{.Brand.Icon}}" alt="Icon">
+                                    {{ else }}
+                                    <i class="fa-solid fa-shapes text-2xl"></i>
+                                    {{ end }}
+                                </div>
+                            </div>
+                            <div class="flex-1">
+                                <input type="file" name="icon"
+                                    class="file-input file-input-bordered file-input-sm w-full max-w-xs"
+                                    accept="image/*" />
+                                <p class="text-xs text-slate-400 mt-2">Icon hiển thị trên tab trình duyệt và App
+                                    (192x192px trở lên).</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Company Name -->
+                    <div class="form-control">
+                        <label class="label font-bold text-slate-700">Tên Cửa Hàng / Công Ty</label>
+                        <input type="text" name="company_name" value="{{.Brand.CompanyName}}"
+                            class="input input-bordered" placeholder="VD: Điện Lạnh Hùng Phát">
+                    </div>
+
+                    <!-- Hotline -->
+                    <div class="form-control">
+                        <label class="label font-bold text-slate-700">Hotline / Zalo</label>
+                        <input type="text" name="hotline" value="{{.Brand.Hotline}}" class="input input-bordered"
+                            placeholder="VD: 0912 345 678">
+                    </div>
+
+                    <!-- Address -->
+                    <div class="form-control">
+                        <label class="label font-bold text-slate-700">Địa Chỉ Văn Phòng</label>
+                        <input type="text" name="address" value="{{.Brand.Address}}" class="input input-bordered"
+                            placeholder="VD: 123 Nguyễn Thị Thập, Q.7">
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 2: TRANG CHỦ (HERO) -->
+            <input type="radio" name="my_tabs_2" role="tab" class="tab font-bold" aria-label="Trang Chủ" />
+            <div role="tabpanel" class="tab-content bg-base-100 border-base-300 rounded-box p-6 shadow-sm">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="col-span-2">
+                        <label class="label font-bold text-slate-700">Ảnh Bìa (Hero Image)</label>
+                        <div
+                            class="h-48 w-full bg-slate-100 rounded-xl overflow-hidden relative border border-slate-200 group">
+                            {{ if .Brand.HeroImage }}
+                            <img src="/api/files/brands/{{.Brand.Id}}/{{.Brand.HeroImage}}"
+                                class="w-full h-full object-cover">
+                            {{ else }}
+                            <div class="flex items-center justify-center w-full h-full text-slate-400">
+                                <i class="fa-solid fa-image text-4xl"></i>
+                            </div>
+                            {{ end }}
+                            <div
+                                class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                <input type="file" name="hero_image" class="file-input file-input-ghost text-white"
+                                    accept="image/*">
+                            </div>
+                        </div>
+                        <p class="text-xs text-slate-400 mt-1">Ảnh nền lớn đầu trang chủ. Kích thước gợi ý: 1920x800px.
+                        </p>
+                    </div>
+
+                    <div class="form-control">
+                        <label class="label font-bold text-slate-700">Tiêu đề lớn (Headline)</label>
+                        <input type="text" name="hero_title" value="{{.Brand.HeroTitle}}" class="input input-bordered"
+                            placeholder="VD: GIẢI PHÁP ĐIỆN LẠNH">
+                    </div>
+
+                    <div class="form-control">
+                        <label class="label font-bold text-slate-700">Tiêu đề phụ (Subtitle)</label>
+                        <input type="text" name="hero_subtitle" value="{{.Brand.HeroSubtitle}}"
+                            class="input input-bordered" placeholder="VD: CHUYÊN NGHIỆP - TẬN TÂM">
+                    </div>
+
+                    <div class="form-control col-span-2">
+                        <label class="label font-bold text-slate-700">Lời Chào (Welcome Text)</label>
+                        <textarea name="welcome_text" class="textarea textarea-bordered h-24"
+                            placeholder="Giới thiệu ngắn gọn về dịch vụ của bạn...">{{.Brand.WelcomeText}}</textarea>
+                    </div>
+
+                    <div class="form-control">
+                        <label class="label font-bold text-slate-700">Nút Kêu Gọi (CTA Text)</label>
+                        <input type="text" name="hero_cta_text" value="{{.Brand.HeroCtaText}}"
+                            class="input input-bordered" placeholder="VD: ĐẶT LỊCH NGAY">
+                    </div>
+
+                    <div class="form-control">
+                        <label class="label font-bold text-slate-700">Link Nút Kêu Gọi</label>
+                        <input type="text" name="hero_cta_link" value="{{.Brand.HeroCtaLink}}"
+                            class="input input-bordered" placeholder="VD: #services (để cuộn xuống) hoặc link Zalo">
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 3: SEO & CẤU HÌNH -->
+            <input type="radio" name="my_tabs_2" role="tab" class="tab font-bold" aria-label="SEO & Google" />
+            <div role="tabpanel" class="tab-content bg-base-100 border-base-300 rounded-box p-6 shadow-sm">
+                <div class="space-y-4 max-w-2xl">
+                    <div class="alert alert-info py-2 text-sm">
+                        <i class="fa-solid fa-circle-info"></i>
+                        <span>Thông tin này giúp khách hàng tìm thấy bạn trên Google.</span>
+                    </div>
+
+                    <div class="form-control">
+                        <label class="label font-bold text-slate-700">Tiêu đề trang (SEO Title)</label>
+                        <input type="text" name="seo_title" value="{{.Brand.SeoTitle}}" class="input input-bordered"
+                            placeholder="VD: Điện Lạnh Hùng Phát - Sửa Chữa Tại Nhà Quận 7">
+                        <label class="label">
+                            <span class="label-text-alt text-slate-400">Xem trước: <span
+                                    class="font-bold text-blue-700">{{.Brand.SeoTitle}}</span></span>
+                        </label>
+                    </div>
+
+                    <div class="form-control">
+                        <label class="label font-bold text-slate-700">Mô tả (Meta Description)</label>
+                        <textarea name="seo_description" class="textarea textarea-bordered h-24"
+                            placeholder="Mô tả ngắn gọn dịch vụ của bạn để hiển thị trên kết quả tìm kiếm Google...">{{.Brand.SeoDescription}}</textarea>
+                    </div>
+
+                    <div class="form-control">
+                        <label class="label font-bold text-slate-700">Từ khóa (Keywords)</label>
+                        <input type="text" name="seo_keywords" value="{{.Brand.SeoKeywords}}"
+                            class="input input-bordered" placeholder="VD: sửa máy lạnh, vệ sinh máy lạnh, quận 7, hcm">
+                        <p class="text-xs text-slate-400 mt-1">Cách nhau bằng dấu phẩy.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 4: NGÂN HÀNG (QR CODE) -->
+            <input type="radio" name="my_tabs_2" role="tab" class="tab font-bold" aria-label="Thanh Toán" />
+            <div role="tabpanel" class="tab-content bg-base-100 border-base-300 rounded-box p-6 shadow-sm">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="form-control">
+                        <label class="label font-bold text-slate-700">Ngân Hàng (Bin ID)</label>
+                        <input type="text" name="bank_bin" value="{{.Brand.BankBin}}" class="input input-bordered"
+                            placeholder="VD: 970422 (MB Bank)">
+                        <p class="text-xs text-slate-400 mt-1"><a href="https://api.vietqr.io/v2/banks" target="_blank"
+                                class="link link-primary">Tra cứu mã BIN</a></p>
+                    </div>
+
+                    <div class="form-control">
+                        <label class="label font-bold text-slate-700">Số Tài Khoản</label>
+                        <input type="text" name="bank_account" value="{{.Brand.BankAccount}}"
+                            class="input input-bordered">
+                    </div>
+
+                    <div class="form-control">
+                        <label class="label font-bold text-slate-700">Tên Chủ Tài Khoản</label>
+                        <input type="text" name="bank_owner" value="{{.Brand.BankOwner}}"
+                            class="input input-bordered uppercase">
+                    </div>
+
+                    <div class="form-control">
+                        <label class="label font-bold text-slate-700">Mẫu QR (Template)</label>
+                        <select name="qr_template" class="select select-bordered">
+                            <option value="compact" {{if eq .Brand.QrTemplate "compact" }}selected{{end}}>Compact (Nhỏ
+                                gọn)</option>
+                            <option value="compact2" {{if eq .Brand.QrTemplate "compact2" }}selected{{end}}>Compact 2
+                            </option>
+                            <option value="qr_only" {{if eq .Brand.QrTemplate "qr_only" }}selected{{end}}>QR Only
+                            </option>
+                            <option value="print" {{if eq .Brand.QrTemplate "print" }}selected{{end}}>Print (In ấn)
+                            </option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </form>
+</div>
+{{ end }}

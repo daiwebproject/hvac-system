@@ -37,12 +37,7 @@ func RegisterRoutes(pb *pocketbase.PocketBase, c *internalApp.Container) {
 			return e.FileFS(os.DirFS("."), "service-worker.js")
 		})
 
-		// B. Service Main Manifests (from root)
-		se.Router.GET("/manifest.json", func(e *core.RequestEvent) error {
-			e.Response.Header().Set("Content-Type", "application/json")
-			e.Response.Header().Set("Cache-Control", "no-cache")
-			return e.FileFS(os.DirFS("./assets"), "manifest.json")
-		})
+		// B. Service Main Manifests (Dynamic - Moved to Public Routes)
 
 		se.Router.GET("/manifest-admin.json", func(e *core.RequestEvent) error {
 			e.Response.Header().Set("Content-Type", "application/json")
@@ -81,6 +76,7 @@ func RegisterRoutes(pb *pocketbase.PocketBase, c *internalApp.Container) {
 			AnalyticsService: c.AnalyticsService,
 			UIComponents:     c.UIComponents,
 			SettingsRepo:     c.SettingsRepo,
+			BrandRepo:        c.BrandRepo,
 			FCMService:       c.FCMService,
 		}
 
@@ -131,6 +127,7 @@ func RegisterRoutes(pb *pocketbase.PocketBase, c *internalApp.Container) {
 			App:            pb,
 			Templates:      c.Templates,
 			InvoiceService: c.InvoiceService,
+			BrandRepo:      c.BrandRepo,
 		}
 
 		// Location handlers from Container
@@ -140,6 +137,7 @@ func RegisterRoutes(pb *pocketbase.PocketBase, c *internalApp.Container) {
 		// ---------------------------------------------------------
 		// 4. PUBLIC ROUTES
 		// ---------------------------------------------------------
+		se.Router.GET("/manifest.json", public.GetManifest) // [NEW] Dynamic Manifest
 		se.Router.GET("/", public.Index)
 		se.Router.GET("/services/{id}", public.ServiceDetail)
 		se.Router.GET("/book", web.BookingPage)
@@ -181,7 +179,12 @@ func RegisterRoutes(pb *pocketbase.PocketBase, c *internalApp.Container) {
 		adminGroup.GET("/", admin.Dashboard)
 		adminGroup.GET("/stream", admin.Stream)
 		adminGroup.GET("/settings", admin.ShowSettings)
+
 		adminGroup.POST("/settings", admin.UpdateSettings)
+
+		// [NEW] SaaS Brand Management
+		adminGroup.GET("/my-brand", admin.MyBrand)
+		adminGroup.POST("/my-brand", admin.MyBrandSave)
 
 		// History page and search API
 		adminGroup.GET("/history", admin.ShowHistory)

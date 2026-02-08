@@ -38,6 +38,7 @@ type Container struct {
 	ServiceRepo   domain.ServiceRepository
 	AnalyticsRepo domain.AnalyticsRepository
 	SettingsRepo  *repository.SettingsRepo // Concrete type for handler compatibility
+	BrandRepo     domain.BrandRepository   // [NEW] SaaS Brand Management
 
 	// Domain Services (Business Logic)
 	BookingService   domain.BookingService
@@ -83,6 +84,7 @@ func NewContainer(pb *pocketbase.PocketBase) (*Container, error) {
 	c.ServiceRepo = repository.NewServiceRepo(pb)
 	c.AnalyticsRepo = repository.NewAnalyticsRepo(pb)
 	c.SettingsRepo = repository.NewSettingsRepo(pb)
+	c.BrandRepo = repository.NewBrandRepo(pb)
 
 	// 4. External Services (from new packages)
 	c.LocationCache = cache.NewLocationCache()

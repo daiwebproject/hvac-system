@@ -10,7 +10,7 @@
             <div class="flex-shrink-0 flex items-center gap-3">
                 <a href="/" class="group flex items-center gap-3 transition-all hover:opacity-90">
                     {{ if and .Settings .Settings.Logo }}
-                    <img src="/api/files/settings/{{.Settings.Id}}/{{.Settings.Logo}}" alt="{{.Settings.CompanyName}}"
+                    <img src="/api/files/brands/{{.Settings.Id}}/{{.Settings.Logo}}" alt="{{.Settings.CompanyName}}"
                         class="h-10 w-auto object-contain transition-transform duration-300 group-hover:scale-105">
                     {{ else }}
                     <div

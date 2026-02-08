@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"time"
 
+	domain "hvac-system/internal/core"
 	"hvac-system/pkg/services"
 
 	"github.com/pocketbase/pocketbase/core"
@@ -17,6 +18,7 @@ type PublicHandler struct {
 	App            core.App
 	Templates      *template.Template
 	InvoiceService *services.InvoiceService
+	BrandRepo      domain.BrandRepository // [NEW] Link to Brand
 }
 
 // Index renders the homepage with dynamic data
@@ -25,15 +27,19 @@ func (h *PublicHandler) Index(e *core.RequestEvent) error {
 	// 1. Get active Services
 	services, _ := h.App.FindRecordsByFilter("services", "active=true", "-created", 100, 0, nil)
 
-	// 2. Get System Settings
-	settings, _ := h.App.FindFirstRecordByData("settings", "active", true)
+	// 2. Get Brand (SaaS)
+	brand, err := h.BrandRepo.GetDefault()
+	if err != nil {
+		fmt.Printf("⚠️ Default brand not found: %v\n", err)
+	}
 
 	// 3. Prepare Data
 	data := map[string]interface{}{
 		"Services": services,
-		// Truyền cả 2 key để tương thích với code cũ và mới
-		"Settings":     settings, // Dùng cho base.html (SEO, Header, Footer)
-		"PageSettings": settings, // Dùng cho index.html (Hero section)
+		"Brand":    brand, // New standard
+		// Compatibility aliases for templates
+		"Settings":     brand,
+		"PageSettings": brand,
 	}
 
 	return RenderPage(h.Templates, e, "layouts/base.html", "public/index.html", data)
@@ -76,8 +82,8 @@ func (h *PublicHandler) ShowInvoice(e *core.RequestEvent) error {
 	// 4. Fetch Job Parts (Materials)
 	items, _ := h.App.FindRecordsByFilter("invoice_items", fmt.Sprintf("invoice_id='%s'", invoice.Id), "", 100, 0, nil)
 
-	// 5. Fetch Settings
-	settingsRecord, _ := h.App.FindFirstRecordByData("settings", "active", true)
+	// 5. Fetch Brand (SaaS)
+	brand, _ := h.BrandRepo.GetDefault()
 
 	// 6. Fetch Technician (Keeping existing logic)
 	techID := booking.GetString("technician_id")
@@ -90,7 +96,8 @@ func (h *PublicHandler) ShowInvoice(e *core.RequestEvent) error {
 		"Parts":    items, // Mapping 'Items' to 'Parts' in template or vice versa. Template uses .Items
 		"Items":    items,
 		"Report":   report,
-		"Settings": settingsRecord,
+		"Settings": brand, // Keep legacy key for layout compatibility
+		"Brand":    brand,
 	}
 
 	return RenderPage(h.Templates, e, "invoice_view", "public/invoice_view.html", data)
@@ -147,10 +154,15 @@ func (h *PublicHandler) ServiceDetail(e *core.RequestEvent) error {
 	// Convert HTML content to template.HTML for safe rendering
 	detailContent := service.GetString("detail_content")
 
+	// Fetch Brand for layout
+	brand, _ := h.BrandRepo.GetDefault()
+
 	data := map[string]interface{}{
 		"Service":           service,
 		"OtherServices":     otherServices,
 		"DetailContentHTML": template.HTML(detailContent),
+		"Settings":          brand, // For base.html
+		"Brand":             brand,
 	}
 
 	return RenderPage(h.Templates, e, "layouts/base.html", "public/service_detail.html", data)
@@ -254,4 +266,61 @@ func (h *PublicHandler) Geocode(e *core.RequestEvent) error {
 	}
 
 	return e.JSON(200, result)
+}
+
+// -------------------------------------------------------------------
+// BRANDING & ASSETS
+// -------------------------------------------------------------------
+
+// GetManifest serves dynamic PWA manifest
+// GET /manifest.json
+func (h *PublicHandler) GetManifest(e *core.RequestEvent) error {
+	// 1. Determine Brand (Phase 2: Check URL/Cookie)
+	// Phase 1 fallback: Get Default Brand
+	var brand *domain.Brand
+	var err error
+
+	if h.BrandRepo != nil {
+		brand, err = h.BrandRepo.GetDefault()
+	}
+
+	// Default fallback values
+	name := "HVAC System"
+	shortName := "HVAC"
+	iconPath := "/assets/images/logo.png" // Default default
+
+	if err == nil && brand != nil {
+		if brand.CompanyName != "" {
+			name = brand.CompanyName
+			shortName = brand.CompanyName // Or truncate?
+		}
+		if brand.Icon != "" {
+			iconPath = fmt.Sprintf("/api/files/brands/%s/%s", brand.Id, brand.Icon)
+		} else if brand.Logo != "" {
+			iconPath = fmt.Sprintf("/api/files/brands/%s/%s", brand.Id, brand.Logo)
+		}
+	}
+
+	manifest := map[string]interface{}{
+		"name":             name,
+		"short_name":       shortName,
+		"start_url":        "/",
+		"display":          "standalone",
+		"background_color": "#ffffff",
+		"theme_color":      "#0284c7", // Customize later?
+		"icons": []map[string]string{
+			{
+				"src":   iconPath,
+				"sizes": "192x192",
+				"type":  "image/png",
+			},
+			{
+				"src":   iconPath,
+				"sizes": "512x512",
+				"type":  "image/png",
+			},
+		},
+	}
+
+	return e.JSON(200, manifest)
 }

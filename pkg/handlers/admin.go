@@ -30,11 +30,19 @@ type AdminHandler struct {
 	AnalyticsService domain.AnalyticsService
 	UIComponents     *ui.Components
 	SettingsRepo     *repository.SettingsRepo // [NEW]
+	BrandRepo        domain.BrandRepository   // [NEW] SaaS Brand Management
 	FCMService       *notification.FCMService // [NEW] FCM Push Notifications
 }
 
 func (h *AdminHandler) ShowLogin(e *core.RequestEvent) error {
-	return RenderPage(h.Templates, e, "layouts/auth.html", "public/login.html", nil)
+	// Fetch Brand for logo on login page
+	var brand *domain.Brand
+	if h.BrandRepo != nil {
+		brand, _ = h.BrandRepo.GetDefault()
+	}
+	return RenderPage(h.Templates, e, "layouts/auth.html", "public/login.html", map[string]interface{}{
+		"Brand": brand,
+	})
 }
 
 func (h *AdminHandler) ProcessLogin(e *core.RequestEvent) error {
@@ -43,8 +51,14 @@ func (h *AdminHandler) ProcessLogin(e *core.RequestEvent) error {
 
 	superuser, err := h.App.FindAuthRecordByEmail("_superusers", email)
 	if err != nil || !superuser.ValidatePassword(password) {
-		return RenderPage(h.Templates, e, "layouts/auth.html", "public/login.html", map[string]string{
+		// Fetch Brand for logo on login page re-render
+		var brand *domain.Brand
+		if h.BrandRepo != nil {
+			brand, _ = h.BrandRepo.GetDefault()
+		}
+		return RenderPage(h.Templates, e, "layouts/auth.html", "public/login.html", map[string]interface{}{
 			"Error": "Sai email hoặc mật khẩu!",
+			"Brand": brand,
 		})
 	}
 
@@ -1359,4 +1373,142 @@ func (h *AdminHandler) ActiveBookings(e *core.RequestEvent) error {
 	}
 
 	return e.JSON(http.StatusOK, bookingsJSON)
+}
+
+// -------------------------------------------------------------------
+// BRAND MANAGEMENT HANDLERS (SaaS / Self-Service)
+// -------------------------------------------------------------------
+
+// GET /admin/my-brand
+func (h *AdminHandler) MyBrand(e *core.RequestEvent) error {
+	admin := e.Auth
+	if admin == nil {
+		return e.Redirect(http.StatusSeeOther, "/login")
+	}
+
+	// 1. Get Brand for this Admin
+	// Validates if this admin owns a brand or uses default
+	var brand *domain.Brand
+	var err error
+
+	if h.BrandRepo != nil {
+		brand, err = h.BrandRepo.GetByAdminID(admin.Id)
+		if err != nil {
+			// If no brand found, try to create one or use default?
+			// PROVISIONAL: Log error and show empty/error
+			fmt.Printf("⚠️ No brand found for admin %s: %v\n", admin.Id, err)
+			return e.String(404, "Bạn chưa được gán Thương hiệu nào. Vui lòng liên hệ Super Admin.")
+		}
+	} else {
+		return e.String(503, "Tính năng chưa khả dụng (Repo missing)")
+	}
+
+	data := map[string]interface{}{
+		"Brand":   brand,
+		"IsAdmin": true,
+		"Success": e.Request.URL.Query().Get("success") == "true",
+	}
+
+	return RenderPage(h.Templates, e, "layouts/admin.html", "admin/my_brand.html", data)
+}
+
+// POST /admin/my-brand
+func (h *AdminHandler) MyBrandSave(e *core.RequestEvent) error {
+	admin := e.Auth
+	if admin == nil {
+		return e.Redirect(http.StatusSeeOther, "/login")
+	}
+
+	// 1. Get Current Brand (Security Check)
+	currentBrand, err := h.BrandRepo.GetByAdminID(admin.Id)
+	if err != nil {
+		return e.String(403, "Không có quyền truy cập thương hiệu này")
+	}
+
+	// 2. Update Fields
+	// NOTE: We do NOT update ID or Slug here. Admin cannot change their own slug.
+
+	// Identity
+	currentBrand.CompanyName = e.Request.FormValue("company_name")
+	currentBrand.Hotline = e.Request.FormValue("hotline")
+	currentBrand.Address = e.Request.FormValue("address")
+
+	// Hero
+	currentBrand.HeroTitle = e.Request.FormValue("hero_title")
+	currentBrand.HeroSubtitle = e.Request.FormValue("hero_subtitle")
+	currentBrand.HeroCtaText = e.Request.FormValue("hero_cta_text")
+	currentBrand.HeroCtaLink = e.Request.FormValue("hero_cta_link")
+	currentBrand.WelcomeText = e.Request.FormValue("welcome_text")
+
+	// SEO
+	currentBrand.SeoTitle = e.Request.FormValue("seo_title")
+	currentBrand.SeoDescription = e.Request.FormValue("seo_description")
+	currentBrand.SeoKeywords = e.Request.FormValue("seo_keywords")
+
+	// Bank
+	currentBrand.BankBin = e.Request.FormValue("bank_bin")
+	currentBrand.BankAccount = e.Request.FormValue("bank_account")
+	currentBrand.BankOwner = e.Request.FormValue("bank_owner")
+	currentBrand.QrTemplate = e.Request.FormValue("qr_template")
+
+	// 3. Handle File Uploads (Logo & Hero)
+	// Use PocketBase 'FindUploadedFiles' - but we need to update the Record directly for files
+	// because repo.Update() might not handle file streams efficiently if we just set string paths.
+	// Actually, best practice with PB: Get the underlying Record, set fields, and Save.
+	// The Repo.Update implementation maps Model -> Record.
+	// BUT for files, we need to handle them attached to the request.
+
+	brandRecord, err := h.App.FindRecordById("brands", currentBrand.Id)
+	if err != nil {
+		return e.String(500, "Error finding brand record")
+	}
+
+	// Manually update non-file fields on record for consistency
+	h.BrandRepo.(*repository.BrandRepo).App = h.App // Verify linkage
+	// Helper to map back (or just use repo)
+	// We will settle on updating the Record directly here for Files, then use Repo for text?
+	// Simpler: Just Update Record directly here since we have complex file logic.
+
+	formFiles, _ := e.FindUploadedFiles("logo")
+	if len(formFiles) > 0 {
+		brandRecord.Set("logo", formFiles[0])
+	}
+
+	iconFiles, _ := e.FindUploadedFiles("icon")
+	if len(iconFiles) > 0 {
+		brandRecord.Set("icon", iconFiles[0])
+	}
+
+	heroFiles, _ := e.FindUploadedFiles("hero_image")
+	if len(heroFiles) > 0 {
+		brandRecord.Set("hero_image", heroFiles[0])
+	}
+
+	// Map text fields to record
+	brandRecord.Set("company_name", currentBrand.CompanyName)
+	brandRecord.Set("hotline", currentBrand.Hotline)
+	brandRecord.Set("address", currentBrand.Address)
+
+	brandRecord.Set("hero_title", currentBrand.HeroTitle)
+	brandRecord.Set("hero_subtitle", currentBrand.HeroSubtitle)
+	brandRecord.Set("hero_cta_text", currentBrand.HeroCtaText)
+	brandRecord.Set("hero_cta_link", currentBrand.HeroCtaLink)
+	brandRecord.Set("welcome_text", currentBrand.WelcomeText)
+
+	brandRecord.Set("seo_title", currentBrand.SeoTitle)
+	brandRecord.Set("seo_description", currentBrand.SeoDescription)
+	brandRecord.Set("seo_keywords", currentBrand.SeoKeywords)
+
+	brandRecord.Set("bank_bin", currentBrand.BankBin)
+	brandRecord.Set("bank_account", currentBrand.BankAccount)
+	brandRecord.Set("bank_owner", currentBrand.BankOwner)
+	brandRecord.Set("qr_template", currentBrand.QrTemplate)
+
+	// 4. Save
+	if err := h.App.Save(brandRecord); err != nil {
+		fmt.Printf("Error saving brand: %v\n", err)
+		return e.String(500, "Lỗi lưu dữ liệu: "+err.Error())
+	}
+
+	return e.Redirect(http.StatusSeeOther, "/admin/my-brand?success=true")
 }
